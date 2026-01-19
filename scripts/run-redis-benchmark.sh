@@ -64,7 +64,7 @@ deploy_server() {
   fi
 
   echo "  [DEPLOY] redis-server-${safe_name}"
-  sed -e "s|\${INSTANCE_TYPE//./-}|${safe_name}|g" \
+  sed -e "s/INSTANCE_SAFE/${safe_name}/g" \
       -e "s|\${INSTANCE_TYPE}|${instance}|g" \
       "$SERVER_TEMPLATE" | kubectl apply -f - 2>/dev/null || true
 }
@@ -93,9 +93,11 @@ start_benchmark() {
   fi
 
   echo "  [START] $instance"
-  sed -e "s|\${INSTANCE_TYPE//./-}|${safe_name}|g" \
-      -e "s|\${INSTANCE_TYPE}|${instance}|g" \
-      "$BENCHMARK_TEMPLATE" | kubectl apply -f - 2>/dev/null || true
+  cat "$BENCHMARK_TEMPLATE" | \
+      sed "s/JOB_NAME/redis-benchmark-${safe_name}/g" | \
+      sed "s/INSTANCE_SAFE/${safe_name}/g" | \
+      sed "s/\${INSTANCE_TYPE}/${instance}/g" | \
+      kubectl apply -f - 2>/dev/null || true
 
   STARTED[$instance]=1
 }

@@ -1,5 +1,5 @@
 # Spring Boot Cold Start Benchmark
-# Measures JVM startup time until application is ready
+# Measures full application startup time (JVM + Spring + App)
 ---
 apiVersion: batch/v1
 kind: Job
@@ -11,7 +11,7 @@ metadata:
     instance-type: "INSTANCE_TYPE"
 spec:
   ttlSecondsAfterFinished: 600
-  backoffLimit: 1
+  backoffLimit: 0
   template:
     metadata:
       labels:
@@ -19,6 +19,7 @@ spec:
         instance-type: "INSTANCE_TYPE"
     spec:
       restartPolicy: Never
+      shareProcessNamespace: true
       nodeSelector:
         node.kubernetes.io/instance-type: INSTANCE_TYPE
         kubernetes.io/arch: ARCH
@@ -43,21 +44,20 @@ spec:
             - containerPort: 8080
           env:
             - name: JAVA_OPTS
-              value: "-Xms2g -Xmx4g -XX:+UseG1GC"
-          resources:
-            requests:
-              cpu: "2"
-              memory: "4Gi"
-            limits:
-              cpu: "4"
-              memory: "6Gi"
+              value: "-XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC"
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 2
-        # Benchmark sidecar - measures startup time
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+        # Benchmark sidecar
         - name: benchmark
           image: public.ecr.aws/docker/library/alpine:3.19
           command: ["/bin/sh", "-c"]
@@ -92,11 +92,20 @@ spec:
 
               if [ "$READY" = "false" ]; then
                 echo "TIMEOUT: Application did not start within ${MAX_WAIT}s"
+                # Kill springboot process before exit
+                pkill -f java 2>/dev/null || true
+                sleep 2
                 exit 1
               fi
 
               echo ""
               echo "===== Complete ====="
+
+              # Kill springboot process to complete the job
+              # shareProcessNamespace: true allows killing processes in other containers
+              sleep 2
+              pkill -f java 2>/dev/null || true
+              sleep 2
           resources:
             requests:
               cpu: "500m"

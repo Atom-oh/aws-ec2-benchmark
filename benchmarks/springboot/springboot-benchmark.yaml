@@ -1,80 +1,5 @@
-# Spring Boot Benchmark Job
-# JVM Startup Time 및 HTTP Throughput 측정
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: springboot-startup-INSTANCE_SAFE
-  namespace: benchmark
-  labels:
-    benchmark: springboot-startup
-    instance-type: "${INSTANCE_TYPE}"
-spec:
-  ttlSecondsAfterFinished: 3600
-  backoffLimit: 0
-  template:
-    metadata:
-      labels:
-        benchmark: springboot-startup
-        instance-type: "${INSTANCE_TYPE}"
-    spec:
-      restartPolicy: Never
-      nodeSelector:
-        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
-      tolerations:
-        - key: "benchmark"
-          operator: "Equal"
-          value: "true"
-          effect: "NoSchedule"
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: benchmark
-                    operator: Exists
-              topologyKey: "kubernetes.io/hostname"
-      containers:
-        - name: startup-timer
-          # 간단한 Spring Boot 앱으로 startup time 측정
-          image: public.ecr.aws/amazoncorretto/amazoncorretto:21
-          resources: {}
-          command:
-            - /bin/sh
-            - -c
-            - |
-              echo "===== Spring Boot JVM Startup Time Measurement ====="
-              echo "Instance Type: ${INSTANCE_TYPE}"
-              echo ""
-
-              # JVM 정보 출력
-              java -version 2>&1
-              echo ""
-
-              # Startup time은 Pod events에서 측정
-              # 여기서는 JVM 자체 startup time 측정
-              echo "--- JVM Startup Time (empty main) ---"
-              for i in 1 2 3 4 5; do
-                START=$(date +%s%3N)
-                java -version 2>&1 > /dev/null
-                END=$(date +%s%3N)
-                echo "Run $i: $((END - START))ms"
-              done
-
-              echo ""
-              echo "--- JVM with common flags ---"
-              for i in 1 2 3; do
-                START=$(date +%s%3N)
-                java -XX:+UseG1GC -Xms128m -Xmx256m -version 2>&1 > /dev/null
-                END=$(date +%s%3N)
-                echo "Run $i: $((END - START))ms"
-              done
-
-              echo ""
-              echo "===== JVM Startup Measurement Complete ====="
-          env:
-            - name: INSTANCE_TYPE
-              value: "${INSTANCE_TYPE}"
+# Spring Boot Benchmark Job (wrk)
+# HTTP Throughput 측정 - wrk를 사용하여 Spring Boot 서버 성능 테스트
 ---
 apiVersion: batch/v1
 kind: Job
@@ -102,6 +27,21 @@ spec:
           operator: Equal
           value: "true"
           effect: NoSchedule
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: springboot-server
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
       initContainers:
         - name: wait-for-springboot
           image: public.ecr.aws/docker/library/alpine:latest
@@ -123,9 +63,6 @@ spec:
           image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/wrk:latest
           resources:
             requests:
-              cpu: "1500m"
-              memory: "4Gi"
-            limits:
               cpu: "1500m"
               memory: "4Gi"
           command:

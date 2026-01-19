@@ -72,7 +72,12 @@ spec:
               START_TIME=$(date +%s%N | cut -b1-13)
               echo "START_TIME_MS: $START_TIME"
 
-              sudo -u elasticsearch ES_JAVA_OPTS="-Xms2g -Xmx4g" ./bin/elasticsearch -d -p /tmp/es.pid
+              # Calculate 60% of available memory for ES heap
+              TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+              HEAP_MB=$((TOTAL_MEM_KB * 60 / 100 / 1024))
+              echo "Total memory: $((TOTAL_MEM_KB/1024))MB, ES Heap: ${HEAP_MB}MB (60%)"
+
+              sudo -u elasticsearch ES_JAVA_OPTS="-Xms${HEAP_MB}m -Xmx${HEAP_MB}m" ./bin/elasticsearch -d -p /tmp/es.pid
 
               # Wait for ES HTTP
               echo ""
@@ -222,7 +227,7 @@ spec:
           resources:
             requests:
               cpu: "2"
-              memory: "5Gi"
+              memory: "2Gi"
             limits:
               cpu: "4"
-              memory: "6Gi"
+              # memory limit not set - ES will use 60% of node memory

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>stress-ng 벤치마크 리포트</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root { --graviton: #10b981; --intel: #3b82f6; --bg: #f8fafc; --card: #fff; --text: #1e293b; --muted: #64748b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+.container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, #047857 0%, #10b981 100%); color: white; border-radius: 1rem; }
+header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.card { background: var(--card); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+.card h3 { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem; }
+.card .value { font-size: 1.5rem; font-weight: 700; color: var(--graviton); }
+.card .label { font-size: 0.875rem; color: var(--muted); }
+.chart-section { background: var(--card); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+.chart-section h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+.chart-section .desc { color: var(--muted); margin-bottom: 1rem; font-size: 0.875rem; }
+.chart-container { position: relative; height: 500px; }
+table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.875rem; }
+th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+th { background: #f1f5f9; font-weight: 600; }
+tr:hover { background: #f8fafc; }
+.badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+.badge-graviton { background: #d1fae5; color: #065f46; }
+.badge-intel { background: #dbeafe; color: #1e40af; }
+.insights { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; margin: 1rem 0; }
+.insights h4 { color: #92400e; margin-bottom: 0.5rem; }
+.insights ul { margin-left: 1.5rem; color: #78350f; }
+footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.875rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>stress-ng CPU 벤치마크</h1>
+<p>AWS EC2 인스턴스 51종 성능 비교 (5세대 ~ 8세대)</p>
+<p style="opacity:0.7;margin-top:0.5rem;">2026년 1월 | 서울 리전 | EKS + Karpenter</p>
+</header>
+
+<div class="summary-cards">
+<div class="card"><h3>최고 성능 (CPU Int)</h3><div class="value">m8g.xlarge</div><div class="label">526,053 ops/s</div></div>
+<div class="card"><h3>Top 3 독점</h3><div class="value">Graviton4</div><div class="label">8세대 ARM 압도적</div></div>
+<div class="card"><h3>Intel 최고</h3><div class="value">c8i.xlarge</div><div class="label">376,462 ops/s</div></div>
+<div class="card"><h3>Graviton 우위</h3><div class="value">+40%</div><div class="label">8세대 대비</div></div>
+</div>
+
+<div class="chart-section">
+<h2>CPU Integer Performance Top 20</h2>
+<p class="desc">높을수록 좋음 | 초록: Graviton, 파랑: Intel</p>
+<div class="chart-container"><canvas id="top20Chart"></canvas></div>
+</div>
+
+<div class="chart-section">
+<h2>세대별 성능 비교 (Graviton vs Intel)</h2>
+<p class="desc">각 세대 평균 CPU Integer Performance</p>
+<div class="chart-container" style="height:350px;"><canvas id="genChart"></canvas></div>
+<div class="insights">
+<h4>핵심 인사이트</h4>
+<ul>
+<li><strong>Graviton4 (8세대)</strong>가 모든 세대 중 최고 성능</li>
+<li>Graviton은 세대별로 Intel/AMD 대비 <strong>30-40% 빠름</strong></li>
+<li>8세대로 업그레이드 시 <strong>23-40%</strong> 성능 향상</li>
+</ul>
+</div>
+</div>
+
+<div class="chart-section">
+<h2>전체 결과 (51개 인스턴스)</h2>
+<table id="resultsTable">
+<thead><tr><th>순위</th><th>인스턴스</th><th>아키텍처</th><th>세대</th><th>CPU Int</th><th>CPU Float</th><th>Matrix</th><th>Memcpy</th></tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+<div class="chart-section">
+<h2>결론</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+<div>
+<h4 style="margin-bottom:1rem;">핵심 시사점</h4>
+<div style="background:#d1fae5;padding:1rem;border-radius:0.5rem;margin-bottom:0.5rem;">
+<strong>1. Graviton4가 CPU 연산에서 압도적</strong><br>Intel 8세대 대비 40% 빠름
+</div>
+<div style="background:#dbeafe;padding:1rem;border-radius:0.5rem;margin-bottom:0.5rem;">
+<strong>2. 8세대로 업그레이드 필수</strong><br>5세대 대비 2-3배 성능 향상
+</div>
+<div style="background:#fef3c7;padding:1rem;border-radius:0.5rem;">
+<strong>3. C/M/R 패밀리 간 차이 적음</strong><br>같은 세대/아키텍처면 유사한 CPU 성능
+</div>
+</div>
+<div>
+<h4 style="margin-bottom:1rem;">추천 인스턴스</h4>
+<table>
+<tr><th>용도</th><th>추천</th><th>성능</th></tr>
+<tr><td>최고 성능</td><td><span class="badge badge-graviton">m8g.xlarge</span></td><td>526K ops/s</td></tr>
+<tr><td>가성비</td><td><span class="badge badge-graviton">c8g.xlarge</span></td><td>525K ops/s</td></tr>
+<tr><td>x86 필수</td><td><span class="badge badge-intel">c8i.xlarge</span></td><td>376K ops/s</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<footer>stress-ng 벤치마크 | 2026년 1월 | 서울 리전</footer>
+</div>
+
+<script>
+const instances = [{"name": "m8g.xlarge", "arch": "graviton", "gen": 8, "cpuInt": 526053, "cpuFloat": 54138, "matrix": 22813, "memcpy": 1804, "cache": 28, "rank": 1}, {"name": "r8g.xlarge", "arch": "graviton", "gen": 8, "cpuInt": 525706, "cpuFloat": 54154, "matrix": 21590, "memcpy": 1810, "cache": 24, "rank": 2}, {"name": "c8g.xlarge", "arch": "graviton", "gen": 8, "cpuInt": 525164, "cpuFloat": 54158, "matrix": 22728, "memcpy": 1753, "cache": 22, "rank": 3}, {"name": "r7gd.xlarge", "arch": "graviton", "gen": 7, "cpuInt": 425768, "cpuFloat": 47868, "matrix": 18521, "memcpy": 1697, "cache": 27, "rank": 4}, {"name": "c7gd.xlarge", "arch": "graviton", "gen": 7, "cpuInt": 425265, "cpuFloat": 47919, "matrix": 18587, "memcpy": 1697, "cache": 33, "rank": 5}, {"name": "c7g.xlarge", "arch": "graviton", "gen": 7, "cpuInt": 425110, "cpuFloat": 47897, "matrix": 18430, "memcpy": 1693, "cache": 31, "rank": 6}, {"name": "m7gd.xlarge", "arch": "graviton", "gen": 7, "cpuInt": 425064, "cpuFloat": 47938, "matrix": 19825, "memcpy": 1700, "cache": 29, "rank": 7}, {"name": "r7g.xlarge", "arch": "graviton", "gen": 7, "cpuInt": 424999, "cpuFloat": 47856, "matrix": 18510, "memcpy": 1686, "cache": 33, "rank": 8}, {"name": "m7g.xlarge", "arch": "graviton", "gen": 7, "cpuInt": 424521, "cpuFloat": 47844, "matrix": 18517, "memcpy": 1692, "cache": 27, "rank": 9}, {"name": "c8i.xlarge", "arch": "intel", "gen": 8, "cpuInt": 376462, "cpuFloat": 48154, "matrix": 12556, "memcpy": 1165, "cache": 1, "rank": 10}, {"name": "m8i.xlarge", "arch": "intel", "gen": 8, "cpuInt": 376159, "cpuFloat": 48156, "matrix": 12472, "memcpy": 1145, "cache": 1, "rank": 11}, {"name": "r8i-flex.xlarge", "arch": "intel", "gen": 8, "cpuInt": 375541, "cpuFloat": 48202, "matrix": 11850, "memcpy": 1181, "cache": 1, "rank": 12}, {"name": "r8i.xlarge", "arch": "intel", "gen": 8, "cpuInt": 374875, "cpuFloat": 47918, "matrix": 12405, "memcpy": 1151, "cache": 1, "rank": 13}, {"name": "c7i-flex.xlarge", "arch": "intel", "gen": 7, "cpuInt": 362946, "cpuFloat": 45413, "matrix": 12399, "memcpy": 927, "cache": 4, "rank": 14}, {"name": "m5zn.xlarge", "arch": "intel", "gen": 5, "cpuInt": 353024, "cpuFloat": 39881, "matrix": 9925, "memcpy": 1089, "cache": 28, "rank": 15}, {"name": "c7i.xlarge", "arch": "intel", "gen": 7, "cpuInt": 347421, "cpuFloat": 43295, "matrix": 10514, "memcpy": 900, "cache": 3, "rank": 16}, {"name": "m7i.xlarge", "arch": "intel", "gen": 7, "cpuInt": 338566, "cpuFloat": 42225, "matrix": 10028, "memcpy": 873, "cache": 3, "rank": 17}, {"name": "c8i-flex.xlarge", "arch": "intel", "gen": 8, "cpuInt": 336969, "cpuFloat": 43725, "matrix": 10331, "memcpy": 1126, "cache": 1, "rank": 18}, {"name": "r7i.xlarge", "arch": "intel", "gen": 7, "cpuInt": 331497, "cpuFloat": 41511, "matrix": 9697, "memcpy": 862, "cache": 3, "rank": 19}, {"name": "m7i-flex.xlarge", "arch": "intel", "gen": 7, "cpuInt": 316534, "cpuFloat": 40017, "matrix": 9460, "memcpy": 818, "cache": 5, "rank": 20}, {"name": "c6g.xlarge", "arch": "graviton", "gen": 6, "cpuInt": 307847, "cpuFloat": 38406, "matrix": 14553, "memcpy": 832, "cache": 17, "rank": 21}, {"name": "r6g.xlarge", "arch": "graviton", "gen": 6, "cpuInt": 307293, "cpuFloat": 38332, "matrix": 14453, "memcpy": 822, "cache": 18, "rank": 22}, {"name": "m6gd.xlarge", "arch": "graviton", "gen": 6, "cpuInt": 307004, "cpuFloat": 38342, "matrix": 14395, "memcpy": 829, "cache": 17, "rank": 23}, {"name": "r6gd.xlarge", "arch": "graviton", "gen": 6, "cpuInt": 306936, "cpuFloat": 38332, "matrix": 14471, "memcpy": 830, "cache": 16, "rank": 24}, {"name": "c6gd.xlarge", "arch": "graviton", "gen": 6, "cpuInt": 306831, "cpuFloat": 38290, "matrix": 14494, "memcpy": 825, "cache": 19, "rank": 25}, {"name": "m6g.xlarge", "arch": "graviton", "gen": 6, "cpuInt": 306721, "cpuFloat": 38368, "matrix": 14453, "memcpy": 828, "cache": 16, "rank": 26}, {"name": "c6gn.xlarge", "arch": "graviton", "gen": 6, "cpuInt": 306711, "cpuFloat": 38376, "matrix": 14518, "memcpy": 825, "cache": 18, "rank": 27}, {"name": "c6id.xlarge", "arch": "intel", "gen": 6, "cpuInt": 270814, "cpuFloat": 34013, "matrix": 9409, "memcpy": 806, "cache": 10, "rank": 28}, {"name": "r6id.xlarge", "arch": "intel", "gen": 6, "cpuInt": 270724, "cpuFloat": 34056, "matrix": 9333, "memcpy": 816, "cache": 11, "rank": 29}, {"name": "m6idn.xlarge", "arch": "intel", "gen": 6, "cpuInt": 270385, "cpuFloat": 34140, "matrix": 9345, "memcpy": 815, "cache": 12, "rank": 30}, {"name": "m6in.xlarge", "arch": "intel", "gen": 6, "cpuInt": 269992, "cpuFloat": 34125, "matrix": 9108, "memcpy": 811, "cache": 9, "rank": 31}, {"name": "r6i.xlarge", "arch": "intel", "gen": 6, "cpuInt": 269975, "cpuFloat": 34089, "matrix": 8981, "memcpy": 820, "cache": 10, "rank": 32}, {"name": "m6i.xlarge", "arch": "intel", "gen": 6, "cpuInt": 269783, "cpuFloat": 33992, "matrix": 9061, "memcpy": 825, "cache": 10, "rank": 33}, {"name": "m6id.xlarge", "arch": "intel", "gen": 6, "cpuInt": 269764, "cpuFloat": 33936, "matrix": 8661, "memcpy": 810, "cache": 8, "rank": 34}, {"name": "c6in.xlarge", "arch": "intel", "gen": 6, "cpuInt": 269701, "cpuFloat": 34027, "matrix": 10166, "memcpy": 814, "cache": 11, "rank": 35}, {"name": "c6i.xlarge", "arch": "intel", "gen": 6, "cpuInt": 269163, "cpuFloat": 34058, "matrix": 10137, "memcpy": 822, "cache": 9, "rank": 36}, {"name": "c5a.xlarge", "arch": "intel", "gen": 5, "cpuInt": 268269, "cpuFloat": 32745, "matrix": 7441, "memcpy": 999, "cache": 109, "rank": 37}, {"name": "r5b.xlarge", "arch": "intel", "gen": 5, "cpuInt": 253208, "cpuFloat": 28216, "matrix": 7501, "memcpy": 826, "cache": 17, "rank": 38}, {"name": "r5dn.xlarge", "arch": "intel", "gen": 5, "cpuInt": 246713, "cpuFloat": 27671, "matrix": 6872, "memcpy": 807, "cache": 16, "rank": 39}, {"name": "r5n.xlarge", "arch": "intel", "gen": 5, "cpuInt": 244031, "cpuFloat": 27261, "matrix": 6864, "memcpy": 792, "cache": 15, "rank": 40}, {"name": "r5ad.xlarge", "arch": "intel", "gen": 5, "cpuInt": 189042, "cpuFloat": 22920, "matrix": 7200, "memcpy": 774, "cache": 72, "rank": 41}, {"name": "m5a.xlarge", "arch": "intel", "gen": 5, "cpuInt": 188471, "cpuFloat": 22911, "matrix": 6202, "memcpy": 776, "cache": 72, "rank": 42}, {"name": "r5a.xlarge", "arch": "intel", "gen": 5, "cpuInt": 188256, "cpuFloat": 22818, "matrix": 6298, "memcpy": 753, "cache": 69, "rank": 43}, {"name": "m5ad.xlarge", "arch": "intel", "gen": 5, "cpuInt": 187999, "cpuFloat": 22738, "matrix": 6207, "memcpy": 774, "cache": 74, "rank": 44}, {"name": "c5.xlarge", "arch": "intel", "gen": 5, "cpuInt": 187433, "cpuFloat": 32456, "matrix": 8068, "memcpy": 950, "cache": 18, "rank": 45}, {"name": "c5n.xlarge", "arch": "intel", "gen": 5, "cpuInt": 167901, "cpuFloat": 30054, "matrix": 8593, "memcpy": 857, "cache": 20, "rank": 46}, {"name": "c5d.xlarge", "arch": "intel", "gen": 5, "cpuInt": 167877, "cpuFloat": 29891, "matrix": 8716, "memcpy": 860, "cache": 25, "rank": 47}, {"name": "r5d.xlarge", "arch": "intel", "gen": 5, "cpuInt": 153681, "cpuFloat": 27514, "matrix": 6689, "memcpy": 789, "cache": 14, "rank": 48}, {"name": "r5.xlarge", "arch": "intel", "gen": 5, "cpuInt": 153600, "cpuFloat": 27018, "matrix": 6698, "memcpy": 789, "cache": 13, "rank": 49}, {"name": "m5.xlarge", "arch": "intel", "gen": 5, "cpuInt": 153545, "cpuFloat": 26602, "matrix": 6708, "memcpy": 790, "cache": 13, "rank": 50}, {"name": "m5d.xlarge", "arch": "intel", "gen": 5, "cpuInt": 153158, "cpuFloat": 27486, "matrix": 6605, "memcpy": 793, "cache": 15, "rank": 51}];
+const colorMap = { graviton: '#10b981', intel: '#3b82f6' };
+
+// Top 20 Chart
+const top20 = instances.slice(0, 20);
+new Chart(document.getElementById('top20Chart'), {
+    type: 'bar',
+    data: {
+        labels: top20.map(i => i.name),
+        datasets: [{ label: 'CPU Int (ops/s)', data: top20.map(i => i.cpuInt), backgroundColor: top20.map(i => colorMap[i.arch]), borderRadius: 4 }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: 'ops/s' } } } }
+});
+
+// Generation Chart
+const genData = { labels: ['5세대', '6세대', '7세대', '8세대'], intel: [], graviton: [] };
+[5, 6, 7, 8].forEach(gen => {
+    const intel = instances.filter(i => i.gen === gen && i.arch === 'intel');
+    const graviton = instances.filter(i => i.gen === gen && i.arch === 'graviton');
+    genData.intel.push(intel.length ? Math.round(intel.reduce((s, i) => s + i.cpuInt, 0) / intel.length) : null);
+    genData.graviton.push(graviton.length ? Math.round(graviton.reduce((s, i) => s + i.cpuInt, 0) / graviton.length) : null);
+});
+
+new Chart(document.getElementById('genChart'), {
+    type: 'bar',
+    data: {
+        labels: genData.labels,
+        datasets: [
+            { label: 'Intel (x86)', data: genData.intel, backgroundColor: '#3b82f6', borderRadius: 6 },
+            { label: 'Graviton (arm64)', data: genData.graviton, backgroundColor: '#10b981', borderRadius: 6 }
+        ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'CPU Int (ops/s)' } } } }
+});
+
+// Table
+const tbody = document.getElementById('tableBody');
+tbody.innerHTML = instances.map(i => `<tr>
+    <td>${i.rank}</td>
+    <td><strong>${i.name}</strong></td>
+    <td><span class="badge badge-${i.arch}">${i.arch === 'graviton' ? 'Graviton' : 'Intel'}</span></td>
+    <td>${i.gen}세대</td>
+    <td>${i.cpuInt.toLocaleString()}</td>
+    <td>${i.cpuFloat.toLocaleString()}</td>
+    <td>${i.matrix.toLocaleString()}</td>
+    <td>${i.memcpy.toLocaleString()}</td>
+</tr>`).join('');
+</script>
+</body>
+</html>

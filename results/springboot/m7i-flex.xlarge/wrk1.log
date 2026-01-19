@@ -1,0 +1,54 @@
+===== Spring Boot Benchmark (wrk) =====
+Instance Type: m7i-flex.xlarge
+Spring Boot Host: springboot-server-m7i-flex-xlarge
+
+--- Warm-up Phase (30s) ---
+Warm-up complete
+
+--- Main Page - 2 threads, 50 connections, 60s ---
+Running 1m test @ http://springboot-server-m7i-flex-xlarge:8080/
+  2 threads and 50 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   544.94us  446.69us  17.20ms   83.90%
+    Req/Sec    42.69k     3.47k   48.41k    82.50%
+  Latency Distribution
+     50%  399.00us
+     75%  601.00us
+     90%    1.12ms
+     99%    1.97ms
+  2719800 requests in 1.00m, 363.63MB read
+  Socket errors: connect 50, read 0, write 0, timeout 0
+Requests/sec:  45283.28
+Transfer/sec:      6.05MB
+
+--- Main Page - 2 threads, 100 connections, 60s ---
+Running 1m test @ http://springboot-server-m7i-flex-xlarge:8080/
+  2 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.60ms   21.15ms 666.55ms   99.35%
+    Req/Sec    47.51k     7.43k   64.90k    69.63%
+  Latency Distribution
+     50%    0.89ms
+     75%    1.22ms
+     90%    1.69ms
+     99%    9.81ms
+  5642531 requests in 1.00m, 754.38MB read
+Requests/sec:  93964.89
+Transfer/sec:     12.56MB
+
+--- High Load - 2 threads, 200 connections, 30s ---
+Running 30s test @ http://springboot-server-m7i-flex-xlarge:8080/
+  2 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.87ms    0.90ms  26.79ms   87.18%
+    Req/Sec    53.38k     6.30k   65.87k    67.11%
+  Latency Distribution
+     50%    1.74ms
+     75%    2.10ms
+     90%    2.62ms
+     99%    4.68ms
+  3165628 requests in 30.05s, 423.23MB read
+Requests/sec: 105352.10
+Transfer/sec:     14.09MB
+
+===== Spring Boot Benchmark Complete =====

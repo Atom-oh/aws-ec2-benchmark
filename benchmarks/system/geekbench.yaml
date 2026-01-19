@@ -1,5 +1,6 @@
 # Geekbench 6 - 표준화된 CPU/메모리 벤치마크
 # 다른 시스템과 비교 가능한 점수 제공
+# Pre-built multi-arch container image (arm64/amd64)
 ---
 apiVersion: batch/v1
 kind: Job
@@ -9,7 +10,7 @@ metadata:
   labels:
     benchmark: geekbench
     test-type: cpu
-    instance-type: "${INSTANCE_TYPE}"
+    instance-type: "INSTANCE_TYPE"
 spec:
   ttlSecondsAfterFinished: 7200
   backoffLimit: 0
@@ -21,7 +22,8 @@ spec:
     spec:
       restartPolicy: Never
       nodeSelector:
-        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+        node.kubernetes.io/instance-type: INSTANCE_TYPE
+        kubernetes.io/arch: ARCH
       tolerations:
         - key: "benchmark"
           operator: "Equal"
@@ -37,34 +39,37 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: geekbench
-          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/alpine:latest
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/geekbench:latest
           resources: {}
           command:
-            - /bin/sh
+            - /bin/bash
             - -c
             - |
               echo "===== Geekbench 6 Benchmark ====="
-              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Instance Type: INSTANCE_TYPE"
+              echo "Architecture: $(uname -m)"
               echo ""
 
-              # Geekbench 설치
-              apk add --no-cache curl tar
-
-              echo "Downloading Geekbench 6..."
-              curl -sL https://cdn.geekbench.com/Geekbench-6.3.0-Linux.tar.gz | tar xz
-              cd Geekbench-6.3.0-Linux
+              echo "--- System Info ---"
+              cat /proc/cpuinfo | grep -E "model name|Model" | head -1
+              echo "vCPUs: $(nproc)"
+              free -h | head -2
 
               echo ""
-              echo "--- Running Geekbench 6 (takes ~10 minutes) ---"
-              ./geekbench6 --no-upload 2>&1 | tee /tmp/geekbench-result.txt
+              echo "--- Running Geekbench 6 ---"
+              /opt/geekbench/geekbench6 2>&1 | tee /tmp/geekbench-result.txt
 
               echo ""
               echo "--- Results Summary ---"
-              grep -E "Single-Core Score|Multi-Core Score" /tmp/geekbench-result.txt || \
-              tail -50 /tmp/geekbench-result.txt
+              # 점수 추출
+              SINGLE=$(grep -i "Single-Core Score" /tmp/geekbench-result.txt | grep -oP '\d+' | tail -1)
+              MULTI=$(grep -i "Multi-Core Score" /tmp/geekbench-result.txt | grep -oP '\d+' | tail -1)
+
+              echo "SINGLE_CORE_SCORE: ${SINGLE:-0}"
+              echo "MULTI_CORE_SCORE: ${MULTI:-0}"
+              echo ""
+              echo "Instance: INSTANCE_TYPE"
+              echo "Architecture: $(uname -m)"
 
               echo ""
               echo "===== Geekbench Complete ====="
-          env:
-            - name: INSTANCE_TYPE
-              value: "${INSTANCE_TYPE}"

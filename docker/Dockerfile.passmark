@@ -1,0 +1,27 @@
+# Multi-arch Passmark Container
+ARG TARGETARCH
+FROM public.ecr.aws/docker/library/ubuntu:22.04
+
+RUN apt-get update && apt-get install -y curl unzip libncurses5 ncurses-bin ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/passmark
+
+# Architecture-specific download (binary names differ from zip file names)
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+      curl -fsSL -A "Mozilla/5.0 (X11; Linux x86_64)" https://www.passmark.com/downloads/pt_linux_arm64.zip -o pt.zip && \
+      unzip pt.zip && mv PerformanceTest/* . && chmod +x PerformanceTest_Linux_ARM64 && rm -rf pt.zip PerformanceTest; \
+    else \
+      curl -fsSL -A "Mozilla/5.0 (X11; Linux x86_64)" https://www.passmark.com/downloads/pt_linux_x64.zip -o pt.zip && \
+      unzip pt.zip && mv PerformanceTest/* . && chmod +x PerformanceTest_Linux_x86-64 && rm -rf pt.zip PerformanceTest; \
+    fi
+
+# Create symlinks for consistent binary name
+RUN if [ -f "PerformanceTest_Linux_ARM64" ]; then \
+      ln -s PerformanceTest_Linux_ARM64 pt_linux; \
+    elif [ -f "PerformanceTest_Linux_x86-64" ]; then \
+      ln -s PerformanceTest_Linux_x86-64 pt_linux; \
+    fi
+
+ENTRYPOINT ["/opt/passmark/pt_linux"]
+CMD ["-r", "1"]

@@ -27,6 +27,21 @@ spec:
           operator: "Equal"
           value: "true"
           effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: nginx-server
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
       initContainers:
         - name: wait-for-nginx
           image: public.ecr.aws/docker/library/alpine:latest
@@ -49,9 +64,6 @@ spec:
             requests:
               cpu: "4"
               memory: "4Gi"
-            limits:
-              cpu: "8"
-              memory: "8Gi"
           command:
             - /bin/sh
             - -c

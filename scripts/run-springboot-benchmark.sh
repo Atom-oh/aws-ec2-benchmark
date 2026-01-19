@@ -5,7 +5,8 @@
 # Don't use set -e - arithmetic operations return 1 when result is 0
 
 BENCHMARK_TEMPLATE="/home/ec2-user/benchmark/benchmarks/springboot/springboot-benchmark.yaml"
-RESULTS_DIR="/home/ec2-user/benchmark/results/springboot"
+SERVER_TEMPLATE="/home/ec2-user/benchmark/benchmarks/springboot/springboot-server.yaml"
+RESULTS_DIR="/home/ec2-user/benchmark/results/springboot/wrk"
 LOG_FILE="/home/ec2-user/benchmark/results/springboot-runner.log"
 MAX_CONCURRENT=20
 
@@ -59,17 +60,35 @@ check_server_exists() {
   kubectl get deployment -n benchmark "springboot-server-${safe_name}" &>/dev/null
 }
 
+# Deploy server for an instance
+deploy_server() {
+  local instance=$1
+  local safe_name=$(echo "$instance" | tr '.' '-')
+
+  if check_server_exists "$instance"; then
+    return
+  fi
+
+  echo "  [DEPLOY] springboot-server-${safe_name}"
+  sed -e "s/INSTANCE_SAFE/${safe_name}/g" \
+      -e "s|\${INSTANCE_TYPE}|${instance}|g" \
+      "$SERVER_TEMPLATE" | kubectl apply -f - 2>/dev/null || true
+}
+
+# Check if server pod is ready
+check_server_ready() {
+  local instance=$1
+  local safe_name=$(echo "$instance" | tr '.' '-')
+  local deploy_name="springboot-server-${safe_name}"
+
+  local ready=$(kubectl get deployment -n benchmark "$deploy_name" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+  [ "$ready" = "1" ]
+}
+
 # Start a benchmark job for an instance
 start_benchmark() {
   local instance=$1
   local safe_name=$(echo "$instance" | tr '.' '-')
-
-  # Check if server exists
-  if ! check_server_exists "$instance"; then
-    echo "  [SKIP] No server for $instance"
-    COMPLETED[$instance]=1
-    return
-  fi
 
   # Check if result already exists
   if [ -f "$RESULTS_DIR/${instance}.log" ]; then
@@ -78,9 +97,15 @@ start_benchmark() {
     return
   fi
 
+  # Check if server is ready
+  if ! check_server_ready "$instance"; then
+    echo "  [WAIT] Server not ready for $instance"
+    return 1
+  fi
+
   echo "  [START] $instance"
   # Use | as sed delimiter to avoid conflict with instance name
-  sed -e "s|\${INSTANCE_TYPE//./-}|${safe_name}|g" \
+  sed -e "s/INSTANCE_SAFE/${safe_name}/g" \
       -e "s|\${INSTANCE_TYPE}|${instance}|g" \
       "$BENCHMARK_TEMPLATE" | grep -A1000 "^---$" | tail -n +2 | kubectl apply -f - 2>/dev/null || true
 
@@ -110,8 +135,41 @@ echo "Max concurrent: $MAX_CONCURRENT"
 echo "Results dir: $RESULTS_DIR"
 echo ""
 
-# Main loop
-instance_idx=0
+mkdir -p "$RESULTS_DIR"
+
+# Phase 1: Deploy all servers first
+echo "=== Phase 1: Deploying Spring Boot servers ==="
+for instance in "${ALL_INSTANCES[@]}"; do
+  deploy_server "$instance"
+done
+echo "Waiting for servers to be ready..."
+sleep 30
+
+# Wait for servers to be ready
+echo "=== Phase 2: Waiting for servers to be ready ==="
+max_wait=300
+wait_time=0
+while [ $wait_time -lt $max_wait ]; do
+  ready_count=0
+  for instance in "${ALL_INSTANCES[@]}"; do
+    if check_server_ready "$instance"; then
+      ((ready_count++)) || true
+    fi
+  done
+  echo "[$(date '+%H:%M:%S')] Ready servers: $ready_count/${#ALL_INSTANCES[@]}"
+  if [ $ready_count -eq ${#ALL_INSTANCES[@]} ]; then
+    echo "All servers ready!"
+    break
+  fi
+  sleep 15
+  ((wait_time+=15)) || true
+done
+
+# Phase 3: Run benchmarks
+echo ""
+echo "=== Phase 3: Running benchmarks ==="
+
+# Main loop - iterate through all instances each round
 while true; do
   # Check for completed jobs and collect results
   for instance in "${!STARTED[@]}"; do
@@ -127,24 +185,27 @@ while true; do
     fi
   done
 
-  # Count running jobs
   running=${#STARTED[@]}
   completed=${#COMPLETED[@]}
 
   echo "[Status] Running: $running, Completed: $completed/${#ALL_INSTANCES[@]}"
 
-  # Start new jobs if under limit
-  while [ $running -lt $MAX_CONCURRENT ] && [ $instance_idx -lt ${#ALL_INSTANCES[@]} ]; do
-    instance=${ALL_INSTANCES[$instance_idx]}
-    ((instance_idx++))
-
-    # Skip if already completed
-    if [ -n "${COMPLETED[$instance]}" ]; then
+  # Try to start jobs for any instance not yet started or completed
+  for instance in "${ALL_INSTANCES[@]}"; do
+    # Skip if already running or completed
+    if [ -n "${STARTED[$instance]}" ] || [ -n "${COMPLETED[$instance]}" ]; then
       continue
     fi
 
-    start_benchmark "$instance"
-    ((running++)) || true
+    # Stop if at max concurrent
+    if [ $running -ge $MAX_CONCURRENT ]; then
+      break
+    fi
+
+    # Try to start (returns 1 if server not ready)
+    if start_benchmark "$instance"; then
+      ((running++)) || true
+    fi
   done
 
   # Check if all done

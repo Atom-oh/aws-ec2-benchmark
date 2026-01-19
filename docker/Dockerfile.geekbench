@@ -1,0 +1,20 @@
+# Multi-arch Geekbench 6 Container
+ARG TARGETARCH
+FROM public.ecr.aws/docker/library/ubuntu:22.04
+
+RUN apt-get update && apt-get install -y curl tar && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/geekbench
+
+# Architecture-specific download
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+      curl -fsSL https://cdn.geekbench.com/Geekbench-6.3.0-LinuxARMPreview.tar.gz | tar xz --strip-components=1; \
+    else \
+      curl -fsSL https://cdn.geekbench.com/Geekbench-6.3.0-Linux.tar.gz | tar xz --strip-components=1; \
+    fi
+
+# Make executable
+RUN chmod +x geekbench6
+
+ENTRYPOINT ["/opt/geekbench/geekbench6"]

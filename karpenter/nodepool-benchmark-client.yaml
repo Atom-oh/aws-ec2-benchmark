@@ -17,11 +17,8 @@ spec:
         - key: node.kubernetes.io/instance-type
           operator: In
           values:
-            - c6in.8xlarge  # Enhanced Networking
-        - key: topology.kubernetes.io/zone
-          operator: In
-          values:
-            - ap-northeast-2a  # Same zone as benchmark servers
+            - c6in.2xlarge  # Enhanced Networking
+        # Zone is now flexible - podAffinity in benchmark jobs ensures same zone as server
         - key: karpenter.sh/capacity-type
           operator: In
           values:
@@ -39,7 +36,7 @@ spec:
         kind: EC2NodeClass
         name: default
   limits:
-    cpu: 256  # 8 x 32 vCPU nodes max (for parallel benchmarks)
+    cpu: 512  # Allow more benchmark client nodes
   disruption:
     consolidationPolicy: WhenEmpty
     consolidateAfter: 30s

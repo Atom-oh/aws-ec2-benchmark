@@ -73,7 +73,7 @@ deploy_server() {
   fi
 
   log "  [DEPLOY] $instance"
-  sed -e "s|\${INSTANCE_TYPE//./-}|${safe_name}|g" \
+  sed -e "s/INSTANCE_SAFE/${safe_name}/g" \
       -e "s|\${INSTANCE_TYPE}|${instance}|g" \
       "$SERVER_TEMPLATE" | kubectl apply -f - 2>/dev/null
 

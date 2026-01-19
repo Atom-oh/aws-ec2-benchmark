@@ -10,7 +10,7 @@ metadata:
     benchmark: redis-benchmark
     instance-type: "${INSTANCE_TYPE}"
 spec:
-  ttlSecondsAfterFinished: 7200  # 2 hours to allow log collection
+  ttlSecondsAfterFinished: 600  # 10 minutes - logs collected periodically
   backoffLimit: 0
   template:
     metadata:
@@ -27,6 +27,21 @@ spec:
           operator: "Equal"
           value: "true"
           effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: redis-server
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
       # Redis 서버가 준비될 때까지 대기
       initContainers:
         - name: wait-for-redis
@@ -48,9 +63,6 @@ spec:
           image: public.ecr.aws/docker/library/redis:7-alpine
           resources:
             requests:
-              cpu: "1500m"
-              memory: "4Gi"
-            limits:
               cpu: "1500m"
               memory: "4Gi"
           command:
