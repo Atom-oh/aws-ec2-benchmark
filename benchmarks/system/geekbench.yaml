@@ -1,0 +1,70 @@
+# Geekbench 6 - 표준화된 CPU/메모리 벤치마크
+# 다른 시스템과 비교 가능한 점수 제공
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: geekbench-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: geekbench
+    test-type: cpu
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: geekbench
+        test-type: cpu
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: geekbench
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/alpine:latest
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "===== Geekbench 6 Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo ""
+
+              # Geekbench 설치
+              apk add --no-cache curl tar
+
+              echo "Downloading Geekbench 6..."
+              curl -sL https://cdn.geekbench.com/Geekbench-6.3.0-Linux.tar.gz | tar xz
+              cd Geekbench-6.3.0-Linux
+
+              echo ""
+              echo "--- Running Geekbench 6 (takes ~10 minutes) ---"
+              ./geekbench6 --no-upload 2>&1 | tee /tmp/geekbench-result.txt
+
+              echo ""
+              echo "--- Results Summary ---"
+              grep -E "Single-Core Score|Multi-Core Score" /tmp/geekbench-result.txt || \
+              tail -50 /tmp/geekbench-result.txt
+
+              echo ""
+              echo "===== Geekbench Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

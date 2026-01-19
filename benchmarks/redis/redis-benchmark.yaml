@@ -1,0 +1,104 @@
+# Redis Benchmark Job
+# SET/GET/INCR 등 다양한 명령의 throughput 및 latency 측정
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: JOB_NAME
+  namespace: benchmark
+  labels:
+    benchmark: redis-benchmark
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 7200  # 2 hours to allow log collection
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: redis-benchmark
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      # Benchmark client runs on dedicated benchmark-client nodepool (c6in.8xlarge)
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      # Redis 서버가 준비될 때까지 대기
+      initContainers:
+        - name: wait-for-redis
+          image: public.ecr.aws/docker/library/redis:7-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until redis-cli -h redis-server-INSTANCE_SAFE ping | grep -q PONG; do
+                echo "Waiting for Redis server..."
+                sleep 2
+              done
+              echo "Redis server is ready!"
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"
+      containers:
+        - name: benchmark
+          image: public.ecr.aws/docker/library/redis:7-alpine
+          resources:
+            requests:
+              cpu: "1500m"
+              memory: "4Gi"
+            limits:
+              cpu: "1500m"
+              memory: "4Gi"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              REDIS_HOST="redis-server-INSTANCE_SAFE"
+
+              echo "===== Redis Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Redis Host: ${REDIS_HOST}"
+              echo ""
+
+              # Redis 서버 정보
+              echo "--- Redis Server Info ---"
+              redis-cli -h ${REDIS_HOST} info server | head -20
+              echo ""
+
+              # 기본 벤치마크 (모든 명령)
+              echo "--- Standard Benchmark (50 clients, 100000 requests) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 -q
+
+              echo ""
+              echo "--- Pipeline Benchmark (16 commands per pipeline) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 -P 16 -q
+
+              echo ""
+              echo "--- High Concurrency (100 clients) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 100 -n 200000 -q
+
+              echo ""
+              echo "--- Latency Distribution (SET command) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 -t set --csv
+
+              echo ""
+              echo "--- Latency Distribution (GET command) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 -t get --csv
+
+              echo ""
+              echo "--- Large Value Test (1KB value) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 50000 -d 1024 -t set,get -q
+
+              echo ""
+              echo "--- Large Value Test (4KB value) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 20000 -d 4096 -t set,get -q
+
+              echo ""
+              echo "===== Redis Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

@@ -1,0 +1,86 @@
+# EC2NodeClass for Benchmark Testing
+# 실제 환경에 맞게 수정 필요: subnetSelectorTerms, securityGroupSelectorTerms
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: benchmark-nodeclass
+spec:
+  # TODO: 실제 클러스터의 서브넷 태그로 변경
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+
+  # TODO: 실제 클러스터의 보안 그룹 태그로 변경
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+
+  # EKS 최적화 AMI (amd64)
+  amiSelectorTerms:
+    - alias: al2023@latest
+
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+
+  # 벤치마크용 태그
+  tags:
+    purpose: benchmark
+    managed-by: karpenter
+
+  # 블록 디바이스 설정
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        iops: 3000
+        throughput: 125
+        encrypted: true
+        deleteOnTermination: true
+
+  # 인스턴스 메타데이터 옵션
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: benchmark-nodeclass-graviton
+spec:
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+
+  # EKS 최적화 AMI (arm64)
+  amiSelectorTerms:
+    - alias: al2023@latest
+
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+
+  tags:
+    purpose: benchmark
+    managed-by: karpenter
+    arch: graviton
+
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        iops: 3000
+        throughput: 125
+        encrypted: true
+        deleteOnTermination: true
+
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required

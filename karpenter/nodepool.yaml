@@ -1,0 +1,188 @@
+# Karpenter NodePool for EC2 Benchmark Testing
+# 다양한 인스턴스 타입별 성능 비교를 위한 NodePool 설정
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-compute
+  labels:
+    benchmark-type: compute
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark
+        instance-family: compute
+    spec:
+      requirements:
+        # Compute Optimized 인스턴스 (c5 ~ c8i)
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - c5       # Intel Xeon Platinum 8000 (Skylake)
+            - c5a      # AMD EPYC 7002 (Rome)
+            - c6i      # Intel Xeon Scalable 3rd Gen (Ice Lake)
+            - c6a      # AMD EPYC 7003 (Milan)
+            - c7i      # Intel Xeon Scalable 4th Gen (Sapphire Rapids)
+            - c7a      # AMD EPYC 9004 (Genoa)
+            - c8i      # Intel Xeon Scalable 5th Gen (Emerald Rapids) - 예정
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+            - large    # 2 vCPU
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: benchmark-nodeclass
+  limits:
+    cpu: 100
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-general
+  labels:
+    benchmark-type: general
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark
+        instance-family: general
+    spec:
+      requirements:
+        # General Purpose 인스턴스 (m5 ~ m7i)
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - m5       # Intel Xeon Platinum 8000 (Skylake)
+            - m5a      # AMD EPYC 7002 (Rome)
+            - m6i      # Intel Xeon Scalable 3rd Gen (Ice Lake)
+            - m6a      # AMD EPYC 7003 (Milan)
+            - m7i      # Intel Xeon Scalable 4th Gen (Sapphire Rapids)
+            - m7a      # AMD EPYC 9004 (Genoa)
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+            - large    # 2 vCPU
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: benchmark-nodeclass
+  limits:
+    cpu: 100
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-memory
+  labels:
+    benchmark-type: memory
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark
+        instance-family: memory
+    spec:
+      requirements:
+        # Memory Optimized 인스턴스 (r5 ~ r7i)
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - r5       # Intel Xeon Platinum 8000 (Skylake)
+            - r5a      # AMD EPYC 7002 (Rome)
+            - r6i      # Intel Xeon Scalable 3rd Gen (Ice Lake)
+            - r6a      # AMD EPYC 7003 (Milan)
+            - r7i      # Intel Xeon Scalable 4th Gen (Sapphire Rapids)
+            - r7a      # AMD EPYC 9004 (Genoa)
+            - r7iz     # Intel Xeon Scalable (높은 주파수)
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+            - large    # 2 vCPU
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: benchmark-nodeclass
+  limits:
+    cpu: 100
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s
+---
+# Graviton (ARM) 인스턴스를 위한 별도 NodePool
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-graviton
+  labels:
+    benchmark-type: graviton
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark
+        instance-family: graviton
+    spec:
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - c6g      # Graviton2
+            - c7g      # Graviton3
+            - m6g      # Graviton2
+            - m7g      # Graviton3
+            - r6g      # Graviton2
+            - r7g      # Graviton3
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+            - large    # 2 vCPU
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - arm64
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: benchmark-nodeclass-graviton
+  limits:
+    cpu: 100
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s

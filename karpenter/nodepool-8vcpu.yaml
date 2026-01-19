@@ -1,0 +1,180 @@
+# # Karpenter NodePool for 8 vCPU (2xlarge) Benchmark Testing
+# # 8세대 최신 인스턴스 및 다양한 변형 타입 지원
+# ---
+# apiVersion: karpenter.sh/v1
+# kind: NodePool
+# metadata:
+#   name: benchmark-8vcpu-intel
+#   labels:
+#     benchmark: "true"
+#     arch: x86_64
+#     vendor: intel
+# spec:
+#   template:
+#     metadata:
+#       labels:
+#         node-type: benchmark
+#         vcpu: "8"
+#     spec:
+#       requirements:
+#         - key: node.kubernetes.io/instance-type
+#           operator: In
+#           values:
+#             # === 8세대 Intel (최신) ===
+#             - c8i.2xlarge        # Emerald Rapids, Compute
+#             - c8i-flex.2xlarge   # Emerald Rapids Flex
+#             - m8i.2xlarge        # Emerald Rapids, General
+#             - r8i.2xlarge        # Emerald Rapids, Memory
+#             - r8i-flex.2xlarge   # Emerald Rapids Flex
+#             # === 7세대 Intel ===
+#             - c7i.2xlarge        # Sapphire Rapids, Compute
+#             - c7i-flex.2xlarge   # Sapphire Rapids Flex
+#             - m7i.2xlarge        # Sapphire Rapids, General
+#             - m7i-flex.2xlarge   # Sapphire Rapids Flex
+#             - r7i.2xlarge        # Sapphire Rapids, Memory
+#             # === 6세대 Intel ===
+#             - c6i.2xlarge        # Ice Lake, Compute
+#             - c6id.2xlarge       # Ice Lake + NVMe
+#             - c6in.2xlarge       # Ice Lake + Enhanced Network
+#             - m6i.2xlarge        # Ice Lake, General
+#             - m6id.2xlarge       # Ice Lake + NVMe
+#             - m6in.2xlarge       # Ice Lake + Enhanced Network
+#             - m6idn.2xlarge      # Ice Lake + NVMe + Network
+#             - r6i.2xlarge        # Ice Lake, Memory
+#             - r6id.2xlarge       # Ice Lake + NVMe
+#             # === 5세대 Intel ===
+#             - c5.2xlarge         # Skylake, Compute
+#             - c5d.2xlarge        # Skylake + NVMe
+#             - c5n.2xlarge        # Skylake + Enhanced Network
+#             - m5.2xlarge         # Skylake, General
+#             - m5d.2xlarge        # Skylake + NVMe
+#             - m5zn.2xlarge       # High Frequency (최대 4.5GHz)
+#             - r5.2xlarge         # Skylake, Memory
+#             - r5d.2xlarge        # Skylake + NVMe
+#             - r5n.2xlarge        # Skylake + Enhanced Network
+#             - r5dn.2xlarge       # Skylake + NVMe + Network
+#             - r5b.2xlarge        # Enhanced EBS
+#         - key: karpenter.sh/capacity-type
+#           operator: In
+#           values:
+#             - on-demand
+#       taints:
+#         - key: benchmark
+#           value: "true"
+#           effect: NoSchedule
+#       nodeClassRef:
+#         group: karpenter.k8s.aws
+#         kind: EC2NodeClass
+#         name: benchmark-nodeclass
+#   limits:
+#     cpu: 512   # 51개 인스턴스 * 8 vCPU
+#   disruption:
+#     consolidationPolicy: WhenEmpty
+#     consolidateAfter: 30s
+# ---
+# apiVersion: karpenter.sh/v1
+# kind: NodePool
+# metadata:
+#   name: benchmark-8vcpu-amd
+#   labels:
+#     benchmark: "true"
+#     arch: x86_64
+#     vendor: amd
+# spec:
+#   template:
+#     metadata:
+#       labels:
+#         node-type: benchmark
+#         vcpu: "8"
+#     spec:
+#       requirements:
+#         - key: node.kubernetes.io/instance-type
+#           operator: In
+#           values:
+#             # === 7세대 AMD (Genoa) ===
+#             - c7a.2xlarge        # EPYC 9004, Compute
+#             - m7a.2xlarge        # EPYC 9004, General
+#             - r7a.2xlarge        # EPYC 9004, Memory
+#             # === 6세대 AMD (Milan) ===
+#             - c6a.2xlarge        # EPYC 7003, Compute
+#             - m6a.2xlarge        # EPYC 7003, General
+#             - r6a.2xlarge        # EPYC 7003, Memory
+#             # === 5세대 AMD (Rome) ===
+#             - c5a.2xlarge        # EPYC 7002, Compute
+#             - m5a.2xlarge        # EPYC 7002, General
+#             - m5ad.2xlarge       # EPYC 7002 + NVMe
+#             - r5a.2xlarge        # EPYC 7002, Memory
+#             - r5ad.2xlarge       # EPYC 7002 + NVMe
+#         - key: karpenter.sh/capacity-type
+#           operator: In
+#           values:
+#             - on-demand
+#       taints:
+#         - key: benchmark
+#           value: "true"
+#           effect: NoSchedule
+#       nodeClassRef:
+#         group: karpenter.k8s.aws
+#         kind: EC2NodeClass
+#         name: benchmark-nodeclass
+#   limits:
+#     cpu: 512
+#   disruption:
+#     consolidationPolicy: WhenEmpty
+#     consolidateAfter: 30s
+# ---
+# apiVersion: karpenter.sh/v1
+# kind: NodePool
+# metadata:
+#   name: benchmark-8vcpu-graviton
+#   labels:
+#     benchmark: "true"
+#     arch: arm64
+#     vendor: graviton
+# spec:
+#   template:
+#     metadata:
+#       labels:
+#         node-type: benchmark
+#         vcpu: "8"
+#     spec:
+#       requirements:
+#         - key: node.kubernetes.io/instance-type
+#           operator: In
+#           values:
+#             # === Graviton4 (8세대) ===
+#             - c8g.2xlarge        # Graviton4, Compute
+#             - m8g.2xlarge        # Graviton4, General
+#             - r8g.2xlarge        # Graviton4, Memory
+#             # === Graviton3 (7세대) ===
+#             - c7g.2xlarge        # Graviton3, Compute
+#             - c7gd.2xlarge       # Graviton3 + NVMe
+#             - m7g.2xlarge        # Graviton3, General
+#             - m7gd.2xlarge       # Graviton3 + NVMe
+#             - r7g.2xlarge        # Graviton3, Memory
+#             - r7gd.2xlarge       # Graviton3 + NVMe
+#             # === Graviton2 (6세대) ===
+#             - c6g.2xlarge        # Graviton2, Compute
+#             - c6gd.2xlarge       # Graviton2 + NVMe
+#             - c6gn.2xlarge       # Graviton2 + Enhanced Network
+#             - m6g.2xlarge        # Graviton2, General
+#             - m6gd.2xlarge       # Graviton2 + NVMe
+#             - r6g.2xlarge        # Graviton2, Memory
+#             - r6gd.2xlarge       # Graviton2 + NVMe
+#         - key: karpenter.sh/capacity-type
+#           operator: In
+#           values:
+#             - on-demand
+#       taints:
+#         - key: benchmark
+#           value: "true"
+#           effect: NoSchedule
+#       nodeClassRef:
+#         group: karpenter.k8s.aws
+#         kind: EC2NodeClass
+#         name: benchmark-nodeclass-graviton
+#   limits:
+#     cpu: 512
+#   disruption:
+#     consolidationPolicy: WhenEmpty
+#     consolidateAfter: 30s

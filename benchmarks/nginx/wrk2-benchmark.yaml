@@ -1,0 +1,93 @@
+# wrk2 - Coordinated Omission 문제 해결된 HTTP 벤치마크
+# 정확한 latency percentile 측정 (99.9% 이상까지)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wrk2-benchmark-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: wrk2
+    test-type: http
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: wrk2
+        test-type: http
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-nginx
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/curlimages/curl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until curl -s http://nginx-server-INSTANCE_SAFE/health | grep -q healthy; do
+                echo "Waiting for Nginx server..."
+                sleep 2
+              done
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"
+      containers:
+        - name: wrk2
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/wrk2:latest
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              NGINX_HOST="nginx-server-INSTANCE_SAFE"
+
+              echo "===== wrk2 Benchmark (Coordinated Omission Corrected) ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Nginx Host: ${NGINX_HOST}"
+              echo ""
+
+              # wrk2는 --rate(-R) 옵션으로 목표 RPS 지정
+              # Coordinated Omission 보정으로 정확한 latency 측정
+
+              echo "--- Constant Rate 10,000 RPS (30s) ---"
+              wrk2 -t2 -c100 -d30s -R10000 --latency http://${NGINX_HOST}/small
+
+              echo ""
+              echo "--- Constant Rate 20,000 RPS (30s) ---"
+              wrk2 -t2 -c100 -d30s -R20000 --latency http://${NGINX_HOST}/small
+
+              echo ""
+              echo "--- Constant Rate 50,000 RPS (30s) ---"
+              wrk2 -t2 -c200 -d30s -R50000 --latency http://${NGINX_HOST}/small
+
+              echo ""
+              echo "--- Max Throughput Discovery (no rate limit) ---"
+              wrk2 -t2 -c100 -d30s -R100000 --latency http://${NGINX_HOST}/small
+
+              echo ""
+              echo "--- JSON Endpoint 10,000 RPS ---"
+              wrk2 -t2 -c100 -d30s -R10000 --latency http://${NGINX_HOST}/json
+
+              echo ""
+              echo "===== wrk2 Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

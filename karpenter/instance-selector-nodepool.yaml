@@ -1,0 +1,54 @@
+# 특정 인스턴스 타입별 NodePool 생성 템플릿
+# 각 인스턴스 타입을 개별적으로 테스트하기 위한 설정
+# 사용법: envsubst < instance-selector-nodepool.yaml | kubectl apply -f -
+
+---
+# 테스트할 인스턴스 타입 목록 (2 vCPU / large 사이즈)
+# Intel 계열:
+#   - c5.large, c6i.large, c7i.large
+#   - m5.large, m6i.large, m7i.large
+#   - r5.large, r6i.large, r7i.large, r7iz.large
+# AMD 계열:
+#   - c5a.large, c6a.large, c7a.large
+#   - m5a.large, m6a.large, m7a.large
+#   - r5a.large, r6a.large, r7a.large
+# Graviton (ARM) 계열:
+#   - c6g.large, c7g.large
+#   - m6g.large, m7g.large
+#   - r6g.large, r7g.large
+
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-${INSTANCE_TYPE//./-}  # c5.large -> benchmark-c5-large
+  labels:
+    benchmark: "true"
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark-target
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values:
+            - "${INSTANCE_TYPE}"
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: ${NODE_CLASS:-benchmark-nodeclass}
+      # 노드가 즉시 Ready되도록 taints 제거
+      taints: []
+  limits:
+    cpu: 2  # 한 번에 하나의 노드만
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 60s

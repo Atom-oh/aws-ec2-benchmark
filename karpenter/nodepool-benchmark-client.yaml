@@ -1,0 +1,45 @@
+# NodePool for benchmark client (wrk)
+# Uses c6in.8xlarge with Enhanced Networking in zone c
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-client
+  labels:
+    benchmark-client: "true"
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark-client
+    spec:
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values:
+            - c6in.8xlarge  # Enhanced Networking
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+            - ap-northeast-2a  # Same zone as benchmark servers
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+      taints:
+        - key: benchmark-client
+          value: "true"
+          effect: NoSchedule
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+  limits:
+    cpu: 256  # 8 x 32 vCPU nodes max (for parallel benchmarks)
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s

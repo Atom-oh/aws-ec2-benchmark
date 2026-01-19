@@ -1,0 +1,82 @@
+# Sysbench Memory Benchmark Job
+# 메모리 읽기/쓰기 성능 측정 - throughput (MiB/sec)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sysbench-memory-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: sysbench
+    test-type: memory
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: sysbench
+        test-type: memory
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: sysbench
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Install sysbench
+              apt-get update -qq && apt-get install -y -qq sysbench > /dev/null 2>&1
+
+              echo "===== Memory Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Threads: $(nproc)"
+              echo ""
+
+              echo "--- Sequential Write (1K block) ---"
+              sysbench memory --threads=$(nproc) --time=60 --memory-block-size=1K \
+                --memory-total-size=100G --memory-oper=write --memory-access-mode=seq run
+
+              echo ""
+              echo "--- Sequential Read (1K block) ---"
+              sysbench memory --threads=$(nproc) --time=60 --memory-block-size=1K \
+                --memory-total-size=100G --memory-oper=read --memory-access-mode=seq run
+
+              echo ""
+              echo "--- Random Write (1K block) ---"
+              sysbench memory --threads=$(nproc) --time=60 --memory-block-size=1K \
+                --memory-total-size=100G --memory-oper=write --memory-access-mode=rnd run
+
+              echo ""
+              echo "--- Random Read (1K block) ---"
+              sysbench memory --threads=$(nproc) --time=60 --memory-block-size=1K \
+                --memory-total-size=100G --memory-oper=read --memory-access-mode=rnd run
+
+              echo ""
+              echo "--- Large Block Sequential Write (1M block) ---"
+              sysbench memory --threads=$(nproc) --time=60 --memory-block-size=1M \
+                --memory-total-size=100G --memory-oper=write --memory-access-mode=seq run
+
+              echo ""
+              echo "===== Memory Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

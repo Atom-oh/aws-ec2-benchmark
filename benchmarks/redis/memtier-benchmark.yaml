@@ -1,0 +1,110 @@
+# memtier_benchmark - Redis Labs 공식 벤치마크 도구
+# redis-benchmark보다 정밀한 latency percentile 측정
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: memtier-benchmark-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: memtier
+    test-type: redis
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: memtier
+        test-type: redis
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-redis
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/redis:7-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until redis-cli -h redis-server-INSTANCE_SAFE ping | grep -q PONG; do
+                echo "Waiting for Redis server..."
+                sleep 2
+              done
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"
+      containers:
+        - name: memtier
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/redislabs/memtier_benchmark:latest
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              REDIS_HOST="redis-server-INSTANCE_SAFE"
+
+              echo "===== memtier_benchmark (Redis Labs Official) ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Redis Host: ${REDIS_HOST}"
+              echo ""
+
+              echo "--- SET Only (1:0 ratio) ---"
+              memtier_benchmark -s ${REDIS_HOST} -p 6379 \
+                --threads=4 --clients=50 --requests=100000 \
+                --ratio=1:0 --data-size=64 \
+                --print-percentiles=50,90,95,99,99.9 \
+                --hide-histogram
+
+              echo ""
+              echo "--- GET Only (0:1 ratio) ---"
+              memtier_benchmark -s ${REDIS_HOST} -p 6379 \
+                --threads=4 --clients=50 --requests=100000 \
+                --ratio=0:1 --data-size=64 \
+                --print-percentiles=50,90,95,99,99.9 \
+                --hide-histogram
+
+              echo ""
+              echo "--- Mixed SET/GET (1:10 ratio, realistic) ---"
+              memtier_benchmark -s ${REDIS_HOST} -p 6379 \
+                --threads=4 --clients=50 --requests=100000 \
+                --ratio=1:10 --data-size=64 \
+                --print-percentiles=50,90,95,99,99.9 \
+                --hide-histogram
+
+              echo ""
+              echo "--- Pipeline Mode (pipeline=16) ---"
+              memtier_benchmark -s ${REDIS_HOST} -p 6379 \
+                --threads=4 --clients=50 --requests=100000 \
+                --ratio=1:1 --data-size=64 --pipeline=16 \
+                --print-percentiles=50,90,95,99,99.9 \
+                --hide-histogram
+
+              echo ""
+              echo "--- Large Value (1KB) ---"
+              memtier_benchmark -s ${REDIS_HOST} -p 6379 \
+                --threads=4 --clients=50 --requests=50000 \
+                --ratio=1:1 --data-size=1024 \
+                --print-percentiles=50,90,95,99,99.9 \
+                --hide-histogram
+
+              echo ""
+              echo "===== memtier_benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

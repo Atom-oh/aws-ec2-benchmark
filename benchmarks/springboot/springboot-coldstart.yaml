@@ -1,0 +1,103 @@
+# Spring Boot Cold Start Benchmark
+# Measures JVM startup time until application is ready
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: springboot-coldstart-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: springboot-coldstart
+    instance-type: "INSTANCE_TYPE"
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        benchmark: springboot-coldstart
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: INSTANCE_TYPE
+        kubernetes.io/arch: ARCH
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        # Spring Boot application
+        - name: springboot
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/springboot-simple:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms2g -Xmx4g -XX:+UseG1GC"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "6Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 2
+        # Benchmark sidecar - measures startup time
+        - name: benchmark
+          image: public.ecr.aws/docker/library/alpine:3.19
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              apk add --no-cache curl bc > /dev/null 2>&1
+
+              echo "===== Spring Boot Cold Start: INSTANCE_TYPE ====="
+              echo "Timestamp: $(date -Iseconds)"
+
+              START_MS=$(date +%s%3N)
+              echo "Pod start time: ${START_MS}ms"
+
+              # Wait for Spring Boot to be ready
+              MAX_WAIT=180
+              READY=false
+
+              while [ $(($(date +%s%3N) - START_MS)) -lt $((MAX_WAIT * 1000)) ]; do
+                if curl -s http://localhost:8080/actuator/health 2>/dev/null | grep -q "UP"; then
+                  END_MS=$(date +%s%3N)
+                  STARTUP_MS=$((END_MS - START_MS))
+                  echo ""
+                  echo "=== Cold Start Time ==="
+                  echo "Ready time: ${END_MS}ms"
+                  echo "COLD_START_MS: ${STARTUP_MS}"
+                  echo "Application ready in ${STARTUP_MS}ms ($(echo "scale=2; $STARTUP_MS/1000" | bc)s)"
+                  READY=true
+                  break
+                fi
+                sleep 0.5
+              done
+
+              if [ "$READY" = "false" ]; then
+                echo "TIMEOUT: Application did not start within ${MAX_WAIT}s"
+                exit 1
+              fi
+
+              echo ""
+              echo "===== Complete ====="
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"

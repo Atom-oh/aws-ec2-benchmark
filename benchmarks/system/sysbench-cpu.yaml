@@ -1,0 +1,85 @@
+# Sysbench CPU Benchmark Job
+# CPU 연산 성능 측정 - events per second, latency
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sysbench-cpu-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: sysbench
+    test-type: cpu
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: sysbench
+        test-type: cpu
+    spec:
+      restartPolicy: Never
+      # 특정 인스턴스 타입에 스케줄링
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      # Pod에 limit 없이 노드 전체 리소스 사용
+      containers:
+        - name: sysbench
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          # 리소스 제한 없음 - 노드 전체 사용
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Install sysbench
+              apt-get update -qq && apt-get install -y -qq sysbench > /dev/null 2>&1
+
+              echo "===== System Info ====="
+              cat /proc/cpuinfo | grep "model name" | head -1
+              cat /proc/cpuinfo | grep "cpu MHz" | head -1
+              echo "CPU cores: $(nproc)"
+              free -h
+              echo ""
+
+              echo "===== Sysbench CPU Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Test: CPU (prime numbers calculation)"
+              echo "Threads: $(nproc)"
+              echo "Duration: 60 seconds"
+              echo ""
+
+              # Warm-up run
+              echo "--- Warm-up (10s) ---"
+              sysbench cpu --threads=$(nproc) --time=10 run > /dev/null
+
+              # Main benchmark - 3 iterations
+              for i in 1 2 3; do
+                echo ""
+                echo "--- Run $i/3 ---"
+                sysbench cpu --threads=$(nproc) --time=60 --cpu-max-prime=20000 run
+              done
+
+              echo ""
+              echo "===== Single Thread Performance ====="
+              sysbench cpu --threads=1 --time=30 --cpu-max-prime=20000 run
+
+              echo ""
+              echo "===== Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

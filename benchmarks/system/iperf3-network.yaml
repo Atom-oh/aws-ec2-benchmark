@@ -1,0 +1,180 @@
+# iperf3 Network Bandwidth Benchmark
+# 노드 내부 네트워크 성능 측정 (loopback 또는 Pod간)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iperf3-server-INSTANCE_SAFE
+  namespace: benchmark
+spec:
+  selector:
+    app: iperf3-server
+    instance-type: "${INSTANCE_TYPE}"
+  ports:
+    - port: 5201
+      targetPort: 5201
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iperf3-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: iperf3-server
+    benchmark: iperf3
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iperf3-server
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        app: iperf3-server
+        benchmark: iperf3
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - ap-northeast-2a
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - ap-northeast-2b
+            - weight: 25
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - ap-northeast-2c
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: iperf3-server
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              apt-get update -qq && apt-get install -y -qq iperf3 > /dev/null 2>&1
+              iperf3 -s
+          ports:
+            - containerPort: 5201
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iperf3-benchmark-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: iperf3
+    test-type: network
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: iperf3
+        test-type: network
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        # Pod Affinity: 같은 instance-type의 서버와 같은 AZ에 배치
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: iperf3-server
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        # Pod Anti-Affinity: 같은 노드에 다른 benchmark pod 배치 금지
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: iperf3-client
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              apt-get update -qq && apt-get install -y -qq iperf3 netcat-openbsd > /dev/null 2>&1
+
+              SERVER="IPERF_SERVER_IP"
+
+              echo "===== iperf3 Network Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Server: ${SERVER}"
+              echo ""
+
+              # Wait for server to be ready
+              for i in $(seq 1 30); do
+                if nc -z ${SERVER} 5201 2>/dev/null; then
+                  echo "Server is ready"
+                  break
+                fi
+                echo "Waiting for server..."
+                sleep 2
+              done
+
+              echo "--- TCP Bandwidth (Single Stream, 30s) ---"
+              iperf3 -c ${SERVER} -t 30 2>&1
+
+              echo ""
+              echo "--- TCP Bandwidth (8 Parallel Streams, 30s) ---"
+              iperf3 -c ${SERVER} -t 30 -P 8 2>&1
+
+              echo ""
+              echo "--- TCP Bandwidth (Reverse Mode, 30s) ---"
+              iperf3 -c ${SERVER} -t 30 -R 2>&1
+
+              echo ""
+              echo "--- UDP Bandwidth Test (1Gbps target, 30s) ---"
+              iperf3 -c ${SERVER} -t 30 -u -b 1G 2>&1
+
+              echo ""
+              echo "===== iperf3 Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

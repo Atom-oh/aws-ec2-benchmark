@@ -1,0 +1,103 @@
+# fio Disk I/O Benchmark - 업계 표준 스토리지 벤치마크
+# Random/Sequential Read/Write, 다양한 블록 사이즈
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fio-disk-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: fio
+    test-type: disk
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: fio
+        test-type: disk
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: fio
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Install fio and jq
+              apt-get update -qq && apt-get install -y -qq fio jq > /dev/null 2>&1
+
+              echo "===== fio Disk I/O Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo ""
+
+              # 테스트 디렉토리 생성
+              mkdir -p /tmp/fio-test
+              cd /tmp/fio-test
+
+              # 각 테스트 후 정리하여 스토리지 부족 방지 (xlarge 노드용 256MB 파일)
+              echo "--- Random Read 4K (IOPS 측정) ---"
+              fio --name=rand-read-4k --ioengine=libaio --iodepth=64 --rw=randread \
+                  --bs=4k --direct=1 --size=256M --numjobs=4 --runtime=60 --time_based \
+                  --group_reporting --output-format=json+ > /tmp/fio-randread.json
+              jq '{iops: .jobs[0].read.iops, bw_kb: .jobs[0].read.bw, lat_ns: .jobs[0].read.lat_ns.mean}' /tmp/fio-randread.json
+              rm -f /tmp/fio-test/*
+
+              echo ""
+              echo "--- Random Write 4K (IOPS 측정) ---"
+              fio --name=rand-write-4k --ioengine=libaio --iodepth=64 --rw=randwrite \
+                  --bs=4k --direct=1 --size=256M --numjobs=4 --runtime=60 --time_based \
+                  --group_reporting --output-format=json+ > /tmp/fio-randwrite.json
+              jq '{iops: .jobs[0].write.iops, bw_kb: .jobs[0].write.bw, lat_ns: .jobs[0].write.lat_ns.mean}' /tmp/fio-randwrite.json
+              rm -f /tmp/fio-test/*
+
+              echo ""
+              echo "--- Sequential Read 1M (Throughput 측정) ---"
+              fio --name=seq-read-1m --ioengine=libaio --iodepth=32 --rw=read \
+                  --bs=1m --direct=1 --size=512M --numjobs=2 --runtime=60 --time_based \
+                  --group_reporting --output-format=json+ > /tmp/fio-seqread.json
+              jq '{bw_kb: .jobs[0].read.bw, lat_ns: .jobs[0].read.lat_ns.mean}' /tmp/fio-seqread.json
+              rm -f /tmp/fio-test/*
+
+              echo ""
+              echo "--- Sequential Write 1M (Throughput 측정) ---"
+              fio --name=seq-write-1m --ioengine=libaio --iodepth=32 --rw=write \
+                  --bs=1m --direct=1 --size=512M --numjobs=2 --runtime=60 --time_based \
+                  --group_reporting --output-format=json+ > /tmp/fio-seqwrite.json
+              jq '{bw_kb: .jobs[0].write.bw, lat_ns: .jobs[0].write.lat_ns.mean}' /tmp/fio-seqwrite.json
+              rm -f /tmp/fio-test/*
+
+              echo ""
+              echo "--- Mixed Random R/W 4K (70/30) ---"
+              fio --name=mixed-rw-4k --ioengine=libaio --iodepth=64 --rw=randrw --rwmixread=70 \
+                  --bs=4k --direct=1 --size=256M --numjobs=4 --runtime=60 --time_based \
+                  --group_reporting --output-format=json+ > /tmp/fio-mixed.json
+              jq '{read_iops: .jobs[0].read.iops, write_iops: .jobs[0].write.iops}' /tmp/fio-mixed.json
+
+              # 정리
+              rm -rf /tmp/fio-test
+
+              echo ""
+              echo "===== fio Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

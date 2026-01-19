@@ -1,0 +1,109 @@
+# Redis Server for Benchmark
+# 노드 전체 리소스를 사용하는 Redis 인스턴스
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: benchmark
+data:
+  redis.conf: |
+    # Redis Configuration for Benchmarking
+    bind 0.0.0.0
+    port 6379
+    protected-mode no
+
+    # 메모리 설정 - 제한 없음 (노드 전체 사용)
+    maxmemory 0
+
+    # 성능 최적화
+    tcp-backlog 511
+    tcp-keepalive 300
+
+    # 로깅
+    loglevel notice
+
+    # 지속성 비활성화 (순수 성능 측정)
+    save ""
+    appendonly no
+
+    # 스레드 설정 (Redis 6.0+)
+    io-threads 2
+    io-threads-do-reads yes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: redis-server
+    benchmark: redis
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-server
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        app: redis-server
+        benchmark: redis
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: redis
+          image: public.ecr.aws/docker/library/redis:7-alpine
+          # 리소스 제한 없음
+          resources: {}
+          ports:
+            - containerPort: 6379
+          command:
+            - redis-server
+            - /etc/redis/redis.conf
+          volumeMounts:
+            - name: redis-config
+              mountPath: /etc/redis
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: redis-server
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  selector:
+    app: redis-server
+    instance-type: "${INSTANCE_TYPE}"
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP

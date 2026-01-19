@@ -1,0 +1,165 @@
+# Spring Boot Benchmark Job
+# JVM Startup Time 및 HTTP Throughput 측정
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: springboot-startup-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: springboot-startup
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: springboot-startup
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: startup-timer
+          # 간단한 Spring Boot 앱으로 startup time 측정
+          image: public.ecr.aws/amazoncorretto/amazoncorretto:21
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "===== Spring Boot JVM Startup Time Measurement ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo ""
+
+              # JVM 정보 출력
+              java -version 2>&1
+              echo ""
+
+              # Startup time은 Pod events에서 측정
+              # 여기서는 JVM 자체 startup time 측정
+              echo "--- JVM Startup Time (empty main) ---"
+              for i in 1 2 3 4 5; do
+                START=$(date +%s%3N)
+                java -version 2>&1 > /dev/null
+                END=$(date +%s%3N)
+                echo "Run $i: $((END - START))ms"
+              done
+
+              echo ""
+              echo "--- JVM with common flags ---"
+              for i in 1 2 3; do
+                START=$(date +%s%3N)
+                java -XX:+UseG1GC -Xms128m -Xmx256m -version 2>&1 > /dev/null
+                END=$(date +%s%3N)
+                echo "Run $i: $((END - START))ms"
+              done
+
+              echo ""
+              echo "===== JVM Startup Measurement Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: springboot-benchmark-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: springboot-benchmark
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: springboot-benchmark
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      # wrk runs on benchmark-client nodepool (c6in.8xlarge in zone c)
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: benchmark-client
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      initContainers:
+        - name: wait-for-springboot
+          image: public.ecr.aws/docker/library/alpine:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Spring Boot server..."
+              until wget -q --spider http://springboot-server-INSTANCE_SAFE:8080/ 2>/dev/null; do
+                echo "Still waiting..."
+                sleep 5
+              done
+              echo "Spring Boot server is ready!"
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"
+      containers:
+        - name: benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/wrk:latest
+          resources:
+            requests:
+              cpu: "1500m"
+              memory: "4Gi"
+            limits:
+              cpu: "1500m"
+              memory: "4Gi"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              SPRINGBOOT_HOST="springboot-server-INSTANCE_SAFE"
+
+              echo "===== Spring Boot Benchmark (wrk) ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Spring Boot Host: ${SPRINGBOOT_HOST}"
+              echo ""
+
+              # Warm-up (JIT compilation)
+              echo "--- Warm-up Phase (30s) ---"
+              wrk -t2 -c50 -d30s http://${SPRINGBOOT_HOST}:8080/ > /dev/null 2>&1
+              echo "Warm-up complete"
+              echo ""
+
+              # Main page test
+              echo "--- Main Page - 2 threads, 50 connections, 60s ---"
+              wrk -t2 -c50 -d60s --latency http://${SPRINGBOOT_HOST}:8080/
+              echo ""
+
+              echo "--- Main Page - 2 threads, 100 connections, 60s ---"
+              wrk -t2 -c100 -d60s --latency http://${SPRINGBOOT_HOST}:8080/
+              echo ""
+
+              # High load test
+              echo "--- High Load - 2 threads, 200 connections, 30s ---"
+              wrk -t2 -c200 -d30s --latency http://${SPRINGBOOT_HOST}:8080/
+              echo ""
+
+              echo "===== Spring Boot Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

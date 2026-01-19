@@ -1,0 +1,228 @@
+# Elasticsearch Cold Start Benchmark
+# Single container: runs ES as background process for accurate measurement
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: es-coldstart-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: elasticsearch
+    instance-type: "INSTANCE_TYPE"
+spec:
+  ttlSecondsAfterFinished: 1800
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: elasticsearch
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: INSTANCE_TYPE
+        kubernetes.io/arch: ARCH
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: benchmark
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -e
+
+              # Install dependencies
+              apt-get update -qq && apt-get install -y -qq curl jq bc openjdk-17-jre-headless sudo > /dev/null 2>&1
+
+              # Create elasticsearch user (ES refuses to run as root)
+              useradd -m -s /bin/bash elasticsearch
+
+              echo "===== Elasticsearch Cold Start: INSTANCE_TYPE ====="
+              echo "Timestamp: $(date -Iseconds)"
+
+              # Download and extract ES
+              echo ""
+              echo "=== Setting up ES ==="
+              cd /tmp
+              curl -sL https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-8.11.0-linux-$(uname -m | sed 's/x86_64/x86_64/' | sed 's/aarch64/aarch64/').tar.gz | tar xz
+
+              # Change ownership to elasticsearch user
+              chown -R elasticsearch:elasticsearch elasticsearch-8.11.0
+              cd elasticsearch-8.11.0
+
+              # Configure ES
+              echo "discovery.type: single-node" >> config/elasticsearch.yml
+              echo "xpack.security.enabled: false" >> config/elasticsearch.yml
+
+              # Record start time and launch ES as elasticsearch user
+              echo ""
+              echo "=== Starting ES ==="
+              START_TIME=$(date +%s%N | cut -b1-13)
+              echo "START_TIME_MS: $START_TIME"
+
+              sudo -u elasticsearch ES_JAVA_OPTS="-Xms2g -Xmx4g" ./bin/elasticsearch -d -p /tmp/es.pid
+
+              # Wait for ES HTTP
+              echo ""
+              echo "=== Waiting for ES HTTP ==="
+              MAX_WAIT=300
+              WAIT_START=$(date +%s)
+              while ! curl -s http://localhost:9200 > /dev/null 2>&1; do
+                if [ $(($(date +%s) - WAIT_START)) -gt $MAX_WAIT ]; then
+                  echo "ERROR: ES did not start within ${MAX_WAIT}s"
+                  exit 1
+                fi
+                sleep 0.5
+              done
+              echo "ES HTTP responding"
+
+              # Wait for cluster health
+              echo ""
+              echo "=== Waiting for cluster ready ==="
+              while true; do
+                STATUS=$(curl -s http://localhost:9200/_cluster/health 2>/dev/null | jq -r '.status' 2>/dev/null)
+                if [ "$STATUS" = "yellow" ] || [ "$STATUS" = "green" ]; then
+                  READY_TIME=$(date +%s%N | cut -b1-13)
+                  break
+                fi
+                if [ $(($(date +%s) - WAIT_START)) -gt $MAX_WAIT ]; then
+                  echo "ERROR: Cluster did not become ready"
+                  exit 1
+                fi
+                sleep 0.5
+              done
+              echo "Cluster status: $STATUS"
+              echo "READY_TIME_MS: $READY_TIME"
+
+              # Calculate cold start
+              COLD_START_MS=$((READY_TIME - START_TIME))
+
+              echo ""
+              echo "=== Results ==="
+              echo "Instance: INSTANCE_TYPE"
+              echo "START_TIME_MS: $START_TIME"
+              echo "READY_TIME_MS: $READY_TIME"
+              echo "COLD_START_MS: $COLD_START_MS"
+              echo "Cold start: $(echo "scale=2; $COLD_START_MS/1000" | bc)s"
+
+              # ES Info
+              echo ""
+              echo "=== ES Info ==="
+              curl -s http://localhost:9200 | jq -c '{name, version: .version.number}'
+
+              # JVM Stats before tests
+              echo ""
+              echo "=== JVM Stats (Before Tests) ==="
+              curl -s "http://localhost:9200/_nodes/stats/jvm" | jq '.nodes | to_entries[0].value.jvm | {heap_used_mb: (.mem.heap_used_in_bytes/1048576|floor), heap_max_mb: (.mem.heap_max_in_bytes/1048576|floor), gc_young_count: .gc.collectors.young.collection_count, gc_young_time_ms: .gc.collectors.young.collection_time_in_millis, gc_old_count: .gc.collectors.old.collection_count, gc_old_time_ms: .gc.collectors.old.collection_time_in_millis}'
+
+              GC_BEFORE=$(curl -s "http://localhost:9200/_nodes/stats/jvm" | jq '[.nodes | to_entries[0].value.jvm.gc.collectors | .young.collection_time_in_millis, .old.collection_time_in_millis] | add')
+
+              # Index test - Sequential (100 docs)
+              echo ""
+              echo "=== Index Test: Sequential (100 docs) ==="
+              IDX_START=$(date +%s%N | cut -b1-13)
+              for i in $(seq 1 100); do
+                curl -s -X POST "http://localhost:9200/bench/_doc" \
+                  -H 'Content-Type: application/json' \
+                  -d "{\"v\":$i,\"ts\":$(date +%s%N)}" > /dev/null
+              done
+              IDX_END=$(date +%s%N | cut -b1-13)
+              SEQ_INDEX_MS=$((IDX_END - IDX_START))
+              echo "SEQUENTIAL_INDEX_100_MS: $SEQ_INDEX_MS"
+              echo "SEQUENTIAL_INDEX_DOCS_PER_SEC: $(echo "scale=1; 100000/$SEQ_INDEX_MS" | bc)"
+
+              # Bulk indexing test (1000 docs)
+              echo ""
+              echo "=== Index Test: Bulk (1000 docs) ==="
+              BULK_DATA=""
+              for i in $(seq 1 1000); do
+                BULK_DATA="${BULK_DATA}{\"index\":{}}\n{\"v\":$i,\"data\":\"benchmark-test-data-$i\"}\n"
+              done
+              BULK_START=$(date +%s%N | cut -b1-13)
+              echo -e "$BULK_DATA" | curl -s -X POST "http://localhost:9200/bench-bulk/_bulk" \
+                -H 'Content-Type: application/x-ndjson' --data-binary @- > /dev/null
+              BULK_END=$(date +%s%N | cut -b1-13)
+              BULK_INDEX_MS=$((BULK_END - BULK_START))
+              echo "BULK_INDEX_1000_MS: $BULK_INDEX_MS"
+              echo "BULK_INDEX_DOCS_PER_SEC: $(echo "scale=1; 1000000/$BULK_INDEX_MS" | bc)"
+
+              # Refresh indices for search
+              curl -s -X POST "http://localhost:9200/_refresh" > /dev/null
+
+              # Search test - Simple match_all
+              echo ""
+              echo "=== Search Test: match_all (10 runs) ==="
+              SEARCH_TOTAL=0
+              for i in $(seq 1 10); do
+                S_START=$(date +%s%N | cut -b1-13)
+                curl -s "http://localhost:9200/bench-bulk/_search?size=100" \
+                  -H 'Content-Type: application/json' \
+                  -d '{"query":{"match_all":{}}}' > /dev/null
+                S_END=$(date +%s%N | cut -b1-13)
+                SEARCH_TOTAL=$((SEARCH_TOTAL + S_END - S_START))
+              done
+              SEARCH_AVG_MS=$((SEARCH_TOTAL / 10))
+              echo "SEARCH_MATCH_ALL_AVG_MS: $SEARCH_AVG_MS"
+
+              # Search test - Term query
+              echo ""
+              echo "=== Search Test: term query (10 runs) ==="
+              TERM_TOTAL=0
+              for i in $(seq 1 10); do
+                T_START=$(date +%s%N | cut -b1-13)
+                curl -s "http://localhost:9200/bench-bulk/_search" \
+                  -H 'Content-Type: application/json' \
+                  -d '{"query":{"term":{"v":500}}}' > /dev/null
+                T_END=$(date +%s%N | cut -b1-13)
+                TERM_TOTAL=$((TERM_TOTAL + T_END - T_START))
+              done
+              TERM_AVG_MS=$((TERM_TOTAL / 10))
+              echo "SEARCH_TERM_AVG_MS: $TERM_AVG_MS"
+
+              # JVM Stats after tests
+              echo ""
+              echo "=== JVM Stats (After Tests) ==="
+              curl -s "http://localhost:9200/_nodes/stats/jvm" | jq '.nodes | to_entries[0].value.jvm | {heap_used_mb: (.mem.heap_used_in_bytes/1048576|floor), heap_max_mb: (.mem.heap_max_in_bytes/1048576|floor), gc_young_count: .gc.collectors.young.collection_count, gc_young_time_ms: .gc.collectors.young.collection_time_in_millis, gc_old_count: .gc.collectors.old.collection_count, gc_old_time_ms: .gc.collectors.old.collection_time_in_millis}'
+
+              GC_AFTER=$(curl -s "http://localhost:9200/_nodes/stats/jvm" | jq '[.nodes | to_entries[0].value.jvm.gc.collectors | .young.collection_time_in_millis, .old.collection_time_in_millis] | add')
+              GC_DURING_TEST=$((GC_AFTER - GC_BEFORE))
+              echo "GC_TIME_DURING_TEST_MS: $GC_DURING_TEST"
+
+              # Final Summary
+              echo ""
+              echo "=== Final Summary ==="
+              echo "Instance: INSTANCE_TYPE"
+              echo "COLD_START_MS: $COLD_START_MS"
+              echo "SEQUENTIAL_INDEX_100_MS: $SEQ_INDEX_MS"
+              echo "BULK_INDEX_1000_MS: $BULK_INDEX_MS"
+              echo "SEARCH_MATCH_ALL_AVG_MS: $SEARCH_AVG_MS"
+              echo "SEARCH_TERM_AVG_MS: $TERM_AVG_MS"
+              echo "GC_TIME_DURING_TEST_MS: $GC_DURING_TEST"
+
+              # Shutdown ES gracefully
+              echo ""
+              echo "=== Shutting down ES ==="
+              kill $(cat /tmp/es.pid) 2>/dev/null || true
+              sleep 5
+
+              echo ""
+              echo "===== Complete ====="
+          resources:
+            requests:
+              cpu: "2"
+              memory: "5Gi"
+            limits:
+              cpu: "4"
+              memory: "6Gi"

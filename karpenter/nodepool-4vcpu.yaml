@@ -1,0 +1,173 @@
+# Karpenter NodePool for 4 vCPU (xlarge) Benchmark Testing
+# 8세대 최신 인스턴스 및 다양한 변형 타입 지원
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-4vcpu-intel
+  labels:
+    benchmark: "true"
+    arch: x86_64
+    vendor: intel
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark
+        vcpu: "4"
+    spec:
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values:
+            # === 8세대 Intel (최신) ===
+            - c8i.xlarge        # Emerald Rapids, Compute
+            - c8i-flex.xlarge   # Emerald Rapids Flex
+            - m8i.xlarge        # Emerald Rapids, General
+            - r8i.xlarge        # Emerald Rapids, Memory
+            - r8i-flex.xlarge   # Emerald Rapids Flex
+            # === 7세대 Intel ===
+            - c7i.xlarge        # Sapphire Rapids, Compute
+            - c7i-flex.xlarge   # Sapphire Rapids Flex
+            - m7i.xlarge        # Sapphire Rapids, General
+            - m7i-flex.xlarge   # Sapphire Rapids Flex
+            - r7i.xlarge        # Sapphire Rapids, Memory
+            # === 6세대 Intel ===
+            - c6i.xlarge        # Ice Lake, Compute
+            - c6id.xlarge       # Ice Lake + NVMe
+            - c6in.xlarge       # Ice Lake + Enhanced Network
+            - m6i.xlarge        # Ice Lake, General
+            - m6id.xlarge       # Ice Lake + NVMe
+            - m6in.xlarge       # Ice Lake + Enhanced Network
+            - m6idn.xlarge      # Ice Lake + NVMe + Network
+            - r6i.xlarge        # Ice Lake, Memory
+            - r6id.xlarge       # Ice Lake + NVMe
+            # === 5세대 Intel ===
+            - c5.xlarge         # Skylake, Compute
+            - c5d.xlarge        # Skylake + NVMe
+            - c5n.xlarge        # Skylake + Enhanced Network
+            - m5.xlarge         # Skylake, General
+            - m5d.xlarge        # Skylake + NVMe
+            - m5zn.xlarge       # High Frequency (최대 4.5GHz)
+            - r5.xlarge         # Skylake, Memory
+            - r5d.xlarge        # Skylake + NVMe
+            - r5n.xlarge        # Skylake + Enhanced Network
+            - r5dn.xlarge       # Skylake + NVMe + Network
+            - r5b.xlarge        # Enhanced EBS
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: benchmark-nodeclass
+      taints:
+        - key: benchmark
+          value: "true"
+          effect: NoSchedule
+  limits:
+    cpu: 360   # 40개 노드 동시 실행 (4 vCPU x 40)
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-4vcpu-amd
+  labels:
+    benchmark: "true"
+    arch: x86_64
+    vendor: amd
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark
+        vcpu: "4"
+    spec:
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values:
+            # === 5세대 AMD (Rome) - 서울 리전 지원 ===
+            # Note: AMD 6세대(c6a/m6a/r6a), 7세대(c7a/m7a/r7a)는 서울 리전 미지원
+            - c5a.xlarge        # EPYC 7002, Compute
+            - m5a.xlarge        # EPYC 7002, General
+            - m5ad.xlarge       # EPYC 7002 + NVMe
+            - r5a.xlarge        # EPYC 7002, Memory
+            - r5ad.xlarge       # EPYC 7002 + NVMe
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: benchmark-nodeclass
+      taints:
+        - key: benchmark
+          value: "true"
+          effect: NoSchedule
+  limits:
+    cpu: 360
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: benchmark-4vcpu-graviton
+  labels:
+    benchmark: "true"
+    arch: arm64
+    vendor: graviton
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: benchmark
+        vcpu: "4"
+    spec:
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values:
+            # === Graviton4 (8세대) ===
+            - c8g.xlarge        # Graviton4, Compute
+            - m8g.xlarge        # Graviton4, General
+            - r8g.xlarge        # Graviton4, Memory
+            # === Graviton3 (7세대) ===
+            - c7g.xlarge        # Graviton3, Compute
+            - c7gd.xlarge       # Graviton3 + NVMe
+            - m7g.xlarge        # Graviton3, General
+            - m7gd.xlarge       # Graviton3 + NVMe
+            - r7g.xlarge        # Graviton3, Memory
+            - r7gd.xlarge       # Graviton3 + NVMe
+            # === Graviton2 (6세대) ===
+            - c6g.xlarge        # Graviton2, Compute
+            - c6gd.xlarge       # Graviton2 + NVMe
+            - c6gn.xlarge       # Graviton2 + Enhanced Network
+            - m6g.xlarge        # Graviton2, General
+            - m6gd.xlarge       # Graviton2 + NVMe
+            - r6g.xlarge        # Graviton2, Memory
+            - r6gd.xlarge       # Graviton2 + NVMe
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: benchmark-nodeclass-graviton
+      taints:
+        - key: benchmark
+          value: "true"
+          effect: NoSchedule
+  limits:
+    cpu: 360
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s

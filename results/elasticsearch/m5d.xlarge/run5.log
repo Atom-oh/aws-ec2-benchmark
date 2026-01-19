@@ -1,0 +1,179 @@
+===== Elasticsearch Cold Start: m5d.xlarge =====
+Timestamp: 2026-01-18T07:26:04+00:00
+
+=== Setting up ES ===
+
+=== Starting ES ===
+START_TIME_MS: 1768721176458
+Jan 18, 2026 7:26:19 AM sun.util.locale.provider.LocaleProviderAdapter <clinit>
+WARNING: COMPAT locale provider will be removed in a future release
+[2026-01-18T07:26:20,003][INFO ][o.a.l.i.v.PanamaVectorizationProvider] [es-coldstart-m5d-xlarge-run5-jnphf] Java vector incubator API enabled; uses preferredBitSize=256
+[2026-01-18T07:26:20,647][INFO ][o.e.n.Node               ] [es-coldstart-m5d-xlarge-run5-jnphf] version[8.11.0], pid[4192], build[tar/d9ec3fa628c7b0ba3d25692e277ba26814820b20/2023-11-04T10:04:57.184859352Z], OS[Linux/6.12.63-84.121.amzn2023.x86_64/amd64], JVM[Oracle Corporation/OpenJDK 64-Bit Server VM/21.0.1/21.0.1+12-29]
+[2026-01-18T07:26:20,649][INFO ][o.e.n.Node               ] [es-coldstart-m5d-xlarge-run5-jnphf] JVM home [/tmp/elasticsearch-8.11.0/jdk], using bundled JDK [true]
+[2026-01-18T07:26:20,649][INFO ][o.e.n.Node               ] [es-coldstart-m5d-xlarge-run5-jnphf] JVM arguments [-Des.networkaddress.cache.ttl=60, -Des.networkaddress.cache.negative.ttl=10, -Djava.security.manager=allow, -XX:+AlwaysPreTouch, -Xss1m, -Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Djna.nosys=true, -XX:-OmitStackTraceInFastThrow, -Dio.netty.noUnsafe=true, -Dio.netty.noKeySetOptimization=true, -Dio.netty.recycler.maxCapacityPerThread=0, -Dlog4j.shutdownHookEnabled=false, -Dlog4j2.disable.jmx=true, -Dlog4j2.formatMsgNoLookups=true, -Djava.locale.providers=SPI,COMPAT, --add-opens=java.base/java.io=org.elasticsearch.preallocate, -XX:+UseG1GC, -Djava.io.tmpdir=/tmp/elasticsearch-9474337469542214023, --add-modules=jdk.incubator.vector, -XX:+HeapDumpOnOutOfMemoryError, -XX:+ExitOnOutOfMemoryError, -XX:HeapDumpPath=data, -XX:ErrorFile=logs/hs_err_pid%p.log, -Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,level,pid,tags:filecount=32,filesize=64m, -Xms2g, -Xmx4g, -XX:MaxDirectMemorySize=2147483648, -XX:G1HeapRegionSize=4m, -XX:InitiatingHeapOccupancyPercent=30, -XX:G1ReservePercent=15, -Des.distribution.type=tar, --module-path=/tmp/elasticsearch-8.11.0/lib, --add-modules=jdk.net, --add-modules=ALL-MODULE-PATH, -Djdk.module.main=org.elasticsearch.server]
+[2026-01-18T07:26:24,349][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [repository-url]
+[2026-01-18T07:26:24,350][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [rest-root]
+[2026-01-18T07:26:24,351][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-core]
+[2026-01-18T07:26:24,351][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-redact]
+[2026-01-18T07:26:24,352][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [ingest-user-agent]
+[2026-01-18T07:26:24,352][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-async-search]
+[2026-01-18T07:26:24,353][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-monitoring]
+[2026-01-18T07:26:24,353][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [repository-s3]
+[2026-01-18T07:26:24,353][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-analytics]
+[2026-01-18T07:26:24,354][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-ent-search]
+[2026-01-18T07:26:24,354][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-autoscaling]
+[2026-01-18T07:26:24,355][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [lang-painless]
+[2026-01-18T07:26:24,355][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-ml]
+[2026-01-18T07:26:24,355][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [legacy-geo]
+[2026-01-18T07:26:24,355][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [lang-mustache]
+[2026-01-18T07:26:24,356][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-ql]
+[2026-01-18T07:26:24,356][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [rank-rrf]
+[2026-01-18T07:26:24,356][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [analysis-common]
+[2026-01-18T07:26:24,356][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [transport-netty4]
+[2026-01-18T07:26:24,357][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [aggregations]
+[2026-01-18T07:26:24,357][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [ingest-common]
+[2026-01-18T07:26:24,358][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-identity-provider]
+[2026-01-18T07:26:24,358][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [frozen-indices]
+[2026-01-18T07:26:24,358][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-text-structure]
+[2026-01-18T07:26:24,359][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-shutdown]
+[2026-01-18T07:26:24,359][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [snapshot-repo-test-kit]
+[2026-01-18T07:26:24,360][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [ml-package-loader]
+[2026-01-18T07:26:24,360][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [kibana]
+[2026-01-18T07:26:24,360][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [constant-keyword]
+[2026-01-18T07:26:24,361][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-logstash]
+[2026-01-18T07:26:24,361][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-graph]
+[2026-01-18T07:26:24,361][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-ccr]
+[2026-01-18T07:26:24,362][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-esql]
+[2026-01-18T07:26:24,362][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [parent-join]
+[2026-01-18T07:26:24,362][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-enrich]
+[2026-01-18T07:26:24,363][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [repositories-metering-api]
+[2026-01-18T07:26:24,363][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [transform]
+[2026-01-18T07:26:24,363][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [repository-azure]
+[2026-01-18T07:26:24,364][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [repository-gcs]
+[2026-01-18T07:26:24,364][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [spatial]
+[2026-01-18T07:26:24,364][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [mapper-version]
+[2026-01-18T07:26:24,365][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [mapper-extras]
+[2026-01-18T07:26:24,365][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [apm]
+[2026-01-18T07:26:24,365][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-rollup]
+[2026-01-18T07:26:24,365][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [percolator]
+[2026-01-18T07:26:24,366][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-stack]
+[2026-01-18T07:26:24,366][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [data-streams]
+[2026-01-18T07:26:24,366][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [reindex]
+[2026-01-18T07:26:24,366][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [rank-eval]
+[2026-01-18T07:26:24,366][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-security]
+[2026-01-18T07:26:24,367][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [blob-cache]
+[2026-01-18T07:26:24,367][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [searchable-snapshots]
+[2026-01-18T07:26:24,367][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-slm]
+[2026-01-18T07:26:24,367][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [snapshot-based-recoveries]
+[2026-01-18T07:26:24,367][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-watcher]
+[2026-01-18T07:26:24,368][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [old-lucene-versions]
+[2026-01-18T07:26:24,368][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-ilm]
+[2026-01-18T07:26:24,368][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-voting-only-node]
+[2026-01-18T07:26:24,368][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-deprecation]
+[2026-01-18T07:26:24,369][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-fleet]
+[2026-01-18T07:26:24,369][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-profiling]
+[2026-01-18T07:26:24,369][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-aggregate-metric]
+[2026-01-18T07:26:24,369][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-downsample]
+[2026-01-18T07:26:24,370][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [ingest-geoip]
+[2026-01-18T07:26:24,370][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-write-load-forecaster]
+[2026-01-18T07:26:24,370][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [inference]
+[2026-01-18T07:26:24,370][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [search-business-rules]
+[2026-01-18T07:26:24,371][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [wildcard]
+[2026-01-18T07:26:24,371][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [ingest-attachment]
+[2026-01-18T07:26:24,371][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-sql]
+[2026-01-18T07:26:24,371][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [unsigned-long]
+[2026-01-18T07:26:24,371][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-async]
+[2026-01-18T07:26:24,372][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [runtime-fields-common]
+[2026-01-18T07:26:24,372][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [vector-tile]
+[2026-01-18T07:26:24,372][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [lang-expression]
+[2026-01-18T07:26:24,372][INFO ][o.e.p.PluginsService     ] [es-coldstart-m5d-xlarge-run5-jnphf] loaded module [x-pack-eql]
+[2026-01-18T07:26:27,858][INFO ][o.e.e.NodeEnvironment    ] [es-coldstart-m5d-xlarge-run5-jnphf] using [1] data paths, mounts [[/ (overlay)]], net usable_space [44.8gb], net total_space [49.9gb], types [overlay]
+[2026-01-18T07:26:27,858][INFO ][o.e.e.NodeEnvironment    ] [es-coldstart-m5d-xlarge-run5-jnphf] heap size [4gb], compressed ordinary object pointers [true]
+[2026-01-18T07:26:27,868][INFO ][o.e.n.Node               ] [es-coldstart-m5d-xlarge-run5-jnphf] node name [es-coldstart-m5d-xlarge-run5-jnphf], node ID [BkvmeGqtRo28BT-WLs1X7Q], cluster name [elasticsearch], roles [data_warm, data_content, transform, data_hot, ml, data_frozen, ingest, data_cold, data, remote_cluster_client, master]
+[2026-01-18T07:26:30,900][INFO ][o.e.x.m.p.l.CppLogMessageHandler] [es-coldstart-m5d-xlarge-run5-jnphf] [controller/4215] [Main.cc@123] controller (64 bit): Version 8.11.0 (Build e39a40d810307c) Copyright (c) 2023 Elasticsearch BV
+[2026-01-18T07:26:31,155][INFO ][o.e.x.s.Security         ] [es-coldstart-m5d-xlarge-run5-jnphf] Security is disabled
+[2026-01-18T07:26:31,399][INFO ][o.e.x.p.ProfilingPlugin  ] [es-coldstart-m5d-xlarge-run5-jnphf] Profiling is enabled
+[2026-01-18T07:26:31,422][INFO ][o.e.x.p.ProfilingPlugin  ] [es-coldstart-m5d-xlarge-run5-jnphf] profiling index templates will not be installed or reinstalled
+[2026-01-18T07:26:32,056][INFO ][o.e.t.n.NettyAllocator   ] [es-coldstart-m5d-xlarge-run5-jnphf] creating NettyAllocator with the following configs: [name=elasticsearch_configured, chunk_size=1mb, suggested_max_allocation_size=1mb, factors={es.unsafe.use_netty_default_chunk_and_page_size=false, g1gc_enabled=true, g1gc_region_size=4mb}]
+[2026-01-18T07:26:32,077][INFO ][o.e.i.r.RecoverySettings ] [es-coldstart-m5d-xlarge-run5-jnphf] using rate limit [40mb] with [default=40mb, read=0b, write=0b, max=0b]
+[2026-01-18T07:26:32,114][INFO ][o.e.d.DiscoveryModule    ] [es-coldstart-m5d-xlarge-run5-jnphf] using discovery type [single-node] and seed hosts providers [settings]
+[2026-01-18T07:26:33,834][INFO ][o.e.n.Node               ] [es-coldstart-m5d-xlarge-run5-jnphf] initialized
+[2026-01-18T07:26:33,835][INFO ][o.e.n.Node               ] [es-coldstart-m5d-xlarge-run5-jnphf] starting ...
+[2026-01-18T07:26:33,848][INFO ][o.e.x.s.c.f.PersistentCache] [es-coldstart-m5d-xlarge-run5-jnphf] persistent cache index loaded
+[2026-01-18T07:26:33,849][INFO ][o.e.x.d.l.DeprecationIndexingComponent] [es-coldstart-m5d-xlarge-run5-jnphf] deprecation component started
+[2026-01-18T07:26:33,925][INFO ][o.e.t.TransportService   ] [es-coldstart-m5d-xlarge-run5-jnphf] publish_address {127.0.0.1:9300}, bound_addresses {[::1]:9300}, {127.0.0.1:9300}
+[2026-01-18T07:26:34,036][WARN ][o.e.b.BootstrapChecks    ] [es-coldstart-m5d-xlarge-run5-jnphf] initial heap size [2147483648] not equal to maximum heap size [4294967296]; this can cause resize pauses; for more information see [https://www.elastic.co/guide/en/elasticsearch/reference/8.11/_heap_size_check.html]
+[2026-01-18T07:26:34,037][INFO ][o.e.c.c.ClusterBootstrapService] [es-coldstart-m5d-xlarge-run5-jnphf] this node has not joined a bootstrapped cluster yet; [cluster.initial_master_nodes] is set to [es-coldstart-m5d-xlarge-run5-jnphf]
+[2026-01-18T07:26:34,043][INFO ][o.e.c.c.Coordinator      ] [es-coldstart-m5d-xlarge-run5-jnphf] setting initial configuration to VotingConfiguration{BkvmeGqtRo28BT-WLs1X7Q}
+[2026-01-18T07:26:34,185][INFO ][o.e.c.s.MasterService    ] [es-coldstart-m5d-xlarge-run5-jnphf] elected-as-master ([1] nodes joined in term 1)[_FINISH_ELECTION_, {es-coldstart-m5d-xlarge-run5-jnphf}{BkvmeGqtRo28BT-WLs1X7Q}{wSivNYaWS2OqAFz-hvwJ1A}{es-coldstart-m5d-xlarge-run5-jnphf}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003} completing election], term: 1, version: 1, delta: master node changed {previous [], current [{es-coldstart-m5d-xlarge-run5-jnphf}{BkvmeGqtRo28BT-WLs1X7Q}{wSivNYaWS2OqAFz-hvwJ1A}{es-coldstart-m5d-xlarge-run5-jnphf}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}]}
+[2026-01-18T07:26:34,217][INFO ][o.e.c.c.CoordinationState] [es-coldstart-m5d-xlarge-run5-jnphf] cluster UUID set to [WIqOnAIBTECYtZ_CDV-kOg]
+[2026-01-18T07:26:34,241][INFO ][o.e.c.s.ClusterApplierService] [es-coldstart-m5d-xlarge-run5-jnphf] master node changed {previous [], current [{es-coldstart-m5d-xlarge-run5-jnphf}{BkvmeGqtRo28BT-WLs1X7Q}{wSivNYaWS2OqAFz-hvwJ1A}{es-coldstart-m5d-xlarge-run5-jnphf}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}]}, term: 1, version: 1, reason: Publication{term=1, version=1}
+[2026-01-18T07:26:34,275][INFO ][o.e.c.f.AbstractFileWatchingService] [es-coldstart-m5d-xlarge-run5-jnphf] starting file watcher ...
+[2026-01-18T07:26:34,281][INFO ][o.e.c.f.AbstractFileWatchingService] [es-coldstart-m5d-xlarge-run5-jnphf] file settings service up and running [tid=50]
+[2026-01-18T07:26:34,293][INFO ][o.e.h.AbstractHttpServerTransport] [es-coldstart-m5d-xlarge-run5-jnphf] publish_address {127.0.0.1:9200}, bound_addresses {[::1]:9200}, {127.0.0.1:9200}
+[2026-01-18T07:26:34,294][INFO ][o.e.n.Node               ] [es-coldstart-m5d-xlarge-run5-jnphf] started {es-coldstart-m5d-xlarge-run5-jnphf}{BkvmeGqtRo28BT-WLs1X7Q}{wSivNYaWS2OqAFz-hvwJ1A}{es-coldstart-m5d-xlarge-run5-jnphf}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}{xpack.installed=true, ml.config_version=11.0.0, ml.max_jvm_size=4294967296, ml.allocated_processors_double=4.0, ml.allocated_processors=4, ml.machine_memory=6442450944, transform.config_version=10.0.0}
+
+=== Waiting for ES HTTP ===
+ES HTTP responding
+
+=== Waiting for cluster ready ===
+Cluster status: green
+READY_TIME_MS: 1768721194884
+
+=== Results ===
+Instance: m5d.xlarge
+START_TIME_MS: 1768721176458
+READY_TIME_MS: 1768721194884
+COLD_START_MS: 18426
+Cold start: 18.42s
+
+=== ES Info ===
+{"name":"es-coldstart-m5d-xlarge-run5-jnphf","version":"8.11.0"}
+
+=== JVM Stats (Before Tests) ===
+{
+  "heap_used_mb": 293,
+  "heap_max_mb": 4096,
+  "gc_young_count": 12,
+  "gc_young_time_ms": 240,
+  "gc_old_count": 0,
+  "gc_old_time_ms": 0
+}
+
+=== Index Test: Sequential (100 docs) ===
+SEQUENTIAL_INDEX_100_MS: 2881
+SEQUENTIAL_INDEX_DOCS_PER_SEC: 34.7
+
+=== Index Test: Bulk (1000 docs) ===
+BULK_INDEX_1000_MS: 447
+BULK_INDEX_DOCS_PER_SEC: 2237.1
+
+=== Search Test: match_all (10 runs) ===
+SEamd64_MATCH_ALL_AVG_MS: 28
+
+=== Search Test: term query (10 runs) ===
+SEamd64_TERM_AVG_MS: 16
+
+=== JVM Stats (After Tests) ===
+{
+  "heap_used_mb": 453,
+  "heap_max_mb": 4096,
+  "gc_young_count": 12,
+  "gc_young_time_ms": 240,
+  "gc_old_count": 0,
+  "gc_old_time_ms": 0
+}
+GC_TIME_DURING_TEST_MS: 0
+
+=== Final Summary ===
+Instance: m5d.xlarge
+COLD_START_MS: 18426
+SEQUENTIAL_INDEX_100_MS: 2881
+BULK_INDEX_1000_MS: 447
+SEamd64_MATCH_ALL_AVG_MS: 28
+SEamd64_TERM_AVG_MS: 16
+GC_TIME_DURING_TEST_MS: 0
+
+=== Shutting down ES ===
+
+===== Complete =====

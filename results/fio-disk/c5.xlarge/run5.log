@@ -1,0 +1,30 @@
+===== fio Disk I/O Benchmark =====
+Instance Type: c5.xlarge
+
+--- Random Read 4K (IOPS 측정) ---
+jq: error: syntax error, unexpected '/', expecting '}' (Unix shell quoting issues?) at <top-level>, line 1:
+.jobs[0] | {iops: .read.iops, bw_mb: (.read.bw / 1024), lat_us: .read.lat_ns.mean / 1000}                                                                                  
+jq: 1 compile error
+
+--- Random Write 4K (IOPS 측정) ---
+jq: error: syntax error, unexpected '/', expecting '}' (Unix shell quoting issues?) at <top-level>, line 1:
+.jobs[0] | {iops: .write.iops, bw_mb: (.write.bw / 1024), lat_us: .write.lat_ns.mean / 1000}                                                                                     
+jq: 1 compile error
+
+--- Sequential Read 1M (Throughput 측정) ---
+jq: error: syntax error, unexpected '/', expecting '}' (Unix shell quoting issues?) at <top-level>, line 1:
+.jobs[0] | {bw_mb: (.read.bw / 1024), lat_ms: .read.lat_ns.mean / 1000000}                                                                
+jq: 1 compile error
+
+--- Sequential Write 1M (Throughput 측정) ---
+jq: error: syntax error, unexpected '/', expecting '}' (Unix shell quoting issues?) at <top-level>, line 1:
+.jobs[0] | {bw_mb: (.write.bw / 1024), lat_ms: .write.lat_ns.mean / 1000000}                                                                  
+jq: 1 compile error
+
+--- Mixed Random R/W 4K (70/30) ---
+{
+  "read_iops": 2130.618773,
+  "write_iops": 918.679817
+}
+
+===== fio Benchmark Complete =====

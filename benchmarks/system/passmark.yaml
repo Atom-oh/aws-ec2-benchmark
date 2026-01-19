@@ -1,0 +1,90 @@
+# Passmark PerformanceTest Linux - 표준화된 벤치마크 점수
+# runs-on.com과 직접 비교 가능한 CPU Single Thread / Multi Thread 점수
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: passmark-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: passmark
+    test-type: cpu
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: passmark
+        test-type: cpu
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: passmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "===== Passmark PerformanceTest Linux ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo ""
+
+              # 필수 패키지 설치
+              apt-get update && apt-get install -y curl ncurses-bin unzip
+
+              # Passmark 다운로드
+              echo "Downloading Passmark PerformanceTest..."
+              cd /tmp
+              curl -sL https://www.passmark.com/downloads/pt_linux_x64.zip -o pt_linux.zip
+              unzip -q pt_linux.zip
+              cd PerformanceTest
+
+              # 실행 권한
+              chmod +x pt_linux_x64
+
+              echo ""
+              echo "--- System Info ---"
+              cat /proc/cpuinfo | grep "model name" | head -1
+              echo "vCPUs: $(nproc)"
+              free -h | head -2
+
+              echo ""
+              echo "--- Running Passmark CPU Benchmark ---"
+              # -r 1: 1회 실행, -i 1: CPU Integer만
+              ./pt_linux_x64 -r 1 2>&1 | tee /tmp/passmark-result.txt
+
+              echo ""
+              echo "--- Results Summary ---"
+              grep -E "CPU_SINGL|CPU_MULTI|CPU Mark|PassMark" /tmp/passmark-result.txt || \
+              cat /tmp/passmark-result.txt
+
+              # JSON 형식 결과 추출 시도
+              echo ""
+              echo "--- Parsed Scores ---"
+              SINGLE=$(grep -i "single" /tmp/passmark-result.txt | grep -oP '\d+\.?\d*' | head -1)
+              MULTI=$(grep -i "multi\|all" /tmp/passmark-result.txt | grep -oP '\d+\.?\d*' | head -1)
+              echo "{\"cpu_single_thread\": ${SINGLE:-0}, \"cpu_multi_thread\": ${MULTI:-0}}"
+
+              echo ""
+              echo "===== Passmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

@@ -1,0 +1,120 @@
+# Pod Startup Time Measurement
+# 노드 프로비저닝 + Pod 스케줄링 + 컨테이너 시작 시간 측정
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: startup-time-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: startup-time
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: startup-time
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: startup-timer
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/busybox:latest
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # 컨테이너 시작 시간 기록
+              CONTAINER_START=$(date +%s.%N)
+              echo "===== Pod Startup Time Measurement ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Container Start Time: $(date -Iseconds)"
+              echo "Container Start Timestamp: ${CONTAINER_START}"
+
+              # Pod 생성 시간은 downward API나 외부에서 측정
+              # 여기서는 컨테이너 내부에서 가능한 정보만 출력
+
+              echo ""
+              echo "System Info:"
+              cat /proc/cpuinfo | grep "model name" | head -1 || echo "CPU info not available"
+              echo "Processors: $(nproc)"
+
+              echo ""
+              echo "Kernel: $(uname -r)"
+              echo "Hostname: $(hostname)"
+
+              echo ""
+              echo "===== Startup Time Recorded ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"
+---
+# Deployment for repeated startup time testing
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: startup-test-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: startup-test
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 0  # 스케일 업/다운으로 startup time 측정
+  selector:
+    matchLabels:
+      benchmark: startup-test
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        benchmark: startup-test
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: startup-test
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/busybox:latest
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Started at: $(date -Iseconds)"
+              echo "Instance: ${INSTANCE_TYPE}"
+              # Keep pod running for measurements
+              sleep 300
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

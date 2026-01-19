@@ -1,0 +1,94 @@
+# stress-ng Comprehensive Benchmark Job
+# CPU, Memory, I/O 종합 성능 측정 - bogo ops/s
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stress-ng-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: stress-ng
+    test-type: comprehensive
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: stress-ng
+        test-type: comprehensive
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: stress-ng
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Install stress-ng
+              apt-get update -qq && apt-get install -y -qq stress-ng > /dev/null 2>&1
+
+              echo "===== stress-ng Comprehensive Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "CPUs: $(nproc)"
+              echo ""
+
+              # CPU 벤치마크 - 다양한 CPU 스트레서
+              echo "--- CPU Matrix Operations ---"
+              stress-ng --matrix $(nproc) --timeout 60s --metrics-brief
+
+              echo ""
+              echo "--- CPU Float Operations ---"
+              stress-ng --cpu $(nproc) --cpu-method float64 --timeout 60s --metrics-brief
+
+              echo ""
+              echo "--- CPU Integer Operations ---"
+              stress-ng --cpu $(nproc) --cpu-method int64 --timeout 60s --metrics-brief
+
+              echo ""
+              echo "--- Memory Bandwidth (memcpy) ---"
+              stress-ng --memcpy $(nproc) --timeout 60s --metrics-brief
+
+              echo ""
+              echo "--- Memory Bandwidth (memmove) ---"
+              stress-ng --memmove $(nproc) --timeout 60s --metrics-brief
+
+              echo ""
+              echo "--- Cache Performance ---"
+              stress-ng --cache $(nproc) --timeout 60s --metrics-brief
+
+              echo ""
+              echo "--- Context Switch ---"
+              stress-ng --switch $(nproc) --timeout 30s --metrics-brief
+
+              echo ""
+              echo "--- Branch Prediction ---"
+              stress-ng --branch $(nproc) --timeout 30s --metrics-brief
+
+              echo ""
+              echo "--- System Call Performance ---"
+              stress-ng --syscall $(nproc) --timeout 30s --metrics-brief
+
+              echo ""
+              echo "===== stress-ng Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"
