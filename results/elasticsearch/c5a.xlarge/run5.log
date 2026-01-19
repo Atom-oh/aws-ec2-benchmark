@@ -1,0 +1,180 @@
+===== Elasticsearch Cold Start: c5a.xlarge =====
+Timestamp: 2026-01-19T14:49:49+00:00
+
+=== Setting up ES ===
+
+=== Starting ES ===
+START_TIME_MS: 1768834200435
+Total memory: 7817MB, ES Heap: 4690MB (60%)
+Jan 19, 2026 2:50:05 PM sun.util.locale.provider.LocaleProviderAdapter <clinit>
+WARNING: COMPAT locale provider will be removed in a future release
+[2026-01-19T14:50:05,982][INFO ][o.a.l.i.v.PanamaVectorizationProvider] [es-coldstart-c5a-xlarge-run5-xpkd9] Java vector incubator API enabled; uses preferredBitSize=256
+[2026-01-19T14:50:06,567][INFO ][o.e.n.Node               ] [es-coldstart-c5a-xlarge-run5-xpkd9] version[8.11.0], pid[4196], build[tar/d9ec3fa628c7b0ba3d25692e277ba26814820b20/2023-11-04T10:04:57.184859352Z], OS[Linux/6.12.63-84.121.amzn2023.x86_64/amd64], JVM[Oracle Corporation/OpenJDK 64-Bit Server VM/21.0.1/21.0.1+12-29]
+[2026-01-19T14:50:06,568][INFO ][o.e.n.Node               ] [es-coldstart-c5a-xlarge-run5-xpkd9] JVM home [/tmp/elasticsearch-8.11.0/jdk], using bundled JDK [true]
+[2026-01-19T14:50:06,569][INFO ][o.e.n.Node               ] [es-coldstart-c5a-xlarge-run5-xpkd9] JVM arguments [-Des.networkaddress.cache.ttl=60, -Des.networkaddress.cache.negative.ttl=10, -Djava.security.manager=allow, -XX:+AlwaysPreTouch, -Xss1m, -Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Djna.nosys=true, -XX:-OmitStackTraceInFastThrow, -Dio.netty.noUnsafe=true, -Dio.netty.noKeySetOptimization=true, -Dio.netty.recycler.maxCapacityPerThread=0, -Dlog4j.shutdownHookEnabled=false, -Dlog4j2.disable.jmx=true, -Dlog4j2.formatMsgNoLookups=true, -Djava.locale.providers=SPI,COMPAT, --add-opens=java.base/java.io=org.elasticsearch.preallocate, -XX:+UseG1GC, -Djava.io.tmpdir=/tmp/elasticsearch-16959590150214559756, --add-modules=jdk.incubator.vector, -XX:+HeapDumpOnOutOfMemoryError, -XX:+ExitOnOutOfMemoryError, -XX:HeapDumpPath=data, -XX:ErrorFile=logs/hs_err_pid%p.log, -Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,level,pid,tags:filecount=32,filesize=64m, -Xms4690m, -Xmx4690m, -XX:MaxDirectMemorySize=2459959296, -XX:G1HeapRegionSize=4m, -XX:InitiatingHeapOccupancyPercent=30, -XX:G1ReservePercent=15, -Des.distribution.type=tar, --module-path=/tmp/elasticsearch-8.11.0/lib, --add-modules=jdk.net, --add-modules=ALL-MODULE-PATH, -Djdk.module.main=org.elasticsearch.server]
+[2026-01-19T14:50:09,944][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [repository-url]
+[2026-01-19T14:50:09,945][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [rest-root]
+[2026-01-19T14:50:09,945][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-core]
+[2026-01-19T14:50:09,945][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-redact]
+[2026-01-19T14:50:09,946][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [ingest-user-agent]
+[2026-01-19T14:50:09,946][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-async-search]
+[2026-01-19T14:50:09,946][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-monitoring]
+[2026-01-19T14:50:09,946][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [repository-s3]
+[2026-01-19T14:50:09,946][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-analytics]
+[2026-01-19T14:50:09,947][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-ent-search]
+[2026-01-19T14:50:09,947][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-autoscaling]
+[2026-01-19T14:50:09,947][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [lang-painless]
+[2026-01-19T14:50:09,947][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-ml]
+[2026-01-19T14:50:09,948][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [legacy-geo]
+[2026-01-19T14:50:09,948][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [lang-mustache]
+[2026-01-19T14:50:09,948][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-ql]
+[2026-01-19T14:50:09,948][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [rank-rrf]
+[2026-01-19T14:50:09,949][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [analysis-common]
+[2026-01-19T14:50:09,949][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [transport-netty4]
+[2026-01-19T14:50:09,949][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [aggregations]
+[2026-01-19T14:50:09,949][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [ingest-common]
+[2026-01-19T14:50:09,949][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-identity-provider]
+[2026-01-19T14:50:09,950][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [frozen-indices]
+[2026-01-19T14:50:09,950][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-text-structure]
+[2026-01-19T14:50:09,950][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-shutdown]
+[2026-01-19T14:50:09,950][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [snapshot-repo-test-kit]
+[2026-01-19T14:50:09,951][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [ml-package-loader]
+[2026-01-19T14:50:09,951][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [kibana]
+[2026-01-19T14:50:09,951][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [constant-keyword]
+[2026-01-19T14:50:09,951][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-logstash]
+[2026-01-19T14:50:09,951][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-graph]
+[2026-01-19T14:50:09,952][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-ccr]
+[2026-01-19T14:50:09,952][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-esql]
+[2026-01-19T14:50:09,952][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [parent-join]
+[2026-01-19T14:50:09,952][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-enrich]
+[2026-01-19T14:50:09,952][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [repositories-metering-api]
+[2026-01-19T14:50:09,953][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [transform]
+[2026-01-19T14:50:09,953][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [repository-azure]
+[2026-01-19T14:50:09,953][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [repository-gcs]
+[2026-01-19T14:50:09,954][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [spatial]
+[2026-01-19T14:50:09,954][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [mapper-version]
+[2026-01-19T14:50:09,954][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [mapper-extras]
+[2026-01-19T14:50:09,954][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [apm]
+[2026-01-19T14:50:09,954][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-rollup]
+[2026-01-19T14:50:09,955][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [percolator]
+[2026-01-19T14:50:09,955][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-stack]
+[2026-01-19T14:50:09,955][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [data-streams]
+[2026-01-19T14:50:09,955][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [reindex]
+[2026-01-19T14:50:09,955][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [rank-eval]
+[2026-01-19T14:50:09,956][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-security]
+[2026-01-19T14:50:09,956][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [blob-cache]
+[2026-01-19T14:50:09,956][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [searchable-snapshots]
+[2026-01-19T14:50:09,956][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-slm]
+[2026-01-19T14:50:09,956][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [snapshot-based-recoveries]
+[2026-01-19T14:50:09,956][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-watcher]
+[2026-01-19T14:50:09,957][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [old-lucene-versions]
+[2026-01-19T14:50:09,957][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-ilm]
+[2026-01-19T14:50:09,957][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-voting-only-node]
+[2026-01-19T14:50:09,957][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-deprecation]
+[2026-01-19T14:50:09,957][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-fleet]
+[2026-01-19T14:50:09,958][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-profiling]
+[2026-01-19T14:50:09,958][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-aggregate-metric]
+[2026-01-19T14:50:09,958][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-downsample]
+[2026-01-19T14:50:09,958][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [ingest-geoip]
+[2026-01-19T14:50:09,958][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-write-load-forecaster]
+[2026-01-19T14:50:09,959][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [inference]
+[2026-01-19T14:50:09,959][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [search-business-rules]
+[2026-01-19T14:50:09,959][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [wildcard]
+[2026-01-19T14:50:09,959][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [ingest-attachment]
+[2026-01-19T14:50:09,959][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-sql]
+[2026-01-19T14:50:09,960][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [unsigned-long]
+[2026-01-19T14:50:09,960][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-async]
+[2026-01-19T14:50:09,960][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [runtime-fields-common]
+[2026-01-19T14:50:09,960][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [vector-tile]
+[2026-01-19T14:50:09,960][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [lang-expression]
+[2026-01-19T14:50:09,960][INFO ][o.e.p.PluginsService     ] [es-coldstart-c5a-xlarge-run5-xpkd9] loaded module [x-pack-eql]
+[2026-01-19T14:50:12,467][INFO ][o.e.e.NodeEnvironment    ] [es-coldstart-c5a-xlarge-run5-xpkd9] using [1] data paths, mounts [[/ (overlay)]], net usable_space [44.8gb], net total_space [49.9gb], types [overlay]
+[2026-01-19T14:50:12,467][INFO ][o.e.e.NodeEnvironment    ] [es-coldstart-c5a-xlarge-run5-xpkd9] heap size [4.5gb], compressed ordinary object pointers [true]
+[2026-01-19T14:50:12,476][INFO ][o.e.n.Node               ] [es-coldstart-c5a-xlarge-run5-xpkd9] node name [es-coldstart-c5a-xlarge-run5-xpkd9], node ID [ee-ttYLaSJ60QISeRyPsLQ], cluster name [elasticsearch], roles [data_frozen, ml, data_hot, transform, data_content, data_warm, master, remote_cluster_client, data, data_cold, ingest]
+[2026-01-19T14:50:14,647][INFO ][o.e.x.m.p.l.CppLogMessageHandler] [es-coldstart-c5a-xlarge-run5-xpkd9] [controller/4218] [Main.cc@123] controller (64 bit): Version 8.11.0 (Build e39a40d810307c) Copyright (c) 2023 Elasticsearch BV
+[2026-01-19T14:50:14,914][INFO ][o.e.x.s.Security         ] [es-coldstart-c5a-xlarge-run5-xpkd9] Security is disabled
+[2026-01-19T14:50:15,173][INFO ][o.e.x.p.ProfilingPlugin  ] [es-coldstart-c5a-xlarge-run5-xpkd9] Profiling is enabled
+[2026-01-19T14:50:15,221][INFO ][o.e.x.p.ProfilingPlugin  ] [es-coldstart-c5a-xlarge-run5-xpkd9] profiling index templates will not be installed or reinstalled
+[2026-01-19T14:50:15,690][INFO ][o.e.t.n.NettyAllocator   ] [es-coldstart-c5a-xlarge-run5-xpkd9] creating NettyAllocator with the following configs: [name=elasticsearch_configured, chunk_size=1mb, suggested_max_allocation_size=1mb, factors={es.unsafe.use_netty_default_chunk_and_page_size=false, g1gc_enabled=true, g1gc_region_size=4mb}]
+[2026-01-19T14:50:15,709][INFO ][o.e.i.r.RecoverySettings ] [es-coldstart-c5a-xlarge-run5-xpkd9] using rate limit [40mb] with [default=40mb, read=0b, write=0b, max=0b]
+[2026-01-19T14:50:15,748][INFO ][o.e.d.DiscoveryModule    ] [es-coldstart-c5a-xlarge-run5-xpkd9] using discovery type [single-node] and seed hosts providers [settings]
+[2026-01-19T14:50:16,698][INFO ][o.e.n.Node               ] [es-coldstart-c5a-xlarge-run5-xpkd9] initialized
+[2026-01-19T14:50:16,699][INFO ][o.e.n.Node               ] [es-coldstart-c5a-xlarge-run5-xpkd9] starting ...
+[2026-01-19T14:50:16,711][INFO ][o.e.x.s.c.f.PersistentCache] [es-coldstart-c5a-xlarge-run5-xpkd9] persistent cache index loaded
+[2026-01-19T14:50:16,712][INFO ][o.e.x.d.l.DeprecationIndexingComponent] [es-coldstart-c5a-xlarge-run5-xpkd9] deprecation component started
+[2026-01-19T14:50:16,781][INFO ][o.e.t.TransportService   ] [es-coldstart-c5a-xlarge-run5-xpkd9] publish_address {127.0.0.1:9300}, bound_addresses {[::1]:9300}, {127.0.0.1:9300}
+[2026-01-19T14:50:16,879][INFO ][o.e.c.c.ClusterBootstrapService] [es-coldstart-c5a-xlarge-run5-xpkd9] this node has not joined a bootstrapped cluster yet; [cluster.initial_master_nodes] is set to [es-coldstart-c5a-xlarge-run5-xpkd9]
+[2026-01-19T14:50:16,883][INFO ][o.e.c.c.Coordinator      ] [es-coldstart-c5a-xlarge-run5-xpkd9] setting initial configuration to VotingConfiguration{ee-ttYLaSJ60QISeRyPsLQ}
+[2026-01-19T14:50:16,976][INFO ][o.e.c.s.MasterService    ] [es-coldstart-c5a-xlarge-run5-xpkd9] elected-as-master ([1] nodes joined in term 1)[_FINISH_ELECTION_, {es-coldstart-c5a-xlarge-run5-xpkd9}{ee-ttYLaSJ60QISeRyPsLQ}{Ssw2SpPISuymTYAB3QiB1w}{es-coldstart-c5a-xlarge-run5-xpkd9}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003} completing election], term: 1, version: 1, delta: master node changed {previous [], current [{es-coldstart-c5a-xlarge-run5-xpkd9}{ee-ttYLaSJ60QISeRyPsLQ}{Ssw2SpPISuymTYAB3QiB1w}{es-coldstart-c5a-xlarge-run5-xpkd9}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}]}
+[2026-01-19T14:50:17,002][INFO ][o.e.c.c.CoordinationState] [es-coldstart-c5a-xlarge-run5-xpkd9] cluster UUID set to [vQ52l4xzQgmU7S4hiJFmJw]
+[2026-01-19T14:50:17,023][INFO ][o.e.c.s.ClusterApplierService] [es-coldstart-c5a-xlarge-run5-xpkd9] master node changed {previous [], current [{es-coldstart-c5a-xlarge-run5-xpkd9}{ee-ttYLaSJ60QISeRyPsLQ}{Ssw2SpPISuymTYAB3QiB1w}{es-coldstart-c5a-xlarge-run5-xpkd9}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}]}, term: 1, version: 1, reason: Publication{term=1, version=1}
+[2026-01-19T14:50:17,049][INFO ][o.e.c.f.AbstractFileWatchingService] [es-coldstart-c5a-xlarge-run5-xpkd9] starting file watcher ...
+[2026-01-19T14:50:17,057][INFO ][o.e.c.f.AbstractFileWatchingService] [es-coldstart-c5a-xlarge-run5-xpkd9] file settings service up and running [tid=51]
+[2026-01-19T14:50:17,064][INFO ][o.e.h.AbstractHttpServerTransport] [es-coldstart-c5a-xlarge-run5-xpkd9] publish_address {127.0.0.1:9200}, bound_addresses {[::1]:9200}, {127.0.0.1:9200}
+[2026-01-19T14:50:17,064][INFO ][o.e.c.c.NodeJoinExecutor ] [es-coldstart-c5a-xlarge-run5-xpkd9] node-join: [{es-coldstart-c5a-xlarge-run5-xpkd9}{ee-ttYLaSJ60QISeRyPsLQ}{Ssw2SpPISuymTYAB3QiB1w}{es-coldstart-c5a-xlarge-run5-xpkd9}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}] with reason [completing election]
+[2026-01-19T14:50:17,065][INFO ][o.e.n.Node               ] [es-coldstart-c5a-xlarge-run5-xpkd9] started {es-coldstart-c5a-xlarge-run5-xpkd9}{ee-ttYLaSJ60QISeRyPsLQ}{Ssw2SpPISuymTYAB3QiB1w}{es-coldstart-c5a-xlarge-run5-xpkd9}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}{ml.allocated_processors_double=4.0, ml.max_jvm_size=4919918592, ml.config_version=11.0.0, xpack.installed=true, transform.config_version=10.0.0, ml.machine_memory=8197681152, ml.allocated_processors=4}
+
+=== Waiting for ES HTTP ===
+ES HTTP responding
+
+=== Waiting for cluster ready ===
+Cluster status: green
+READY_TIME_MS: 1768834217584
+
+=== Results ===
+Instance: c5a.xlarge
+START_TIME_MS: 1768834200435
+READY_TIME_MS: 1768834217584
+COLD_START_MS: 17149
+Cold start: 17.14s
+
+=== ES Info ===
+{"name":"es-coldstart-c5a-xlarge-run5-xpkd9","version":"8.11.0"}
+
+=== JVM Stats (Before Tests) ===
+{
+  "heap_used_mb": 305,
+  "heap_max_mb": 4692,
+  "gc_young_count": 10,
+  "gc_young_time_ms": 135,
+  "gc_old_count": 0,
+  "gc_old_time_ms": 0
+}
+
+=== Index Test: Sequential (100 docs) ===
+SEQUENTIAL_INDEX_100_MS: 2392
+SEQUENTIAL_INDEX_DOCS_PER_SEC: 41.8
+
+=== Index Test: Bulk (1000 docs) ===
+BULK_INDEX_1000_MS: 393
+BULK_INDEX_DOCS_PER_SEC: 2544.5
+
+=== Search Test: match_all (10 runs) ===
+SEamd64_MATCH_ALL_AVG_MS: 28
+
+=== Search Test: term query (10 runs) ===
+SEamd64_TERM_AVG_MS: 17
+
+=== JVM Stats (After Tests) ===
+{
+  "heap_used_mb": 457,
+  "heap_max_mb": 4692,
+  "gc_young_count": 10,
+  "gc_young_time_ms": 135,
+  "gc_old_count": 0,
+  "gc_old_time_ms": 0
+}
+GC_TIME_DURING_TEST_MS: 0
+
+=== Final Summary ===
+Instance: c5a.xlarge
+COLD_START_MS: 17149
+SEQUENTIAL_INDEX_100_MS: 2392
+BULK_INDEX_1000_MS: 393
+SEamd64_MATCH_ALL_AVG_MS: 28
+SEamd64_TERM_AVG_MS: 17
+GC_TIME_DURING_TEST_MS: 0
+
+=== Shutting down ES ===
+
+===== Complete =====

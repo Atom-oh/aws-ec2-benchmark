@@ -1,0 +1,180 @@
+===== Elasticsearch Cold Start: c6gn.xlarge =====
+Timestamp: 2026-01-19T14:56:45+00:00
+
+=== Setting up ES ===
+
+=== Starting ES ===
+START_TIME_MS: 1768834611715
+Total memory: 7763MB, ES Heap: 4658MB (60%)
+Jan 19, 2026 2:56:54 PM sun.util.locale.provider.LocaleProviderAdapter <clinit>
+WARNING: COMPAT locale provider will be removed in a future release
+[2026-01-19T14:56:56,675][INFO ][o.a.l.i.v.PanamaVectorizationProvider] [es-coldstart-c6gn-xlarge-run2-7dkhx] Java vector incubator API enabled; uses preferredBitSize=128
+[2026-01-19T14:56:57,246][INFO ][o.e.n.Node               ] [es-coldstart-c6gn-xlarge-run2-7dkhx] version[8.11.0], pid[4195], build[tar/d9ec3fa628c7b0ba3d25692e277ba26814820b20/2023-11-04T10:04:57.184859352Z], OS[Linux/6.12.63-84.121.amzn2023.aarch64/aarch64], JVM[Oracle Corporation/OpenJDK 64-Bit Server VM/21.0.1/21.0.1+12-29]
+[2026-01-19T14:56:57,248][INFO ][o.e.n.Node               ] [es-coldstart-c6gn-xlarge-run2-7dkhx] JVM home [/tmp/elasticsearch-8.11.0/jdk], using bundled JDK [true]
+[2026-01-19T14:56:57,248][INFO ][o.e.n.Node               ] [es-coldstart-c6gn-xlarge-run2-7dkhx] JVM arguments [-Des.networkaddress.cache.ttl=60, -Des.networkaddress.cache.negative.ttl=10, -Djava.security.manager=allow, -XX:+AlwaysPreTouch, -Xss1m, -Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Djna.nosys=true, -XX:-OmitStackTraceInFastThrow, -Dio.netty.noUnsafe=true, -Dio.netty.noKeySetOptimization=true, -Dio.netty.recycler.maxCapacityPerThread=0, -Dlog4j.shutdownHookEnabled=false, -Dlog4j2.disable.jmx=true, -Dlog4j2.formatMsgNoLookups=true, -Djava.locale.providers=SPI,COMPAT, --add-opens=java.base/java.io=org.elasticsearch.preallocate, -XX:+UseG1GC, -Djava.io.tmpdir=/tmp/elasticsearch-13918717213880728062, --add-modules=jdk.incubator.vector, -XX:+HeapDumpOnOutOfMemoryError, -XX:+ExitOnOutOfMemoryError, -XX:HeapDumpPath=data, -XX:ErrorFile=logs/hs_err_pid%p.log, -Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,level,pid,tags:filecount=32,filesize=64m, -Xms4658m, -Xmx4658m, -XX:MaxDirectMemorySize=2443182080, -XX:G1HeapRegionSize=4m, -XX:InitiatingHeapOccupancyPercent=30, -XX:G1ReservePercent=15, -Des.distribution.type=tar, --module-path=/tmp/elasticsearch-8.11.0/lib, --add-modules=jdk.net, --add-modules=ALL-MODULE-PATH, -Djdk.module.main=org.elasticsearch.server]
+[2026-01-19T14:57:00,707][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [repository-url]
+[2026-01-19T14:57:00,708][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [rest-root]
+[2026-01-19T14:57:00,708][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-core]
+[2026-01-19T14:57:00,708][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-redact]
+[2026-01-19T14:57:00,708][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [ingest-user-agent]
+[2026-01-19T14:57:00,709][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-async-search]
+[2026-01-19T14:57:00,709][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-monitoring]
+[2026-01-19T14:57:00,709][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [repository-s3]
+[2026-01-19T14:57:00,709][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-analytics]
+[2026-01-19T14:57:00,709][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-ent-search]
+[2026-01-19T14:57:00,710][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-autoscaling]
+[2026-01-19T14:57:00,710][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [lang-painless]
+[2026-01-19T14:57:00,710][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-ml]
+[2026-01-19T14:57:00,710][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [legacy-geo]
+[2026-01-19T14:57:00,710][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [lang-mustache]
+[2026-01-19T14:57:00,711][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-ql]
+[2026-01-19T14:57:00,711][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [rank-rrf]
+[2026-01-19T14:57:00,711][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [analysis-common]
+[2026-01-19T14:57:00,711][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [transport-netty4]
+[2026-01-19T14:57:00,712][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [aggregations]
+[2026-01-19T14:57:00,712][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [ingest-common]
+[2026-01-19T14:57:00,712][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-identity-provider]
+[2026-01-19T14:57:00,712][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [frozen-indices]
+[2026-01-19T14:57:00,712][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-text-structure]
+[2026-01-19T14:57:00,713][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-shutdown]
+[2026-01-19T14:57:00,713][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [snapshot-repo-test-kit]
+[2026-01-19T14:57:00,713][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [ml-package-loader]
+[2026-01-19T14:57:00,713][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [kibana]
+[2026-01-19T14:57:00,714][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [constant-keyword]
+[2026-01-19T14:57:00,714][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-logstash]
+[2026-01-19T14:57:00,714][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-graph]
+[2026-01-19T14:57:00,714][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-ccr]
+[2026-01-19T14:57:00,714][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-esql]
+[2026-01-19T14:57:00,715][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [parent-join]
+[2026-01-19T14:57:00,715][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-enrich]
+[2026-01-19T14:57:00,715][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [repositories-metering-api]
+[2026-01-19T14:57:00,715][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [transform]
+[2026-01-19T14:57:00,715][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [repository-azure]
+[2026-01-19T14:57:00,715][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [repository-gcs]
+[2026-01-19T14:57:00,716][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [spatial]
+[2026-01-19T14:57:00,716][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [mapper-version]
+[2026-01-19T14:57:00,716][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [mapper-extras]
+[2026-01-19T14:57:00,716][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [apm]
+[2026-01-19T14:57:00,716][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-rollup]
+[2026-01-19T14:57:00,716][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [percolator]
+[2026-01-19T14:57:00,717][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-stack]
+[2026-01-19T14:57:00,717][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [data-streams]
+[2026-01-19T14:57:00,717][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [reindex]
+[2026-01-19T14:57:00,717][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [rank-eval]
+[2026-01-19T14:57:00,717][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-security]
+[2026-01-19T14:57:00,717][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [blob-cache]
+[2026-01-19T14:57:00,717][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [searchable-snapshots]
+[2026-01-19T14:57:00,718][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-slm]
+[2026-01-19T14:57:00,718][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [snapshot-based-recoveries]
+[2026-01-19T14:57:00,718][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-watcher]
+[2026-01-19T14:57:00,718][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [old-lucene-versions]
+[2026-01-19T14:57:00,718][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-ilm]
+[2026-01-19T14:57:00,718][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-voting-only-node]
+[2026-01-19T14:57:00,719][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-deprecation]
+[2026-01-19T14:57:00,719][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-fleet]
+[2026-01-19T14:57:00,719][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-profiling]
+[2026-01-19T14:57:00,719][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-aggregate-metric]
+[2026-01-19T14:57:00,719][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-downsample]
+[2026-01-19T14:57:00,720][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [ingest-geoip]
+[2026-01-19T14:57:00,720][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-write-load-forecaster]
+[2026-01-19T14:57:00,720][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [inference]
+[2026-01-19T14:57:00,720][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [search-business-rules]
+[2026-01-19T14:57:00,720][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [wildcard]
+[2026-01-19T14:57:00,720][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [ingest-attachment]
+[2026-01-19T14:57:00,720][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-sql]
+[2026-01-19T14:57:00,721][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [unsigned-long]
+[2026-01-19T14:57:00,721][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-async]
+[2026-01-19T14:57:00,721][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [runtime-fields-common]
+[2026-01-19T14:57:00,721][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [vector-tile]
+[2026-01-19T14:57:00,721][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [lang-expression]
+[2026-01-19T14:57:00,721][INFO ][o.e.p.PluginsService     ] [es-coldstart-c6gn-xlarge-run2-7dkhx] loaded module [x-pack-eql]
+[2026-01-19T14:57:03,583][INFO ][o.e.e.NodeEnvironment    ] [es-coldstart-c6gn-xlarge-run2-7dkhx] using [1] data paths, mounts [[/ (overlay)]], net usable_space [45.3gb], net total_space [49.9gb], types [overlay]
+[2026-01-19T14:57:03,584][INFO ][o.e.e.NodeEnvironment    ] [es-coldstart-c6gn-xlarge-run2-7dkhx] heap size [4.5gb], compressed ordinary object pointers [true]
+[2026-01-19T14:57:03,594][INFO ][o.e.n.Node               ] [es-coldstart-c6gn-xlarge-run2-7dkhx] node name [es-coldstart-c6gn-xlarge-run2-7dkhx], node ID [c7e5TFenQQ-imOuY4UvVcQ], cluster name [elasticsearch], roles [transform, data_hot, ml, data_frozen, ingest, data_cold, data, remote_cluster_client, master, data_warm, data_content]
+[2026-01-19T14:57:06,175][INFO ][o.e.x.m.p.l.CppLogMessageHandler] [es-coldstart-c6gn-xlarge-run2-7dkhx] [controller/4217] [Main.cc@123] controller (64 bit): Version 8.11.0 (Build e39a40d810307c) Copyright (c) 2023 Elasticsearch BV
+[2026-01-19T14:57:06,429][INFO ][o.e.x.s.Security         ] [es-coldstart-c6gn-xlarge-run2-7dkhx] Security is disabled
+[2026-01-19T14:57:06,676][INFO ][o.e.x.p.ProfilingPlugin  ] [es-coldstart-c6gn-xlarge-run2-7dkhx] Profiling is enabled
+[2026-01-19T14:57:06,695][INFO ][o.e.x.p.ProfilingPlugin  ] [es-coldstart-c6gn-xlarge-run2-7dkhx] profiling index templates will not be installed or reinstalled
+[2026-01-19T14:57:07,219][INFO ][o.e.t.n.NettyAllocator   ] [es-coldstart-c6gn-xlarge-run2-7dkhx] creating NettyAllocator with the following configs: [name=elasticsearch_configured, chunk_size=1mb, suggested_max_allocation_size=1mb, factors={es.unsafe.use_netty_default_chunk_and_page_size=false, g1gc_enabled=true, g1gc_region_size=4mb}]
+[2026-01-19T14:57:07,243][INFO ][o.e.i.r.RecoverySettings ] [es-coldstart-c6gn-xlarge-run2-7dkhx] using rate limit [40mb] with [default=40mb, read=0b, write=0b, max=0b]
+[2026-01-19T14:57:07,286][INFO ][o.e.d.DiscoveryModule    ] [es-coldstart-c6gn-xlarge-run2-7dkhx] using discovery type [single-node] and seed hosts providers [settings]
+[2026-01-19T14:57:08,452][INFO ][o.e.n.Node               ] [es-coldstart-c6gn-xlarge-run2-7dkhx] initialized
+[2026-01-19T14:57:08,453][INFO ][o.e.n.Node               ] [es-coldstart-c6gn-xlarge-run2-7dkhx] starting ...
+[2026-01-19T14:57:08,466][INFO ][o.e.x.s.c.f.PersistentCache] [es-coldstart-c6gn-xlarge-run2-7dkhx] persistent cache index loaded
+[2026-01-19T14:57:08,467][INFO ][o.e.x.d.l.DeprecationIndexingComponent] [es-coldstart-c6gn-xlarge-run2-7dkhx] deprecation component started
+[2026-01-19T14:57:08,549][INFO ][o.e.t.TransportService   ] [es-coldstart-c6gn-xlarge-run2-7dkhx] publish_address {127.0.0.1:9300}, bound_addresses {[::1]:9300}, {127.0.0.1:9300}
+[2026-01-19T14:57:08,657][INFO ][o.e.c.c.ClusterBootstrapService] [es-coldstart-c6gn-xlarge-run2-7dkhx] this node has not joined a bootstrapped cluster yet; [cluster.initial_master_nodes] is set to [es-coldstart-c6gn-xlarge-run2-7dkhx]
+[2026-01-19T14:57:08,663][INFO ][o.e.c.c.Coordinator      ] [es-coldstart-c6gn-xlarge-run2-7dkhx] setting initial configuration to VotingConfiguration{c7e5TFenQQ-imOuY4UvVcQ}
+[2026-01-19T14:57:08,811][INFO ][o.e.c.s.MasterService    ] [es-coldstart-c6gn-xlarge-run2-7dkhx] elected-as-master ([1] nodes joined in term 1)[_FINISH_ELECTION_, {es-coldstart-c6gn-xlarge-run2-7dkhx}{c7e5TFenQQ-imOuY4UvVcQ}{rFL3paHVTv68nqszn1CO6Q}{es-coldstart-c6gn-xlarge-run2-7dkhx}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003} completing election], term: 1, version: 1, delta: master node changed {previous [], current [{es-coldstart-c6gn-xlarge-run2-7dkhx}{c7e5TFenQQ-imOuY4UvVcQ}{rFL3paHVTv68nqszn1CO6Q}{es-coldstart-c6gn-xlarge-run2-7dkhx}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}]}
+[2026-01-19T14:57:08,838][INFO ][o.e.c.c.CoordinationState] [es-coldstart-c6gn-xlarge-run2-7dkhx] cluster UUID set to [Vs6ihUatQNaXMg0vu32pmg]
+[2026-01-19T14:57:08,857][INFO ][o.e.c.s.ClusterApplierService] [es-coldstart-c6gn-xlarge-run2-7dkhx] master node changed {previous [], current [{es-coldstart-c6gn-xlarge-run2-7dkhx}{c7e5TFenQQ-imOuY4UvVcQ}{rFL3paHVTv68nqszn1CO6Q}{es-coldstart-c6gn-xlarge-run2-7dkhx}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}]}, term: 1, version: 1, reason: Publication{term=1, version=1}
+[2026-01-19T14:57:08,892][INFO ][o.e.c.f.AbstractFileWatchingService] [es-coldstart-c6gn-xlarge-run2-7dkhx] starting file watcher ...
+[2026-01-19T14:57:08,897][INFO ][o.e.c.f.AbstractFileWatchingService] [es-coldstart-c6gn-xlarge-run2-7dkhx] file settings service up and running [tid=50]
+[2026-01-19T14:57:08,905][INFO ][o.e.c.c.NodeJoinExecutor ] [es-coldstart-c6gn-xlarge-run2-7dkhx] node-join: [{es-coldstart-c6gn-xlarge-run2-7dkhx}{c7e5TFenQQ-imOuY4UvVcQ}{rFL3paHVTv68nqszn1CO6Q}{es-coldstart-c6gn-xlarge-run2-7dkhx}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}] with reason [completing election]
+[2026-01-19T14:57:08,906][INFO ][o.e.h.AbstractHttpServerTransport] [es-coldstart-c6gn-xlarge-run2-7dkhx] publish_address {127.0.0.1:9200}, bound_addresses {[::1]:9200}, {127.0.0.1:9200}
+[2026-01-19T14:57:08,907][INFO ][o.e.n.Node               ] [es-coldstart-c6gn-xlarge-run2-7dkhx] started {es-coldstart-c6gn-xlarge-run2-7dkhx}{c7e5TFenQQ-imOuY4UvVcQ}{rFL3paHVTv68nqszn1CO6Q}{es-coldstart-c6gn-xlarge-run2-7dkhx}{127.0.0.1}{127.0.0.1:9300}{cdfhilmrstw}{8.11.0}{7000099-8500003}{ml.max_jvm_size=4886364160, ml.allocated_processors_double=4.0, ml.allocated_processors=4, ml.machine_memory=8140996608, transform.config_version=10.0.0, xpack.installed=true, ml.config_version=11.0.0}
+
+=== Waiting for ES HTTP ===
+ES HTTP responding
+
+=== Waiting for cluster ready ===
+Cluster status: green
+READY_TIME_MS: 1768834629407
+
+=== Results ===
+Instance: c6gn.xlarge
+START_TIME_MS: 1768834611715
+READY_TIME_MS: 1768834629407
+COLD_START_MS: 17692
+Cold start: 17.69s
+
+=== ES Info ===
+{"name":"es-coldstart-c6gn-xlarge-run2-7dkhx","version":"8.11.0"}
+
+=== JVM Stats (Before Tests) ===
+{
+  "heap_used_mb": 301,
+  "heap_max_mb": 4660,
+  "gc_young_count": 11,
+  "gc_young_time_ms": 171,
+  "gc_old_count": 0,
+  "gc_old_time_ms": 0
+}
+
+=== Index Test: Sequential (100 docs) ===
+SEQUENTIAL_INDEX_100_MS: 2432
+SEQUENTIAL_INDEX_DOCS_PER_SEC: 41.1
+
+=== Index Test: Bulk (1000 docs) ===
+BULK_INDEX_1000_MS: 470
+BULK_INDEX_DOCS_PER_SEC: 2127.6
+
+=== Search Test: match_all (10 runs) ===
+SEarm64_MATCH_ALL_AVG_MS: 28
+
+=== Search Test: term query (10 runs) ===
+SEarm64_TERM_AVG_MS: 18
+
+=== JVM Stats (After Tests) ===
+{
+  "heap_used_mb": 457,
+  "heap_max_mb": 4660,
+  "gc_young_count": 11,
+  "gc_young_time_ms": 171,
+  "gc_old_count": 0,
+  "gc_old_time_ms": 0
+}
+GC_TIME_DURING_TEST_MS: 0
+
+=== Final Summary ===
+Instance: c6gn.xlarge
+COLD_START_MS: 17692
+SEQUENTIAL_INDEX_100_MS: 2432
+BULK_INDEX_1000_MS: 470
+SEarm64_MATCH_ALL_AVG_MS: 28
+SEarm64_TERM_AVG_MS: 18
+GC_TIME_DURING_TEST_MS: 0
+
+=== Shutting down ES ===
+
+===== Complete =====

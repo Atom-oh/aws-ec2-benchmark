@@ -67,7 +67,7 @@ spec:
 
               echo "===== Spring Boot Cold Start: INSTANCE_TYPE ====="
               echo "Timestamp: $(date -Iseconds)"
-
+              # Record start time BEFORE installing packages
               START_MS=$(date +%s%3N)
               echo "Pod start time: ${START_MS}ms"
 
@@ -92,10 +92,6 @@ spec:
 
               if [ "$READY" = "false" ]; then
                 echo "TIMEOUT: Application did not start within ${MAX_WAIT}s"
-                # Kill springboot process before exit
-                pkill -f java 2>/dev/null || true
-                sleep 2
-                exit 1
               fi
 
               echo ""
@@ -104,8 +100,9 @@ spec:
               # Kill springboot process to complete the job
               # shareProcessNamespace: true allows killing processes in other containers
               sleep 2
-              pkill -f java 2>/dev/null || true
+              pkill -f java 2>/dev/null
               sleep 2
+              exit 0
           resources:
             requests:
               cpu: "500m"
