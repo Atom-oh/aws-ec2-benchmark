@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nginx (wrk) 벤치마크 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --graviton: #10b981;
+            --intel: #3b82f6;
+            --amd: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+            color: white;
+            border-radius: 1rem;
+        }
+
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { opacity: 0.9; font-size: 1.1rem; }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .card h3 {
+            color: var(--muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--intel);
+        }
+
+        .card .label { font-size: 0.875rem; color: var(--muted); }
+        .card.graviton .value { color: var(--graviton); }
+
+        .chart-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .chart-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .chart-section .description {
+            color: var(--muted);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .chart-container { position: relative; height: 400px; }
+        .chart-container.tall { height: 500px; }
+        .chart-container.extra-tall { height: 800px; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .legend-custom {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+
+        .insights {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .insights h4 { color: #92400e; margin-bottom: 0.5rem; }
+        .insights ul { margin-left: 1.5rem; color: #78350f; }
+
+        .analysis-box {
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .analysis-box h4 { margin-bottom: 0.5rem; color: var(--text); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.875rem; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-graviton { background: #d1fae5; color: #065f46; }
+        .badge-intel { background: #dbeafe; color: #1e40af; }
+        .badge-amd { background: #fee2e2; color: #991b1b; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 1200px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            header h1 { font-size: 1.5rem; }
+            .chart-container { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Nginx (wrk) 벤치마크</h1>
+            <p>AWS EC2 인스턴스 51종 성능 비교 분석 (5세대 ~ 8세대)</p>
+            <p style="opacity: 0.7; margin-top: 0.5rem;">2026년 1월 | 서울 리전 (ap-northeast-2) | 테스트 환경: EKS + Karpenter</p>
+        </header>
+
+        <!-- 주요 요약 카드 -->
+        <div class="summary-cards">
+            <div class="card graviton">
+                <h3>최고 성능</h3>
+                <div class="value">r8g.xlarge</div>
+                <div class="label">266,160 req/sec</div>
+            </div>
+            <div class="card graviton">
+                <h3>최고 가성비</h3>
+                <div class="value">c8g.xlarge</div>
+                <div class="label">$0.18/hr, 효율성 1위</div>
+            </div>
+            <div class="card graviton">
+                <h3>최저 지연</h3>
+                <div class="value">r8g.xlarge</div>
+                <div class="label">1.49ms latency</div>
+            </div>
+            <div class="card graviton">
+                <h3>8세대 승자</h3>
+                <div class="value">Graviton4</div>
+                <div class="label">Intel 대비 8% 빠름</div>
+            </div>
+            <div class="card">
+                <h3>세대별 개선</h3>
+                <div class="value">3-5x</div>
+                <div class="label">5세대 -> 8세대</div>
+            </div>
+        </div>
+
+        <!-- 목차 -->
+        <div class="chart-section" style="padding: 1rem 1.5rem;">
+            <h2>목차</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; margin-top: 0.75rem;">
+                <a href="#methodology" style="color: var(--graviton); text-decoration: none;">1. 테스트 방법론</a>
+                <a href="#environment" style="color: var(--graviton); text-decoration: none;">2. 테스트 환경</a>
+                <a href="#results" style="color: var(--graviton); text-decoration: none;">3. 성능 분석 결과</a>
+                <a href="#full-results" style="color: var(--graviton); text-decoration: none;">4. 전체 결과 (51개)</a>
+                <a href="#conclusion" style="color: var(--graviton); text-decoration: none;">5. 결론 및 추천</a>
+            </div>
+        </div>
+
+        <!-- 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <h2>1. 테스트 방법론</h2>
+            <p class="description">왜 이 벤치마크가 중요한지, 어떻게 테스트했는지</p>
+
+            <div class="grid-2" style="margin-top: 1rem;">
+                <div>
+                    <h4 style="margin-bottom: 0.75rem;">왜 Nginx 벤치마크가 중요한가?</h4>
+                    <ul style="margin-left: 1.5rem; color: var(--muted);">
+                        <li><strong>웹 서버 성능</strong> - 실제 HTTP 요청 처리 능력 측정</li>
+                        <li><strong>동시성 처리</strong> - 동시 연결 처리 능력</li>
+                        <li><strong>지연 시간</strong> - 사용자 경험에 직접적 영향</li>
+                        <li><strong>비용 최적화</strong> - 트래픽당 비용 산출 기준</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 0.75rem;">수집 메트릭</h4>
+                    <table>
+                        <tr><th>메트릭</th><th>설명</th><th>방향</th></tr>
+                        <tr><td>Requests/sec</td><td>초당 처리 요청 수</td><td>높을수록 좋음</td></tr>
+                        <tr><td>Latency</td><td>평균 응답 지연 시간</td><td>낮을수록 좋음</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="analysis-box" style="margin-top: 1rem;">
+                <h4>테스트 설정</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem;">
+                    <span class="badge badge-graviton" style="padding: 0.5rem 1rem;">도구: wrk</span>
+                    <span style="color: var(--muted);">|</span>
+                    <span class="badge badge-graviton" style="padding: 0.5rem 1rem;">동시 연결: 100개</span>
+                    <span style="color: var(--muted);">|</span>
+                    <span class="badge badge-graviton" style="padding: 0.5rem 1rem;">스레드: 4개</span>
+                    <span style="color: var(--muted);">|</span>
+                    <span class="badge badge-graviton" style="padding: 0.5rem 1rem;">테스트 시간: 30초</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 테스트 환경 -->
+        <div class="chart-section" id="environment">
+            <h2>2. 테스트 환경</h2>
+            <p class="description">인프라 구성 및 Nginx 설정</p>
+
+            <div class="grid-3" style="margin-top: 1rem;">
+                <div class="analysis-box" style="margin-top: 0;">
+                    <h4>인프라 구성</h4>
+                    <table>
+                        <tr><td>플랫폼</td><td><strong>Amazon EKS 1.31</strong></td></tr>
+                        <tr><td>리전</td><td>ap-northeast-2 (서울)</td></tr>
+                        <tr><td>노드 프로비저너</td><td>Karpenter 1.3.x</td></tr>
+                        <tr><td>컨테이너 런타임</td><td>containerd</td></tr>
+                    </table>
+                </div>
+                <div class="analysis-box" style="margin-top: 0;">
+                    <h4>인스턴스 구성</h4>
+                    <table>
+                        <tr><td>vCPU</td><td><strong>4 (xlarge)</strong></td></tr>
+                        <tr><td>테스트 인스턴스</td><td>51종</td></tr>
+                        <tr><td>아키텍처</td><td>x86_64, arm64</td></tr>
+                        <tr><td>세대</td><td>5th ~ 8th</td></tr>
+                    </table>
+                </div>
+                <div class="analysis-box" style="margin-top: 0;">
+                    <h4>Nginx 설정</h4>
+                    <table>
+                        <tr><td>버전</td><td><strong>nginx:latest</strong></td></tr>
+                        <tr><td>워커 프로세스</td><td>auto (4)</td></tr>
+                        <tr><td>테스트 대상</td><td>정적 파일</td></tr>
+                        <tr><td>Keep-alive</td><td>활성화</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>테스트 격리 보장</h4>
+                <ul>
+                    <li><strong>Pod Anti-affinity:</strong> 각 벤치마크가 전용 노드에서 단독 실행</li>
+                    <li><strong>Karpenter:</strong> 인스턴스 타입별 새 노드 동적 프로비저닝</li>
+                    <li><strong>노이즈 제거:</strong> 다른 워크로드 없이 격리된 환경에서 측정</li>
+                </ul>
+            </div>
+
+            <p style="margin-top: 1rem; color: var(--muted); font-size: 0.875rem;">
+                <strong>참고:</strong> 본 벤치마크는 Kubernetes 환경에서 실행되었으나, 결과는 <strong>범용 EC2 인스턴스 성능 비교</strong>에 적용 가능합니다.
+            </p>
+        </div>
+
+        <!-- 성능 분석 시작 -->
+        <div id="results"></div>
+
+        <!-- 차트 1: Top 20 Requests/sec (아키텍처 색상 구분) -->
+        <div class="chart-section">
+            <h2>3. Top 20 Requests/sec 성능</h2>
+            <p class="description">높을수록 좋음 | 초록: Graviton, 파랑: Intel, 빨강: AMD</p>
+            <div class="chart-container tall">
+                <canvas id="top20ReqSecChart"></canvas>
+            </div>
+            <div class="legend-custom">
+                <div class="legend-item"><div class="legend-color" style="background: #10b981;"></div><span>Graviton (arm64)</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: #3b82f6;"></div><span>Intel (x86_64)</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: #ef4444;"></div><span>AMD (x86_64)</span></div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- 차트 2: Top 20 Latency -->
+            <div class="chart-section">
+                <h2>Top 20 Latency 성능</h2>
+                <p class="description">평균 응답 지연 시간 (ms) - 낮을수록 좋음</p>
+                <div class="chart-container">
+                    <canvas id="top20LatencyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 차트 3: 처리량 vs 지연 시간 -->
+            <div class="chart-section">
+                <h2>처리량 vs 지연 시간</h2>
+                <p class="description">두 메트릭의 상관관계</p>
+                <div class="chart-container">
+                    <canvas id="throughputLatencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 차트 4: 세대별 + 아키텍처별 Requests/sec -->
+        <div class="chart-section">
+            <h2>세대별 Requests/sec 비교 (x86 vs Graviton)</h2>
+            <p class="description">각 세대 내 아키텍처별 평균 처리량</p>
+            <div class="chart-container">
+                <canvas id="genArchReqSecChart"></canvas>
+            </div>
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>모든 세대에서 Graviton 우세</strong> - 6세대 11%, 7세대 4%, 8세대 8% 빠름</li>
+                    <li>Intel 5세대 -> 8세대: <strong>3배</strong> 성능 향상</li>
+                    <li>Graviton 6세대 -> 8세대: <strong>86%</strong> 성능 향상</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 차트 5: 패밀리별 + 아키텍처별 -->
+        <div class="chart-section">
+            <h2>인스턴스 패밀리별 비교 (C/M/R x 아키텍처)</h2>
+            <p class="description">C(컴퓨팅), M(범용), R(메모리) 패밀리의 아키텍처별 평균 성능</p>
+            <div class="chart-container">
+                <canvas id="familyArchChart"></canvas>
+            </div>
+            <div class="analysis-box">
+                <h4>패밀리 선택 가이드</h4>
+                <table>
+                    <tr><th>패밀리</th><th>Intel/AMD</th><th>Graviton</th><th>승자</th><th>추천 용도</th></tr>
+                    <tr><td>C (컴퓨팅)</td><td>138,855 req/s</td><td>181,191 req/s</td><td><span class="badge badge-graviton">Graviton</span></td><td>웹 서버</td></tr>
+                    <tr><td>M (범용)</td><td>127,946 req/s</td><td>186,046 req/s</td><td><span class="badge badge-graviton">Graviton</span></td><td>일반 워크로드</td></tr>
+                    <tr><td>R (메모리)</td><td>120,199 req/s</td><td>183,766 req/s</td><td><span class="badge badge-graviton">Graviton</span></td><td>캐싱</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- 차트 6: 세대별 Latency -->
+            <div class="chart-section">
+                <h2>세대별 Latency 비교 (x86 vs Graviton)</h2>
+                <p class="description">평균 응답 지연 시간 (ms)</p>
+                <div class="chart-container">
+                    <canvas id="genArchLatencyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 차트 7: 세대별 개선율 -->
+            <div class="chart-section">
+                <h2>세대별 성능 개선율</h2>
+                <p class="description">이전 세대 대비 Requests/sec 개선 비율 (%)</p>
+                <div class="chart-container">
+                    <canvas id="improvementChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 차트 8: 8세대 상세 비교 -->
+        <div class="chart-section">
+            <h2>8세대 인스턴스 상세 비교</h2>
+            <p class="description">Graviton4 vs Intel 8세대 직접 비교</p>
+            <div class="grid-2" style="gap: 1rem;">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="gen8CompareChart"></canvas>
+                </div>
+                <div class="analysis-box" style="margin-top: 0;">
+                    <h4>8세대 분석</h4>
+                    <table>
+                        <tr><th>항목</th><th>Graviton4</th><th>Intel 8세대</th><th>승자</th></tr>
+                        <tr><td>평균 Req/sec</td><td><strong>262,290</strong></td><td>243,193</td><td><span class="badge badge-graviton">Graviton</span></td></tr>
+                        <tr><td>평균 Latency</td><td><strong>1.51ms</strong></td><td>1.63ms</td><td><span class="badge badge-graviton">Graviton</span></td></tr>
+                        <tr><td>평균 $/hr</td><td><strong>$0.228</strong></td><td>$0.265</td><td><span class="badge badge-graviton">Graviton</span></td></tr>
+                        <tr><td>평균 효율성</td><td><strong>1,187</strong></td><td>956</td><td><span class="badge badge-graviton">Graviton</span></td></tr>
+                    </table>
+                    <div class="insights" style="margin-top: 1rem;">
+                        <h4>결론</h4>
+                        <ul>
+                            <li>Graviton4가 모든 메트릭에서 우위</li>
+                            <li>Intel 대비 <strong>8% 빠르고 14% 저렴</strong></li>
+                            <li>Nginx 워크로드에 Graviton4 강력 추천</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 차트 9: 가격 대비 성능 버블 차트 -->
+        <div class="chart-section">
+            <h2>가격 대비 성능 분석</h2>
+            <p class="description">X축: 시간당 비용($), Y축: Requests/sec | 우측 상단이 최적</p>
+            <div class="chart-container tall">
+                <canvas id="pricePerformanceChart"></canvas>
+            </div>
+            <div class="legend-custom">
+                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+            </div>
+        </div>
+
+        <!-- 차트 10: 가성비 Top 15 -->
+        <div class="chart-section">
+            <h2>가성비 Top 15 (효율성 점수)</h2>
+            <p class="description">효율성 = requests_per_sec / ($/hr x 1000) | 높을수록 좋음</p>
+            <div class="chart-container">
+                <canvas id="costEfficiencyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 피해야 할 인스턴스 -->
+        <div class="chart-section">
+            <h2>피해야 할 인스턴스</h2>
+            <p class="description">최하위 성능 인스턴스와 대안</p>
+            <div class="chart-container" style="height: 250px;">
+                <canvas id="avoidChart"></canvas>
+            </div>
+            <table style="margin-top: 1rem;">
+                <tr><th>인스턴스</th><th>Req/sec</th><th>문제점</th><th>대안</th><th>개선 효과</th></tr>
+                <tr><td><span class="badge badge-amd">r5ad.xlarge</span></td><td>47,932</td><td>최하위 성능</td><td>r8g.xlarge</td><td>5.6배 빠름</td></tr>
+                <tr><td><span class="badge badge-amd">r5a.xlarge</span></td><td>48,091</td><td>구형 EPYC</td><td>r8g.xlarge</td><td>5.5배 빠름</td></tr>
+                <tr><td><span class="badge badge-amd">m5ad.xlarge</span></td><td>49,233</td><td>비효율적</td><td>m8g.xlarge</td><td>5.3배 빠름</td></tr>
+                <tr><td><span class="badge badge-intel">m5zn.xlarge</span></td><td>122,051</td><td>고비용 $0.41/hr</td><td>m8g.xlarge</td><td>2.1배 빠름, 45% 저렴</td></tr>
+            </table>
+        </div>
+
+        <!-- 추천 테이블 -->
+        <div class="chart-section">
+            <h2>용도별 추천 인스턴스</h2>
+            <table>
+                <thead>
+                    <tr><th>용도</th><th>추천 인스턴스</th><th>Req/sec</th><th>Latency</th><th>$/hr</th><th>선택 이유</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>최고 성능</strong></td>
+                        <td><span class="badge badge-graviton">r8g.xlarge</span></td>
+                        <td>266,160</td><td>1.49ms</td><td>$0.284</td>
+                        <td>모든 메트릭 최상위</td>
+                    </tr>
+                    <tr>
+                        <td><strong>최고 가성비</strong></td>
+                        <td><span class="badge badge-graviton">c8g.xlarge</span> (추천)</td>
+                        <td>258,617</td><td>1.54ms</td><td>$0.180</td>
+                        <td>효율성 점수 1위</td>
+                    </tr>
+                    <tr>
+                        <td><strong>x86 필수</strong></td>
+                        <td><span class="badge badge-intel">c8i-flex.xlarge</span></td>
+                        <td>239,642</td><td>1.67ms</td><td>$0.201</td>
+                        <td>Intel 가성비 최고</td>
+                    </tr>
+                    <tr>
+                        <td><strong>고트래픽</strong></td>
+                        <td><span class="badge badge-graviton">m8g.xlarge</span></td>
+                        <td>262,093</td><td>1.51ms</td><td>$0.221</td>
+                        <td>성능/비용 균형</td>
+                    </tr>
+                    <tr>
+                        <td><strong>예산 절감</strong></td>
+                        <td><span class="badge badge-graviton">c6g.xlarge</span></td>
+                        <td>142,477</td><td>2.82ms</td><td>$0.154</td>
+                        <td>가장 저렴한 옵션</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 전체 결과 테이블 -->
+        <div class="chart-section" id="full-results">
+            <h2>4. 전체 결과 (51개 인스턴스)</h2>
+            <p class="description">모든 테스트 인스턴스의 상세 결과 | 열 헤더 클릭으로 정렬</p>
+
+            <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="tableSearch" placeholder="인스턴스 검색..."
+                    style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; width: 200px;">
+                <select id="archFilter" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                    <option value="">모든 아키텍처</option>
+                    <option value="graviton">Graviton</option>
+                    <option value="intel">Intel</option>
+                    <option value="amd">AMD</option>
+                </select>
+                <select id="genFilter" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                    <option value="">모든 세대</option>
+                    <option value="8">8세대</option>
+                    <option value="7">7세대</option>
+                    <option value="6">6세대</option>
+                    <option value="5">5세대</option>
+                </select>
+                <select id="familyFilter" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                    <option value="">모든 패밀리</option>
+                    <option value="c">C (컴퓨팅)</option>
+                    <option value="m">M (범용)</option>
+                    <option value="r">R (메모리)</option>
+                </select>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="fullResultsTable">
+                    <thead>
+                        <tr>
+                            <th data-sort="rank" style="cursor: pointer;">순위</th>
+                            <th data-sort="name" style="cursor: pointer;">인스턴스</th>
+                            <th data-sort="arch" style="cursor: pointer;">아키텍처</th>
+                            <th data-sort="gen" style="cursor: pointer;">세대</th>
+                            <th data-sort="reqSec" style="cursor: pointer;">Req/sec</th>
+                            <th data-sort="latency" style="cursor: pointer;">Latency (ms)</th>
+                            <th data-sort="price" style="cursor: pointer;">$/hr</th>
+                            <th data-sort="efficiency" style="cursor: pointer;">효율성</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fullResultsBody">
+                        <!-- JavaScript로 채워짐 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 결론 -->
+        <div class="chart-section" id="conclusion">
+            <h2>5. 결론</h2>
+            <p class="description">핵심 시사점 및 최종 추천</p>
+
+            <div class="grid-2" style="margin-top: 1rem; gap: 1.5rem;">
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--intel);">핵심 시사점</h4>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">1</span>
+                            <span><strong>Graviton4가 Nginx에서 압도적</strong> - 처리량, 지연 시간 모두 1위</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #3b82f6; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">2</span>
+                            <span><strong>8세대로 업그레이드 필수</strong> - 5세대 대비 3-5배 성능 향상</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #6366f1; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">3</span>
+                            <span><strong>C 패밀리가 웹 서버에 최적</strong> - 컴퓨팅 집약 워크로드</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #f59e0b; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">4</span>
+                            <span><strong>flex 인스턴스 활용</strong> - 표준 버전과 유사한 성능, 더 저렴</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">5</span>
+                            <span><strong>AMD EPYC 5세대 사용 금지</strong> - Intel/Graviton 대비 40-70% 느림</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--graviton);">최종 추천</h4>
+                    <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 1rem; padding: 1.5rem; text-align: center;">
+                        <div style="font-size: 0.875rem; color: #065f46; margin-bottom: 0.5rem;">범용 Nginx 워크로드</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #047857;">c8g.xlarge</div>
+                        <div style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem; font-size: 0.875rem; color: #065f46;">
+                            <span>258K req/sec</span>
+                            <span>$0.18/hr</span>
+                            <span>효율성 1위</span>
+                        </div>
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #6ee7b7; font-size: 0.8rem; color: #047857;">
+                            Intel 대비 15% 비용 절감 | Top 3 성능 | 가성비 최고
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                        <div style="background: #dbeafe; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #1e40af;">x86 필수시</div>
+                            <div style="font-weight: 600; color: #1e3a8a;">c8i-flex.xlarge</div>
+                        </div>
+                        <div style="background: #fef3c7; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #92400e;">최고 성능</div>
+                            <div style="font-weight: 600; color: #78350f;">r8g.xlarge</div>
+                        </div>
+                        <div style="background: #f3e8ff; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #6b21a8;">고트래픽</div>
+                            <div style="font-weight: 600; color: #581c87;">m8g.xlarge</div>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #475569;">예산 절감</div>
+                            <div style="font-weight: 600; color: #334155;">c6g.xlarge</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>벤치마크 자동화 시스템 | 데이터 수집: 2026년 1월 | 리전: ap-northeast-2 (서울)</p>
+            <p>테스트 환경: Amazon EKS 1.31 + Karpenter (결과는 범용 EC2 환경에도 적용 가능)</p>
+        </footer>
+    </div>
+
+    <script>
+        // 데이터 정의
+        const allInstances = [
+            { name: 'r8g.xlarge', arch: 'graviton', gen: 8, reqSec: 266160, latency: 1.49, price: 0.284, family: 'r' },
+            { name: 'm8g.xlarge', arch: 'graviton', gen: 8, reqSec: 262093, latency: 1.51, price: 0.221, family: 'm' },
+            { name: 'c8g.xlarge', arch: 'graviton', gen: 8, reqSec: 258617, latency: 1.54, price: 0.180, family: 'c' },
+            { name: 'r8i-flex.xlarge', arch: 'intel', gen: 8, reqSec: 249220, latency: 1.60, price: 0.318, family: 'r' },
+            { name: 'c8i.xlarge', arch: 'intel', gen: 8, reqSec: 243974, latency: 1.62, price: 0.212, family: 'c' },
+            { name: 'r8i.xlarge', arch: 'intel', gen: 8, reqSec: 242022, latency: 1.64, price: 0.335, family: 'r' },
+            { name: 'm8i.xlarge', arch: 'intel', gen: 8, reqSec: 241635, latency: 1.62, price: 0.260, family: 'm' },
+            { name: 'c8i-flex.xlarge', arch: 'intel', gen: 8, reqSec: 239642, latency: 1.67, price: 0.201, family: 'c' },
+            { name: 'm7g.xlarge', arch: 'graviton', gen: 7, reqSec: 199230, latency: 2.01, price: 0.201, family: 'm' },
+            { name: 'c7i-flex.xlarge', arch: 'intel', gen: 7, reqSec: 198849, latency: 2.04, price: 0.192, family: 'c' },
+            { name: 'm7gd.xlarge', arch: 'graviton', gen: 7, reqSec: 198822, latency: 2.02, price: 0.263, family: 'm' },
+            { name: 'r7gd.xlarge', arch: 'graviton', gen: 7, reqSec: 196871, latency: 2.04, price: 0.327, family: 'r' },
+            { name: 'r7g.xlarge', arch: 'graviton', gen: 7, reqSec: 196593, latency: 2.05, price: 0.258, family: 'r' },
+            { name: 'm7i.xlarge', arch: 'intel', gen: 7, reqSec: 195187, latency: 2.09, price: 0.248, family: 'm' },
+            { name: 'c7gd.xlarge', arch: 'graviton', gen: 7, reqSec: 194855, latency: 2.10, price: 0.208, family: 'c' },
+            { name: 'c7g.xlarge', arch: 'graviton', gen: 7, reqSec: 191496, latency: 2.09, price: 0.163, family: 'c' },
+            { name: 'm7i-flex.xlarge', arch: 'intel', gen: 7, reqSec: 188787, latency: 2.36, price: 0.235, family: 'm' },
+            { name: 'r7i.xlarge', arch: 'intel', gen: 7, reqSec: 187384, latency: 2.16, price: 0.319, family: 'r' },
+            { name: 'c7i.xlarge', arch: 'intel', gen: 7, reqSec: 175420, latency: 2.30, price: 0.202, family: 'c' },
+            { name: 'c6g.xlarge', arch: 'graviton', gen: 6, reqSec: 142477, latency: 2.82, price: 0.154, family: 'c' },
+            { name: 'm6gd.xlarge', arch: 'graviton', gen: 6, reqSec: 142108, latency: 2.83, price: 0.222, family: 'm' },
+            { name: 'c6gd.xlarge', arch: 'graviton', gen: 6, reqSec: 142052, latency: 2.82, price: 0.176, family: 'c' },
+            { name: 'r6g.xlarge', arch: 'graviton', gen: 6, reqSec: 140431, latency: 2.86, price: 0.244, family: 'r' },
+            { name: 'm6g.xlarge', arch: 'graviton', gen: 6, reqSec: 139951, latency: 2.87, price: 0.188, family: 'm' },
+            { name: 'r6gd.xlarge', arch: 'graviton', gen: 6, reqSec: 139341, latency: 2.91, price: 0.277, family: 'r' },
+            { name: 'c6gn.xlarge', arch: 'graviton', gen: 6, reqSec: 138721, latency: 2.90, price: 0.195, family: 'c' },
+            { name: 'c6id.xlarge', arch: 'intel', gen: 6, reqSec: 131623, latency: 3.06, price: 0.231, family: 'c' },
+            { name: 'm6idn.xlarge', arch: 'intel', gen: 6, reqSec: 130869, latency: 3.07, price: 0.386, family: 'm' },
+            { name: 'm6i.xlarge', arch: 'intel', gen: 6, reqSec: 130251, latency: 3.09, price: 0.236, family: 'm' },
+            { name: 'm6id.xlarge', arch: 'intel', gen: 6, reqSec: 129777, latency: 3.10, price: 0.292, family: 'm' },
+            { name: 'c6in.xlarge', arch: 'intel', gen: 6, reqSec: 128376, latency: 3.13, price: 0.256, family: 'c' },
+            { name: 'r6id.xlarge', arch: 'intel', gen: 6, reqSec: 125469, latency: 3.20, price: 0.363, family: 'r' },
+            { name: 'm6in.xlarge', arch: 'intel', gen: 6, reqSec: 124705, latency: 3.22, price: 0.337, family: 'm' },
+            { name: 'm5zn.xlarge', arch: 'intel', gen: 5, reqSec: 122051, latency: 3.30, price: 0.406, family: 'm' },
+            { name: 'c6i.xlarge', arch: 'intel', gen: 6, reqSec: 121490, latency: 3.34, price: 0.192, family: 'c' },
+            { name: 'r6i.xlarge', arch: 'intel', gen: 6, reqSec: 120931, latency: 3.33, price: 0.304, family: 'r' },
+            { name: 'c5n.xlarge', arch: 'intel', gen: 5, reqSec: 89240, latency: 4.50, price: 0.244, family: 'c' },
+            { name: 'c5.xlarge', arch: 'intel', gen: 5, reqSec: 87918, latency: 4.67, price: 0.192, family: 'c' },
+            { name: 'r5dn.xlarge', arch: 'intel', gen: 5, reqSec: 86288, latency: 4.65, price: 0.398, family: 'r' },
+            { name: 'r5b.xlarge', arch: 'intel', gen: 5, reqSec: 85655, latency: 4.70, price: 0.356, family: 'r' },
+            { name: 'm5.xlarge', arch: 'intel', gen: 5, reqSec: 85543, latency: 4.71, price: 0.236, family: 'm' },
+            { name: 'm5d.xlarge', arch: 'intel', gen: 5, reqSec: 84654, latency: 4.76, price: 0.278, family: 'm' },
+            { name: 'r5d.xlarge', arch: 'intel', gen: 5, reqSec: 83873, latency: 4.81, price: 0.346, family: 'r' },
+            { name: 'c5d.xlarge', arch: 'intel', gen: 5, reqSec: 83394, latency: 4.40, price: 0.220, family: 'c' },
+            { name: 'r5.xlarge', arch: 'intel', gen: 5, reqSec: 82337, latency: 4.98, price: 0.304, family: 'r' },
+            { name: 'r5n.xlarge', arch: 'intel', gen: 5, reqSec: 81988, latency: 4.90, price: 0.356, family: 'r' },
+            { name: 'c5a.xlarge', arch: 'amd', gen: 5, reqSec: 57619, latency: 7.26, price: 0.172, family: 'c' },
+            { name: 'm5a.xlarge', arch: 'amd', gen: 5, reqSec: 49347, latency: 8.15, price: 0.212, family: 'm' },
+            { name: 'm5ad.xlarge', arch: 'amd', gen: 5, reqSec: 49233, latency: 8.15, price: 0.254, family: 'm' },
+            { name: 'r5a.xlarge', arch: 'amd', gen: 5, reqSec: 48091, latency: 8.38, price: 0.272, family: 'r' },
+            { name: 'r5ad.xlarge', arch: 'amd', gen: 5, reqSec: 47932, latency: 8.39, price: 0.316, family: 'r' },
+        ];
+
+        const colorMap = { graviton: '#10b981', intel: '#3b82f6', amd: '#ef4444' };
+
+        // 차트 1: Top 20 Requests/sec
+        const top20 = allInstances.slice(0, 20);
+        new Chart(document.getElementById('top20ReqSecChart'), {
+            type: 'bar',
+            data: {
+                labels: top20.map(i => i.name),
+                datasets: [{
+                    label: 'Requests/sec',
+                    data: top20.map(i => i.reqSec),
+                    backgroundColor: top20.map(i => colorMap[i.arch]),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { title: { display: true, text: 'Requests/sec' } },
+                    y: { ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+
+        // 차트 2: Top 20 Latency
+        const top20Latency = [...allInstances].sort((a, b) => a.latency - b.latency).slice(0, 20);
+        new Chart(document.getElementById('top20LatencyChart'), {
+            type: 'bar',
+            data: {
+                labels: top20Latency.map(i => i.name),
+                datasets: [{
+                    label: 'Latency (ms)',
+                    data: top20Latency.map(i => i.latency),
+                    backgroundColor: top20Latency.map(i => colorMap[i.arch]),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: 'Latency (ms)' } } }
+            }
+        });
+
+        // 차트 3: 처리량 vs 지연 시간
+        new Chart(document.getElementById('throughputLatencyChart'), {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    { label: 'Graviton', data: allInstances.filter(i => i.arch === 'graviton').map(i => ({x: i.reqSec, y: i.latency, label: i.name})), backgroundColor: 'rgba(16, 185, 129, 0.7)', pointRadius: 6 },
+                    { label: 'Intel', data: allInstances.filter(i => i.arch === 'intel').map(i => ({x: i.reqSec, y: i.latency, label: i.name})), backgroundColor: 'rgba(59, 130, 246, 0.7)', pointRadius: 6 },
+                    { label: 'AMD', data: allInstances.filter(i => i.arch === 'amd').map(i => ({x: i.reqSec, y: i.latency, label: i.name})), backgroundColor: 'rgba(239, 68, 68, 0.7)', pointRadius: 6 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.raw.label}: ${ctx.raw.x.toLocaleString()} req/s, ${ctx.raw.y}ms` } }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Requests/sec' } },
+                    y: { title: { display: true, text: 'Latency (ms)' }, reverse: false }
+                }
+            }
+        });
+
+        // 차트 4: 세대별 + 아키텍처별 Requests/sec
+        const genArchData = {
+            labels: ['5세대', '6세대', '7세대', '8세대'],
+            intel: [], graviton: []
+        };
+        [5, 6, 7, 8].forEach(gen => {
+            const intel = allInstances.filter(i => i.gen === gen && (i.arch === 'intel' || i.arch === 'amd'));
+            const graviton = allInstances.filter(i => i.gen === gen && i.arch === 'graviton');
+            genArchData.intel.push(intel.length ? Math.round(intel.reduce((s, i) => s + i.reqSec, 0) / intel.length) : null);
+            genArchData.graviton.push(graviton.length ? Math.round(graviton.reduce((s, i) => s + i.reqSec, 0) / graviton.length) : null);
+        });
+
+        new Chart(document.getElementById('genArchReqSecChart'), {
+            type: 'bar',
+            data: {
+                labels: genArchData.labels,
+                datasets: [
+                    { label: 'Intel/AMD (x86)', data: genArchData.intel, backgroundColor: '#3b82f6', borderRadius: 6 },
+                    { label: 'Graviton (arm64)', data: genArchData.graviton, backgroundColor: '#10b981', borderRadius: 6 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Requests/sec' } } }
+            }
+        });
+
+        // 차트 5: 패밀리별 + 아키텍처별
+        const familyArchData = { labels: ['C (컴퓨팅)', 'M (범용)', 'R (메모리)'], intel: [], graviton: [] };
+        ['c', 'm', 'r'].forEach(family => {
+            const intel = allInstances.filter(i => i.family === family && (i.arch === 'intel' || i.arch === 'amd'));
+            const graviton = allInstances.filter(i => i.family === family && i.arch === 'graviton');
+            familyArchData.intel.push(Math.round(intel.reduce((s, i) => s + i.reqSec, 0) / intel.length));
+            familyArchData.graviton.push(Math.round(graviton.reduce((s, i) => s + i.reqSec, 0) / graviton.length));
+        });
+
+        new Chart(document.getElementById('familyArchChart'), {
+            type: 'bar',
+            data: {
+                labels: familyArchData.labels,
+                datasets: [
+                    { label: 'Intel/AMD', data: familyArchData.intel, backgroundColor: '#3b82f6', borderRadius: 6 },
+                    { label: 'Graviton', data: familyArchData.graviton, backgroundColor: '#10b981', borderRadius: 6 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Requests/sec' } } }
+            }
+        });
+
+        // 차트 6: 세대별 Latency (x86 vs Graviton)
+        const genLatencyData = { intel: [], graviton: [] };
+        [5, 6, 7, 8].forEach(gen => {
+            const intel = allInstances.filter(i => i.gen === gen && (i.arch === 'intel' || i.arch === 'amd'));
+            const graviton = allInstances.filter(i => i.gen === gen && i.arch === 'graviton');
+            genLatencyData.intel.push(intel.length ? +(intel.reduce((s, i) => s + i.latency, 0) / intel.length).toFixed(2) : null);
+            genLatencyData.graviton.push(graviton.length ? +(graviton.reduce((s, i) => s + i.latency, 0) / graviton.length).toFixed(2) : null);
+        });
+
+        new Chart(document.getElementById('genArchLatencyChart'), {
+            type: 'bar',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: [
+                    { label: 'Intel/AMD', data: genLatencyData.intel, backgroundColor: '#3b82f6', borderRadius: 6 },
+                    { label: 'Graviton', data: genLatencyData.graviton, backgroundColor: '#10b981', borderRadius: 6 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Latency (ms)' } } }
+            }
+        });
+
+        // 차트 7: 세대별 개선율
+        const improvements = [
+            { label: '5->6세대\n(Intel)', value: 56, color: '#3b82f6' },
+            { label: '6->7세대\n(Intel)', value: 49, color: '#3b82f6' },
+            { label: '7->8세대\n(Intel)', value: 29, color: '#3b82f6' },
+            { label: '6->7세대\n(Graviton)', value: 39, color: '#10b981' },
+            { label: '7->8세대\n(Graviton)', value: 34, color: '#10b981' },
+        ];
+
+        new Chart(document.getElementById('improvementChart'), {
+            type: 'bar',
+            data: {
+                labels: improvements.map(i => i.label),
+                datasets: [{ label: '개선율 (%)', data: improvements.map(i => i.value), backgroundColor: improvements.map(i => i.color), borderRadius: 6 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: '개선율 (%)' } } }
+            }
+        });
+
+        // 차트 8: 8세대 상세 비교
+        const gen8Graviton = allInstances.filter(i => i.gen === 8 && i.arch === 'graviton');
+        const gen8Intel = allInstances.filter(i => i.gen === 8 && i.arch === 'intel');
+
+        new Chart(document.getElementById('gen8CompareChart'), {
+            type: 'bar',
+            data: {
+                labels: ['r8g', 'm8g', 'c8g', 'r8i-flex', 'c8i', 'r8i', 'm8i', 'c8i-flex'],
+                datasets: [{
+                    label: 'Requests/sec',
+                    data: [266160, 262093, 258617, 249220, 243974, 242022, 241635, 239642],
+                    backgroundColor: ['#10b981', '#10b981', '#10b981', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6'],
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: false, min: 230000 } }
+            }
+        });
+
+        // 차트 9: 가격 대비 성능
+        const bubbleData = allInstances.map(i => ({
+            x: i.price,
+            y: i.reqSec,
+            r: 8,
+            label: i.name,
+            arch: i.arch
+        }));
+
+        new Chart(document.getElementById('pricePerformanceChart'), {
+            type: 'bubble',
+            data: {
+                datasets: [
+                    { label: 'Graviton', data: bubbleData.filter(d => d.arch === 'graviton'), backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: '#10b981' },
+                    { label: 'Intel', data: bubbleData.filter(d => d.arch === 'intel'), backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: '#3b82f6' },
+                    { label: 'AMD', data: bubbleData.filter(d => d.arch === 'amd'), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: '#ef4444' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (ctx) => [`${ctx.raw.label}`, `$${ctx.raw.x.toFixed(3)}/hr`, `${ctx.raw.y.toLocaleString()} req/s`] } }
+                },
+                scales: {
+                    x: { title: { display: true, text: '시간당 비용 ($)' }, min: 0.1, max: 0.45 },
+                    y: { title: { display: true, text: 'Requests/sec' }, min: 40000, max: 280000 }
+                }
+            }
+        });
+
+        // 차트 10: 가성비 Top 15
+        const efficiency = allInstances.map(i => ({ ...i, efficiency: Math.round(i.reqSec / (i.price * 1000)) }))
+            .sort((a, b) => b.efficiency - a.efficiency).slice(0, 15);
+
+        new Chart(document.getElementById('costEfficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: efficiency.map(i => i.name),
+                datasets: [{
+                    label: '효율성 점수',
+                    data: efficiency.map(i => i.efficiency),
+                    backgroundColor: efficiency.map(i => colorMap[i.arch]),
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: '효율성 점수' } } }
+            }
+        });
+
+        // 차트 11: 피해야 할 인스턴스
+        const avoidInstances = allInstances.filter(i => ['r5ad.xlarge', 'r5a.xlarge', 'm5ad.xlarge', 'm5a.xlarge', 'c5a.xlarge'].includes(i.name));
+        new Chart(document.getElementById('avoidChart'), {
+            type: 'bar',
+            data: {
+                labels: avoidInstances.map(i => i.name),
+                datasets: [{ label: 'Requests/sec', data: avoidInstances.map(i => i.reqSec), backgroundColor: '#ef4444', borderRadius: 6 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Requests/sec' } } }
+            }
+        });
+
+        // 전체 결과 테이블 - 데이터 준비
+        const tableData = allInstances.map((inst, idx) => ({
+            ...inst,
+            rank: idx + 1,
+            efficiency: Math.round(inst.reqSec / (inst.price * 1000))
+        }));
+
+        const archLabel = { graviton: 'Graviton', intel: 'Intel', amd: 'AMD' };
+        const archBadge = { graviton: 'badge-graviton', intel: 'badge-intel', amd: 'badge-amd' };
+
+        function renderTable(data) {
+            const tbody = document.getElementById('fullResultsBody');
+            tbody.innerHTML = data.map((inst, idx) => `
+                <tr>
+                    <td>${inst.rank}</td>
+                    <td><strong>${inst.name}</strong></td>
+                    <td><span class="badge ${archBadge[inst.arch]}">${archLabel[inst.arch]}</span></td>
+                    <td>${inst.gen}세대</td>
+                    <td>${inst.reqSec.toLocaleString()}</td>
+                    <td>${inst.latency}</td>
+                    <td>$${inst.price.toFixed(3)}</td>
+                    <td>${inst.efficiency}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 초기 렌더링
+        renderTable(tableData);
+
+        // 필터링 함수
+        function filterTable() {
+            const search = document.getElementById('tableSearch').value.toLowerCase();
+            const arch = document.getElementById('archFilter').value;
+            const gen = document.getElementById('genFilter').value;
+            const family = document.getElementById('familyFilter').value;
+
+            let filtered = tableData.filter(inst => {
+                if (search && !inst.name.toLowerCase().includes(search)) return false;
+                if (arch && inst.arch !== arch) return false;
+                if (gen && inst.gen !== parseInt(gen)) return false;
+                if (family && inst.family !== family) return false;
+                return true;
+            });
+
+            renderTable(filtered);
+        }
+
+        // 필터 이벤트 리스너
+        document.getElementById('tableSearch').addEventListener('input', filterTable);
+        document.getElementById('archFilter').addEventListener('change', filterTable);
+        document.getElementById('genFilter').addEventListener('change', filterTable);
+        document.getElementById('familyFilter').addEventListener('change', filterTable);
+
+        // 정렬 함수
+        let sortDirection = {};
+        document.querySelectorAll('#fullResultsTable th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const field = th.dataset.sort;
+                sortDirection[field] = !sortDirection[field];
+                const dir = sortDirection[field] ? 1 : -1;
+
+                const sorted = [...tableData].sort((a, b) => {
+                    if (field === 'name') return a.name.localeCompare(b.name) * dir;
+                    if (field === 'arch') return a.arch.localeCompare(b.arch) * dir;
+                    return (a[field] - b[field]) * dir;
+                });
+
+                // 필터 적용 후 렌더링
+                const search = document.getElementById('tableSearch').value.toLowerCase();
+                const arch = document.getElementById('archFilter').value;
+                const gen = document.getElementById('genFilter').value;
+                const family = document.getElementById('familyFilter').value;
+
+                let filtered = sorted.filter(inst => {
+                    if (search && !inst.name.toLowerCase().includes(search)) return false;
+                    if (arch && inst.arch !== arch) return false;
+                    if (gen && inst.gen !== parseInt(gen)) return false;
+                    if (family && inst.family !== family) return false;
+                    return true;
+                });
+
+                renderTable(filtered);
+            });
+        });
+    </script>
+</body>
+</html>
