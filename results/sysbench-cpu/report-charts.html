@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sysbench CPU 벤치마크 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --graviton: #10b981;
+            --intel: #3b82f6;
+            --amd: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);
+            color: white;
+            border-radius: 1rem;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { opacity: 0.9; font-size: 1.1rem; }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .card h3 {
+            color: var(--muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .card .value { font-size: 1.5rem; font-weight: 700; color: var(--intel); }
+        .card .label { font-size: 0.875rem; color: var(--muted); }
+        .card.graviton .value { color: var(--graviton); }
+        .chart-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .chart-section h2 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+        .chart-section .description { color: var(--muted); margin-bottom: 1rem; font-size: 0.875rem; }
+        .chart-container { position: relative; height: 400px; }
+        .chart-container.tall { height: 500px; }
+        .chart-container.extra-tall { height: 800px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .insights {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        .insights h4 { color: #92400e; margin-bottom: 0.5rem; }
+        .insights ul { margin-left: 1.5rem; color: #78350f; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.875rem; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-weight: 600; cursor: pointer; }
+        th:hover { background: #e2e8f0; }
+        tr:hover { background: #f8fafc; }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-graviton { background: #d1fae5; color: #065f46; }
+        .badge-intel { background: #dbeafe; color: #1e40af; }
+        .badge-amd { background: #fee2e2; color: #991b1b; }
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .filter-bar select, .filter-bar input {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sysbench CPU 벤치마크</h1>
+            <p>AWS EC2 인스턴스 51종 Prime Number 계산 성능 비교 (5세대 ~ 8세대)</p>
+            <p style="opacity: 0.7; margin-top: 0.5rem;">2026년 01월 | 서울 리전 (ap-northeast-2) | 4 vCPU xlarge</p>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card">
+                <h3>멀티스레드 최고</h3>
+                <div class="value">4,947</div>
+                <div class="label">c8g.xlarge events/s</div>
+            </div>
+            <div class="card graviton">
+                <h3>싱글스레드 최고</h3>
+                <div class="value">1,293</div>
+                <div class="label">c8i.xlarge events/s</div>
+            </div>
+            <div class="card graviton">
+                <h3>최저 지연시간</h3>
+                <div class="value">0.81ms</div>
+                <div class="label">c8g.xlarge (95th)</div>
+            </div>
+            <div class="card">
+                <h3>최고 가성비</h3>
+                <div class="value">29,100</div>
+                <div class="label">c8g.xlarge (events/$)</div>
+            </div>
+            <div class="card">
+                <h3>Graviton 평균</h3>
+                <div class="value">4,442</div>
+                <div class="label">events/s (16개)</div>
+            </div>
+        </div>
+
+        <div class="insights">
+            <h4>핵심 인사이트</h4>
+            <ul>
+                <li><strong>멀티스레드 성능</strong>: c8g.xlarge가 4,947 events/s로 1위 (Graviton 8세대)</li>
+                <li><strong>싱글스레드 성능</strong>: c8i.xlarge가 1,293 events/s로 최고</li>
+                <li><strong>가성비</strong>: c8g.xlarge가 $0.17/hr 대비 가장 효율적</li>
+                <li><strong>아키텍처 비교</strong>: Graviton 평균 4,442 vs Intel 2,079 events/s</li>
+            </ul>
+        </div>
+
+        <div class="chart-section">
+            <h2>멀티스레드 성능 순위 Top 20</h2>
+            <p class="description">4 vCPU Prime Number 계산 (events/sec, 높을수록 좋음)</p>
+            <div class="chart-container tall">
+                <canvas id="multiChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-section">
+                <h2>싱글스레드 성능 Top 15</h2>
+                <p class="description">단일 스레드 Prime Number 계산</p>
+                <div class="chart-container">
+                    <canvas id="singleChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-section">
+                <h2>가성비 순위 Top 15</h2>
+                <p class="description">events/s / 시간당 가격</p>
+                <div class="chart-container">
+                    <canvas id="valueChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>아키텍처별 성능 비교</h2>
+            <p class="description">Graviton vs Intel vs AMD 평균 성능</p>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="archChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>세대별 성능 추이 (Graviton vs Intel)</h2>
+            <p class="description">C/M 패밀리별 Graviton과 Intel의 세대별 멀티스레드 성능 변화 (AMD 제외)</p>
+            <div class="chart-container">
+                <canvas id="genChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>전체 결과 테이블</h2>
+            <div class="filter-bar">
+                <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
+                <select id="archFilter" onchange="filterTable()">
+                    <option value="">모든 아키텍처</option>
+                    <option value="Graviton">Graviton</option>
+                    <option value="Intel">Intel</option>
+                    <option value="AMD">AMD</option>
+                </select>
+                <select id="genFilter" onchange="filterTable()">
+                    <option value="">모든 세대</option>
+                    <option value="8">8세대</option>
+                    <option value="7">7세대</option>
+                    <option value="6">6세대</option>
+                    <option value="5">5세대</option>
+                </select>
+            </div>
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">순위</th>
+                        <th onclick="sortTable(1)">인스턴스</th>
+                        <th onclick="sortTable(2)">아키텍처</th>
+                        <th onclick="sortTable(3)">세대</th>
+                        <th onclick="sortTable(4)">멀티스레드</th>
+                        <th onclick="sortTable(5)">싱글스레드</th>
+                        <th onclick="sortTable(6)">95th 지연(ms)</th>
+                        <th onclick="sortTable(7)">가격 ($/hr)</th>
+                        <th onclick="sortTable(8)">가성비</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr data-arch="Graviton" data-gen="8">
+                        <td>1</td>
+                        <td><strong>c8g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>8세대</td>
+                        <td><strong>4,947</strong></td>
+                        <td>1,250</td>
+                        <td>0.81</td>
+                        <td>$0.170</td>
+                        <td>29,100</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="8">
+                        <td>2</td>
+                        <td><strong>m8g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>8세대</td>
+                        <td><strong>4,911</strong></td>
+                        <td>1,250</td>
+                        <td>0.81</td>
+                        <td>$0.191</td>
+                        <td>25,710</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="8">
+                        <td>3</td>
+                        <td><strong>r8g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>8세대</td>
+                        <td><strong>4,908</strong></td>
+                        <td>1,250</td>
+                        <td>0.81</td>
+                        <td>$0.250</td>
+                        <td>19,631</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7">
+                        <td>4</td>
+                        <td><strong>r7gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7세대</td>
+                        <td><strong>4,534</strong></td>
+                        <td>1,146</td>
+                        <td>0.87</td>
+                        <td>$0.284</td>
+                        <td>15,965</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7">
+                        <td>5</td>
+                        <td><strong>c7gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7세대</td>
+                        <td><strong>4,505</strong></td>
+                        <td>1,145</td>
+                        <td>0.88</td>
+                        <td>$0.193</td>
+                        <td>23,342</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7">
+                        <td>6</td>
+                        <td><strong>c7g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7세대</td>
+                        <td><strong>4,495</strong></td>
+                        <td>1,145</td>
+                        <td>0.88</td>
+                        <td>$0.162</td>
+                        <td>27,747</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7">
+                        <td>7</td>
+                        <td><strong>m7gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7세대</td>
+                        <td><strong>4,483</strong></td>
+                        <td>1,146</td>
+                        <td>0.88</td>
+                        <td>$0.217</td>
+                        <td>20,661</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7">
+                        <td>8</td>
+                        <td><strong>r7g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7세대</td>
+                        <td><strong>4,482</strong></td>
+                        <td>1,145</td>
+                        <td>0.88</td>
+                        <td>$0.238</td>
+                        <td>18,831</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7">
+                        <td>9</td>
+                        <td><strong>m7g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7세대</td>
+                        <td><strong>4,470</strong></td>
+                        <td>1,146</td>
+                        <td>0.88</td>
+                        <td>$0.182</td>
+                        <td>24,560</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6">
+                        <td>10</td>
+                        <td><strong>c6gn.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6세대</td>
+                        <td><strong>4,225</strong></td>
+                        <td>1,073</td>
+                        <td>0.94</td>
+                        <td>$0.194</td>
+                        <td>21,781</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6">
+                        <td>11</td>
+                        <td><strong>m6gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6세대</td>
+                        <td><strong>4,202</strong></td>
+                        <td>1,074</td>
+                        <td>0.94</td>
+                        <td>$0.208</td>
+                        <td>20,203</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6">
+                        <td>12</td>
+                        <td><strong>c6g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6세대</td>
+                        <td><strong>4,196</strong></td>
+                        <td>1,073</td>
+                        <td>0.94</td>
+                        <td>$0.154</td>
+                        <td>27,244</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6">
+                        <td>13</td>
+                        <td><strong>c6gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6세대</td>
+                        <td><strong>4,191</strong></td>
+                        <td>1,074</td>
+                        <td>0.94</td>
+                        <td>$0.185</td>
+                        <td>22,655</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6">
+                        <td>14</td>
+                        <td><strong>r6gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6세대</td>
+                        <td><strong>4,179</strong></td>
+                        <td>1,074</td>
+                        <td>0.94</td>
+                        <td>$0.273</td>
+                        <td>15,307</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6">
+                        <td>15</td>
+                        <td><strong>r6g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6세대</td>
+                        <td><strong>4,172</strong></td>
+                        <td>1,074</td>
+                        <td>0.94</td>
+                        <td>$0.227</td>
+                        <td>18,381</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6">
+                        <td>16</td>
+                        <td><strong>m6g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6세대</td>
+                        <td><strong>4,169</strong></td>
+                        <td>1,074</td>
+                        <td>0.94</td>
+                        <td>$0.173</td>
+                        <td>24,098</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8">
+                        <td>17</td>
+                        <td><strong>c8i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8세대</td>
+                        <td><strong>2,702</strong></td>
+                        <td>1,293</td>
+                        <td>1.32</td>
+                        <td>$0.211</td>
+                        <td>12,805</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8">
+                        <td>18</td>
+                        <td><strong>r8i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8세대</td>
+                        <td><strong>2,698</strong></td>
+                        <td>1,290</td>
+                        <td>1.33</td>
+                        <td>$0.282</td>
+                        <td>9,568</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8">
+                        <td>19</td>
+                        <td><strong>m8i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8세대</td>
+                        <td><strong>2,694</strong></td>
+                        <td>1,290</td>
+                        <td>1.33</td>
+                        <td>$0.238</td>
+                        <td>11,318</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8">
+                        <td>20</td>
+                        <td><strong>r8i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8세대</td>
+                        <td><strong>2,693</strong></td>
+                        <td>1,291</td>
+                        <td>1.34</td>
+                        <td>$0.313</td>
+                        <td>8,602</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8">
+                        <td>21</td>
+                        <td><strong>c8i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8세대</td>
+                        <td><strong>2,602</strong></td>
+                        <td>1,278</td>
+                        <td>1.47</td>
+                        <td>$0.190</td>
+                        <td>13,694</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7">
+                        <td>22</td>
+                        <td><strong>m7i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7세대</td>
+                        <td><strong>2,586</strong></td>
+                        <td>1,250</td>
+                        <td>1.51</td>
+                        <td>$0.204</td>
+                        <td>12,675</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7">
+                        <td>23</td>
+                        <td><strong>r7i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7세대</td>
+                        <td><strong>2,561</strong></td>
+                        <td>1,237</td>
+                        <td>1.40</td>
+                        <td>$0.298</td>
+                        <td>8,594</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7">
+                        <td>24</td>
+                        <td><strong>c7i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7세대</td>
+                        <td><strong>2,472</strong></td>
+                        <td>1,188</td>
+                        <td>1.48</td>
+                        <td>$0.181</td>
+                        <td>13,656</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7">
+                        <td>25</td>
+                        <td><strong>m7i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7세대</td>
+                        <td><strong>2,467</strong></td>
+                        <td>1,207</td>
+                        <td>1.47</td>
+                        <td>$0.226</td>
+                        <td>10,917</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7">
+                        <td>26</td>
+                        <td><strong>c7i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7세대</td>
+                        <td><strong>2,403</strong></td>
+                        <td>1,166</td>
+                        <td>1.50</td>
+                        <td>$0.201</td>
+                        <td>11,954</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>27</td>
+                        <td><strong>c6in.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,397</strong></td>
+                        <td>1,148</td>
+                        <td>1.50</td>
+                        <td>$0.252</td>
+                        <td>9,512</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>28</td>
+                        <td><strong>m6in.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,396</strong></td>
+                        <td>1,147</td>
+                        <td>1.50</td>
+                        <td>$0.284</td>
+                        <td>8,438</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>29</td>
+                        <td><strong>c6id.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,395</strong></td>
+                        <td>1,148</td>
+                        <td>1.49</td>
+                        <td>$0.240</td>
+                        <td>9,977</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>30</td>
+                        <td><strong>c6i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,394</strong></td>
+                        <td>1,147</td>
+                        <td>1.49</td>
+                        <td>$0.192</td>
+                        <td>12,470</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>31</td>
+                        <td><strong>m6i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,394</strong></td>
+                        <td>1,148</td>
+                        <td>1.49</td>
+                        <td>$0.216</td>
+                        <td>11,084</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>32</td>
+                        <td><strong>m6id.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,394</strong></td>
+                        <td>1,148</td>
+                        <td>1.49</td>
+                        <td>$0.270</td>
+                        <td>8,866</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>33</td>
+                        <td><strong>r6id.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,393</strong></td>
+                        <td>1,146</td>
+                        <td>1.49</td>
+                        <td>$0.355</td>
+                        <td>6,742</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>34</td>
+                        <td><strong>m6idn.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,392</strong></td>
+                        <td>1,149</td>
+                        <td>1.49</td>
+                        <td>$0.338</td>
+                        <td>7,076</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6">
+                        <td>35</td>
+                        <td><strong>r6i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6세대</td>
+                        <td><strong>2,391</strong></td>
+                        <td>1,148</td>
+                        <td>1.50</td>
+                        <td>$0.284</td>
+                        <td>8,419</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>36</td>
+                        <td><strong>m5zn.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,843</strong></td>
+                        <td>599</td>
+                        <td>2.06</td>
+                        <td>$0.367</td>
+                        <td>5,023</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>37</td>
+                        <td><strong>c5.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,467</strong></td>
+                        <td>478</td>
+                        <td>2.63</td>
+                        <td>$0.192</td>
+                        <td>7,641</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>38</td>
+                        <td><strong>c5n.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,373</strong></td>
+                        <td>452</td>
+                        <td>2.80</td>
+                        <td>$0.244</td>
+                        <td>5,626</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>39</td>
+                        <td><strong>c5d.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,367</strong></td>
+                        <td>452</td>
+                        <td>2.82</td>
+                        <td>$0.218</td>
+                        <td>6,270</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5">
+                        <td>40</td>
+                        <td><strong>c5a.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,293</strong></td>
+                        <td>618</td>
+                        <td>2.78</td>
+                        <td>$0.172</td>
+                        <td>7,520</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>41</td>
+                        <td><strong>r5dn.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,293</strong></td>
+                        <td>425</td>
+                        <td>2.97</td>
+                        <td>$0.380</td>
+                        <td>3,404</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>42</td>
+                        <td><strong>r5d.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,285</strong></td>
+                        <td>417</td>
+                        <td>2.98</td>
+                        <td>$0.324</td>
+                        <td>3,967</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>43</td>
+                        <td><strong>r5.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,279</strong></td>
+                        <td>415</td>
+                        <td>3.16</td>
+                        <td>$0.284</td>
+                        <td>4,505</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>44</td>
+                        <td><strong>r5b.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,279</strong></td>
+                        <td>424</td>
+                        <td>3.15</td>
+                        <td>$0.340</td>
+                        <td>3,761</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>45</td>
+                        <td><strong>m5d.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,260</strong></td>
+                        <td>420</td>
+                        <td>3.15</td>
+                        <td>$0.254</td>
+                        <td>4,962</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>46</td>
+                        <td><strong>r5n.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,260</strong></td>
+                        <td>417</td>
+                        <td>3.06</td>
+                        <td>$0.340</td>
+                        <td>3,707</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5">
+                        <td>47</td>
+                        <td><strong>m5.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5세대</td>
+                        <td><strong>1,248</strong></td>
+                        <td>415</td>
+                        <td>3.13</td>
+                        <td>$0.216</td>
+                        <td>5,777</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5">
+                        <td>48</td>
+                        <td><strong>r5a.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5세대</td>
+                        <td><strong>998</strong></td>
+                        <td>485</td>
+                        <td>3.63</td>
+                        <td>$0.256</td>
+                        <td>3,898</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5">
+                        <td>49</td>
+                        <td><strong>m5a.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5세대</td>
+                        <td><strong>997</strong></td>
+                        <td>486</td>
+                        <td>3.67</td>
+                        <td>$0.194</td>
+                        <td>5,141</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5">
+                        <td>50</td>
+                        <td><strong>r5ad.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5세대</td>
+                        <td><strong>996</strong></td>
+                        <td>486</td>
+                        <td>3.68</td>
+                        <td>$0.296</td>
+                        <td>3,366</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5">
+                        <td>51</td>
+                        <td><strong>m5ad.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5세대</td>
+                        <td><strong>995</strong></td>
+                        <td>486</td>
+                        <td>4.04</td>
+                        <td>$0.234</td>
+                        <td>4,253</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer>
+            <p>Generated: 2026-01-20 04:42 | Benchmark: Sysbench CPU (prime=20000)</p>
+        </footer>
+    </div>
+
+    <script>
+
+        // Multi-thread Top 20
+        new Chart(document.getElementById('multiChart'), {
+            type: 'bar',
+            data: {
+                labels: ['c8g.xlarge', 'm8g.xlarge', 'r8g.xlarge', 'r7gd.xlarge', 'c7gd.xlarge', 'c7g.xlarge', 'm7gd.xlarge', 'r7g.xlarge', 'm7g.xlarge', 'c6gn.xlarge', 'm6gd.xlarge', 'c6g.xlarge', 'c6gd.xlarge', 'r6gd.xlarge', 'r6g.xlarge', 'm6g.xlarge', 'c8i.xlarge', 'r8i-flex.xlarge', 'm8i.xlarge', 'r8i.xlarge'],
+                datasets: [{
+                    data: [4946.98, 4910.53, 4907.8, 4534.0, 4505.07, 4495.0, 4483.42, 4481.68, 4469.86, 4225.45, 4202.24, 4195.64, 4191.18, 4178.85, 4172.43, 4169.03, 2701.85, 2698.18, 2693.77, 2692.58],
+                    backgroundColor: ['#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6'],
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, title: { display: true, text: 'Events per Second' } } }
+            }
+        });
+
+        // Single-thread Top 15
+        new Chart(document.getElementById('singleChart'), {
+            type: 'bar',
+            data: {
+                labels: ['c8i.xlarge', 'r8i.xlarge', 'm8i.xlarge', 'r8i-flex.xlarge', 'c8i-flex.xlarge', 'r8g.xlarge', 'c8g.xlarge', 'm7i-flex.xlarge', 'm8g.xlarge', 'r7i.xlarge', 'm7i.xlarge', 'c7i-flex.xlarge', 'c7i.xlarge', 'm6idn.xlarge', 'm6id.xlarge'],
+                datasets: [{
+                    data: [1293.46, 1291.31, 1289.94, 1289.92, 1278.11, 1250.02, 1249.99, 1249.95, 1249.71, 1236.52, 1207.46, 1188.07, 1166.26, 1148.66, 1148.45],
+                    backgroundColor: ['#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#10b981', '#10b981', '#3b82f6', '#10b981', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6'],
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Value Top 15
+        new Chart(document.getElementById('valueChart'), {
+            type: 'bar',
+            data: {
+                labels: ['c8g.xlarge', 'c7g.xlarge', 'c6g.xlarge', 'm8g.xlarge', 'm7g.xlarge', 'm6g.xlarge', 'c7gd.xlarge', 'c6gd.xlarge', 'c6gn.xlarge', 'm7gd.xlarge', 'm6gd.xlarge', 'r8g.xlarge', 'r7g.xlarge', 'r6g.xlarge', 'r7gd.xlarge'],
+                datasets: [{
+                    data: [29100, 27747, 27244, 25710, 24560, 24098, 23342, 22655, 21781, 20661, 20203, 19631, 18831, 18381, 15965],
+                    backgroundColor: ['#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981'],
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Architecture comparison
+        new Chart(document.getElementById('archChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Graviton', 'Intel', 'AMD'],
+                datasets: [
+                    {
+                        label: 'Single Thread',
+                        data: [1134, 925, 512],
+                        backgroundColor: ['#6ee7b7', '#93c5fd', '#fca5a5']
+                    },
+                    {
+                        label: 'Multi Thread',
+                        data: [4442, 2079, 1056],
+                        backgroundColor: ['#10b981', '#3b82f6', '#ef4444']
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // Generation trend - Graviton vs Intel per family (excluding AMD)
+        const genData = {};
+        const genResults = [{'instance': 'c8g.xlarge', 'gen': 8, 'multi': 4946.98, 'family': 'C', 'arch': 'Graviton'}, {'instance': 'm8g.xlarge', 'gen': 8, 'multi': 4910.53, 'family': 'M', 'arch': 'Graviton'}, {'instance': 'r8g.xlarge', 'gen': 8, 'multi': 4907.8, 'family': 'R', 'arch': 'Graviton'}, {'instance': 'r7gd.xlarge', 'gen': 7, 'multi': 4534.0, 'family': 'R', 'arch': 'Graviton'}, {'instance': 'c7gd.xlarge', 'gen': 7, 'multi': 4505.07, 'family': 'C', 'arch': 'Graviton'}, {'instance': 'c7g.xlarge', 'gen': 7, 'multi': 4495.0, 'family': 'C', 'arch': 'Graviton'}, {'instance': 'm7gd.xlarge', 'gen': 7, 'multi': 4483.42, 'family': 'M', 'arch': 'Graviton'}, {'instance': 'r7g.xlarge', 'gen': 7, 'multi': 4481.68, 'family': 'R', 'arch': 'Graviton'}, {'instance': 'm7g.xlarge', 'gen': 7, 'multi': 4469.86, 'family': 'M', 'arch': 'Graviton'}, {'instance': 'c6gn.xlarge', 'gen': 6, 'multi': 4225.45, 'family': 'C', 'arch': 'Graviton'}, {'instance': 'm6gd.xlarge', 'gen': 6, 'multi': 4202.24, 'family': 'M', 'arch': 'Graviton'}, {'instance': 'c6g.xlarge', 'gen': 6, 'multi': 4195.64, 'family': 'C', 'arch': 'Graviton'}, {'instance': 'c6gd.xlarge', 'gen': 6, 'multi': 4191.18, 'family': 'C', 'arch': 'Graviton'}, {'instance': 'r6gd.xlarge', 'gen': 6, 'multi': 4178.85, 'family': 'R', 'arch': 'Graviton'}, {'instance': 'r6g.xlarge', 'gen': 6, 'multi': 4172.43, 'family': 'R', 'arch': 'Graviton'}, {'instance': 'm6g.xlarge', 'gen': 6, 'multi': 4169.03, 'family': 'M', 'arch': 'Graviton'}, {'instance': 'c8i.xlarge', 'gen': 8, 'multi': 2701.85, 'family': 'C', 'arch': 'Intel'}, {'instance': 'r8i-flex.xlarge', 'gen': 8, 'multi': 2698.18, 'family': 'R', 'arch': 'Intel'}, {'instance': 'm8i.xlarge', 'gen': 8, 'multi': 2693.77, 'family': 'M', 'arch': 'Intel'}, {'instance': 'r8i.xlarge', 'gen': 8, 'multi': 2692.58, 'family': 'R', 'arch': 'Intel'}, {'instance': 'c8i-flex.xlarge', 'gen': 8, 'multi': 2601.79, 'family': 'C', 'arch': 'Intel'}, {'instance': 'm7i-flex.xlarge', 'gen': 7, 'multi': 2585.79, 'family': 'M', 'arch': 'Intel'}, {'instance': 'r7i.xlarge', 'gen': 7, 'multi': 2561.04, 'family': 'R', 'arch': 'Intel'}, {'instance': 'c7i-flex.xlarge', 'gen': 7, 'multi': 2471.67, 'family': 'C', 'arch': 'Intel'}, {'instance': 'm7i.xlarge', 'gen': 7, 'multi': 2467.17, 'family': 'M', 'arch': 'Intel'}, {'instance': 'c7i.xlarge', 'gen': 7, 'multi': 2402.67, 'family': 'C', 'arch': 'Intel'}, {'instance': 'c6in.xlarge', 'gen': 6, 'multi': 2397.06, 'family': 'C', 'arch': 'Intel'}, {'instance': 'm6in.xlarge', 'gen': 6, 'multi': 2396.3, 'family': 'M', 'arch': 'Intel'}, {'instance': 'c6id.xlarge', 'gen': 6, 'multi': 2394.59, 'family': 'C', 'arch': 'Intel'}, {'instance': 'c6i.xlarge', 'gen': 6, 'multi': 2394.22, 'family': 'C', 'arch': 'Intel'}, {'instance': 'm6i.xlarge', 'gen': 6, 'multi': 2394.14, 'family': 'M', 'arch': 'Intel'}, {'instance': 'm6id.xlarge', 'gen': 6, 'multi': 2393.75, 'family': 'M', 'arch': 'Intel'}, {'instance': 'r6id.xlarge', 'gen': 6, 'multi': 2393.36, 'family': 'R', 'arch': 'Intel'}, {'instance': 'm6idn.xlarge', 'gen': 6, 'multi': 2391.62, 'family': 'M', 'arch': 'Intel'}, {'instance': 'r6i.xlarge', 'gen': 6, 'multi': 2391.08, 'family': 'R', 'arch': 'Intel'}, {'instance': 'm5zn.xlarge', 'gen': 5, 'multi': 1843.31, 'family': 'M', 'arch': 'Intel'}, {'instance': 'c5.xlarge', 'gen': 5, 'multi': 1467.0, 'family': 'C', 'arch': 'Intel'}, {'instance': 'c5n.xlarge', 'gen': 5, 'multi': 1372.76, 'family': 'C', 'arch': 'Intel'}, {'instance': 'c5d.xlarge', 'gen': 5, 'multi': 1366.94, 'family': 'C', 'arch': 'Intel'}, {'instance': 'c5a.xlarge', 'gen': 5, 'multi': 1293.39, 'family': 'C', 'arch': 'AMD'}, {'instance': 'r5dn.xlarge', 'gen': 5, 'multi': 1293.39, 'family': 'R', 'arch': 'Intel'}, {'instance': 'r5d.xlarge', 'gen': 5, 'multi': 1285.23, 'family': 'R', 'arch': 'Intel'}, {'instance': 'r5.xlarge', 'gen': 5, 'multi': 1279.36, 'family': 'R', 'arch': 'Intel'}, {'instance': 'r5b.xlarge', 'gen': 5, 'multi': 1278.74, 'family': 'R', 'arch': 'Intel'}, {'instance': 'm5d.xlarge', 'gen': 5, 'multi': 1260.25, 'family': 'M', 'arch': 'Intel'}, {'instance': 'r5n.xlarge', 'gen': 5, 'multi': 1260.22, 'family': 'R', 'arch': 'Intel'}, {'instance': 'm5.xlarge', 'gen': 5, 'multi': 1247.84, 'family': 'M', 'arch': 'Intel'}, {'instance': 'r5a.xlarge', 'gen': 5, 'multi': 997.87, 'family': 'R', 'arch': 'AMD'}, {'instance': 'm5a.xlarge', 'gen': 5, 'multi': 997.44, 'family': 'M', 'arch': 'AMD'}, {'instance': 'r5ad.xlarge', 'gen': 5, 'multi': 996.38, 'family': 'R', 'arch': 'AMD'}, {'instance': 'm5ad.xlarge', 'gen': 5, 'multi': 995.14, 'family': 'M', 'arch': 'AMD'}];
+        genResults.forEach(r => {
+            if (r.arch === 'AMD') return; // AMD 제외
+            const key = r.family + '_' + r.arch;
+            if (!genData[key]) genData[key] = {};
+            if (!genData[key][r.gen]) genData[key][r.gen] = [];
+            genData[key][r.gen].push(r.multi);
+        });
+
+        const categories = ['C_Intel', 'C_Graviton', 'M_Intel', 'M_Graviton'];
+        const gens = [5, 6, 7, 8];
+        const genAvgs = categories.map(cat => gens.map(g => {
+            const vals = genData[cat]?.[g] || [];
+            return vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null;
+        }));
+
+        new Chart(document.getElementById('genChart'), {
+            type: 'line',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: [
+                    { label: 'C Intel', data: genAvgs[0], borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.1, spanGaps: true, borderWidth: 2 },
+                    { label: 'C Graviton', data: genAvgs[1], borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.1, spanGaps: true, borderWidth: 2 },
+                    { label: 'M Intel', data: genAvgs[2], borderColor: '#60a5fa', backgroundColor: '#60a5fa', tension: 0.1, spanGaps: true, borderDash: [5, 5], borderWidth: 2 },
+                    { label: 'M Graviton', data: genAvgs[3], borderColor: '#34d399', backgroundColor: '#34d399', tension: 0.1, spanGaps: true, borderDash: [5, 5], borderWidth: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Graviton은 6세대부터 시작, Intel 5세대는 i 없음' }
+                },
+                scales: { y: { beginAtZero: false, title: { display: true, text: 'Events per Second' } } }
+            }
+        });
+
+        // Table functions
+        function filterTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const arch = document.getElementById('archFilter').value;
+            const gen = document.getElementById('genFilter').value;
+            const rows = document.querySelectorAll('#resultsTable tbody tr');
+
+            rows.forEach(row => {
+                const instance = row.cells[1].textContent.toLowerCase();
+                const matchSearch = instance.includes(search);
+                const matchArch = !arch || row.dataset.arch === arch;
+                const matchGen = !gen || row.dataset.gen === gen;
+                row.style.display = matchSearch && matchArch && matchGen ? '' : 'none';
+            });
+        }
+
+        let sortDir = {};
+        function sortTable(col) {
+            const table = document.getElementById('resultsTable');
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            sortDir[col] = !sortDir[col];
+
+            rows.sort((a, b) => {
+                let aVal = a.cells[col].textContent.replace(/[,$]/g, '');
+                let bVal = b.cells[col].textContent.replace(/[,$]/g, '');
+                const aNum = parseFloat(aVal), bNum = parseFloat(bVal);
+                if (!isNaN(aNum) && !isNaN(bNum)) return sortDir[col] ? aNum - bNum : bNum - aNum;
+                return sortDir[col] ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            const tbody = table.querySelector('tbody');
+            rows.forEach(row => tbody.appendChild(row));
+        }
+    </script>
+</body>
+</html>

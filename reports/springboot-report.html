@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Boot 종합 벤치마크 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --graviton: #10b981;
+            --intel: #3b82f6;
+            --amd: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            color: white;
+            border-radius: 1rem;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { opacity: 0.9; font-size: 1.1rem; }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .card h3 {
+            color: var(--muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .card .value { font-size: 1.3rem; font-weight: 700; color: var(--intel); }
+        .card .label { font-size: 0.8rem; color: var(--muted); }
+        .card.graviton .value { color: var(--graviton); }
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 2rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .chart-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .chart-section h2 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+        .chart-section .description { color: var(--muted); margin-bottom: 1rem; font-size: 0.875rem; }
+        .chart-container { position: relative; height: 400px; }
+        .chart-container.tall { height: 500px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .insights {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-left: 4px solid #6366f1;
+            padding: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        .insights h4 { color: #3730a3; margin-bottom: 0.5rem; }
+        .insights ul { margin-left: 1.5rem; color: #4338ca; }
+        .highlight-box {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            margin: 1rem 0;
+        }
+        .highlight-box h4 { color: #475569; margin-bottom: 0.75rem; font-size: 1rem; }
+        .highlight-box ul { margin-left: 1.5rem; color: #64748b; }
+        .highlight-box li { margin-bottom: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.8rem; }
+        th, td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-weight: 600; cursor: pointer; position: sticky; top: 0; }
+        th:hover { background: #e2e8f0; }
+        tr:hover { background: #f8fafc; }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.4rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 600;
+        }
+        .badge-graviton { background: #d1fae5; color: #065f46; }
+        .badge-intel { background: #dbeafe; color: #1e40af; }
+        .badge-amd { background: #fee2e2; color: #991b1b; }
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .filter-bar select {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .tab-container { margin-bottom: 1rem; }
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .tab-btn.active { background: #6366f1; color: white; border-color: #6366f1; }
+        @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Spring Boot 종합 벤치마크</h1>
+            <p>AWS EC2 인스턴스 51종 JVM Cold Start + HTTP 성능 비교 (5세대 ~ 8세대)</p>
+            <p style="opacity: 0.7; margin-top: 0.5rem;">2026년 01월 | 서울 리전 (ap-northeast-2)</p>
+        </header>
+
+        <!-- Cold Start Summary -->
+        <h3 class="section-title">Cold Start 성능</h3>
+        <div class="summary-cards">
+            <div class="card graviton">
+                <h3>가장 빠른 시작</h3>
+                <div class="value">1,733ms</div>
+                <div class="label">m8g.xlarge</div>
+            </div>
+            <div class="card">
+                <h3>Intel 최고</h3>
+                <div class="value">1,736ms</div>
+                <div class="label">c8i-flex.xlarge</div>
+            </div>
+            <div class="card" style="border-left: 4px solid var(--amd);">
+                <h3>가장 느린 시작</h3>
+                <div class="value" style="color: var(--amd);">4,652ms</div>
+                <div class="label">m5a.xlarge</div>
+            </div>
+        </div>
+
+        <!-- HTTP Performance Summary -->
+        <h3 class="section-title">HTTP 처리량 (wrk 200 conn)</h3>
+        <div class="summary-cards">
+            <div class="card">
+                <h3>최고 RPS</h3>
+                <div class="value">107,776</div>
+                <div class="label">c7i-flex.xlarge</div>
+            </div>
+            <div class="card graviton">
+                <h3>Graviton RPS 최고</h3>
+                <div class="value">79,710</div>
+                <div class="label">r8g.xlarge</div>
+            </div>
+            <div class="card">
+                <h3>최저 Latency</h3>
+                <div class="value">1.84ms</div>
+                <div class="label">m7i-flex.xlarge</div>
+            </div>
+            <div class="card" style="border-left: 4px solid var(--amd);">
+                <h3>AMD RPS 최고</h3>
+                <div class="value" style="color: var(--amd);">30,874</div>
+                <div class="label">c5a.xlarge</div>
+            </div>
+        </div>
+
+        <div class="insights">
+            <h4>핵심 인사이트</h4>
+            <ul>
+                <li><strong>Cold Start</strong>: Graviton4(m8g) 1,733ms vs Intel 8세대(c8i-flex) 1,736ms - 거의 동등</li>
+                <li><strong>HTTP 처리량</strong>: Intel 7세대 flex 시리즈가 107K+ RPS로 압도적 1위</li>
+                <li><strong>Latency</strong>: Intel 7-8세대가 평균 1.8-2.1ms로 가장 낮은 지연시간</li>
+                <li><strong>Graviton HTTP</strong>: Graviton4가 75-80K RPS로 Graviton 중 최고, Intel 대비 약 70% 수준</li>
+                <li><strong>AMD 성능</strong>: Cold Start와 HTTP 모두 Intel/Graviton 대비 크게 저조</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box">
+            <h4>Metrics Explanation / 메트릭 설명</h4>
+            <ul>
+                <li><strong>Cold Start (ms)</strong>: JVM 시작부터 "Started DemoApplication" 로그까지 시간 - 낮을수록 좋음</li>
+                <li><strong>RPS (Requests/sec)</strong>: 초당 처리 요청 수 - 높을수록 좋음</li>
+                <li><strong>Latency Avg (ms)</strong>: 평균 응답 지연시간 - 낮을수록 좋음</li>
+                <li><strong>Latency Stdev (ms)</strong>: 지연시간 표준편차 - 낮을수록 일관된 성능</li>
+                <li><strong>Latency Max (ms)</strong>: 최대 응답 지연시간 - 낮을수록 좋음</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box">
+            <h4>Test Methodology / 테스트 방법론</h4>
+            <ul>
+                <li><strong>환경</strong>: Kubernetes Job으로 각 인스턴스에서 5회 반복 (pod anti-affinity 노드 격리)</li>
+                <li><strong>Cold Start</strong>: Spring Boot 3.2.0 + OpenJDK 21 시작 시간 측정</li>
+                <li><strong>HTTP 테스트</strong>: wrk 2 threads, 200 connections, 30초 (High Load 시나리오)</li>
+                <li><strong>워밍업</strong>: HTTP 테스트 전 30초 워밍업</li>
+                <li><strong>결과</strong>: 5회 실행 평균값 사용</li>
+            </ul>
+        </div>
+
+        <div class="chart-section">
+            <h2>HTTP 처리량 (RPS) Top 20 with Stdev</h2>
+            <p class="description">Requests/sec - 에러바는 표준편차 (높을수록 좋음)</p>
+            <div class="chart-container tall">
+                <canvas id="rpsChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Latency (Avg vs Max) Top 20</h2>
+            <p class="description">응답 지연시간 비교 - 낮을수록 좋음</p>
+            <div class="chart-container tall">
+                <canvas id="latencyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-section">
+                <h2>Cold Start 순위 Top 15</h2>
+                <p class="description">JVM 시작 시간 (낮을수록 좋음)</p>
+                <div class="chart-container">
+                    <canvas id="coldstartChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-section">
+                <h2>아키텍처별 RPS 비교</h2>
+                <p class="description">Graviton vs Intel vs AMD</p>
+                <div class="chart-container">
+                    <canvas id="archRpsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-section">
+                <h2>아키텍처별 Cold Start</h2>
+                <p class="description">평균 시작 시간</p>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="archColdstartChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-section">
+                <h2>아키텍처별 Latency</h2>
+                <p class="description">평균 응답 지연시간</p>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="archLatencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>전체 인스턴스 결과</h2>
+            <p class="description">51개 인스턴스 종합 성능 비교</p>
+            <div class="filter-bar">
+                <select id="archFilter">
+                    <option value="all">모든 아키텍처</option>
+                    <option value="arm64">Graviton</option>
+                    <option value="x86_64">Intel/AMD</option>
+                </select>
+                <select id="familyFilter">
+                    <option value="all">모든 패밀리</option>
+                    <option value="C">C (Compute)</option>
+                    <option value="M">M (General)</option>
+                    <option value="R">R (Memory)</option>
+                </select>
+                <select id="sortBy">
+                    <option value="rps">RPS 순</option>
+                    <option value="coldstart">Cold Start 순</option>
+                    <option value="latency">Latency 순</option>
+                </select>
+            </div>
+            <div style="max-height: 600px; overflow-y: auto;">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">#</th>
+                        <th onclick="sortTable(1)">인스턴스</th>
+                        <th onclick="sortTable(2)">Arch</th>
+                        <th onclick="sortTable(3)">세대</th>
+                        <th onclick="sortTable(4)">Cold Start</th>
+                        <th onclick="sortTable(5)">RPS</th>
+                        <th onclick="sortTable(6)">Lat Avg</th>
+                        <th onclick="sortTable(7)">Lat Stdev</th>
+                        <th onclick="sortTable(8)">Lat Max</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+            </div>
+        </div>
+
+        <footer>
+            <p>EKS EC2 Node Benchmark Project | Generated: 2026-01-20</p>
+            <p>테스트 환경: AWS ap-northeast-2 | Kubernetes 1.34 | Karpenter</p>
+        </footer>
+    </div>
+
+    <script>
+        // Combined data (coldstart + wrk)
+        const allData = [
+            { instance: "c7i-flex.xlarge", arch: "x86_64", gen: 7, family: "C", coldstart: 2178, rps: 107775.61, latAvg: 1.844, latStd: 0.997, latMax: 27.03 },
+            { instance: "m7i-flex.xlarge", arch: "x86_64", gen: 7, family: "M", coldstart: 1770, rps: 107655.69, latAvg: 1.836, latStd: 0.945, latMax: 25.47 },
+            { instance: "r8i.xlarge", arch: "x86_64", gen: 8, family: "R", coldstart: 2085, rps: 97222.75, latAvg: 1.924, latStd: 0.708, latMax: 24.90 },
+            { instance: "r8i-flex.xlarge", arch: "x86_64", gen: 8, family: "R", coldstart: 1970, rps: 94088.83, latAvg: 2.024, latStd: 0.688, latMax: 25.36 },
+            { instance: "m8i.xlarge", arch: "x86_64", gen: 8, family: "M", coldstart: 1984, rps: 92412.31, latAvg: 1.998, latStd: 0.808, latMax: 22.80 },
+            { instance: "c8i.xlarge", arch: "x86_64", gen: 8, family: "C", coldstart: 1809, rps: 90390.15, latAvg: 2.052, latStd: 0.794, latMax: 21.96 },
+            { instance: "c8i-flex.xlarge", arch: "x86_64", gen: 8, family: "C", coldstart: 1736, rps: 87874.38, latAvg: 2.086, latStd: 0.909, latMax: 38.66 },
+            { instance: "r8g.xlarge", arch: "arm64", gen: 8, family: "R", coldstart: 1788, rps: 79710.37, latAvg: 2.406, latStd: 0.982, latMax: 49.05 },
+            { instance: "c8g.xlarge", arch: "arm64", gen: 8, family: "C", coldstart: 1962, rps: 75410.08, latAvg: 2.552, latStd: 0.962, latMax: 50.07 },
+            { instance: "m8g.xlarge", arch: "arm64", gen: 8, family: "M", coldstart: 1733, rps: 73866.26, latAvg: 2.620, latStd: 1.328, latMax: 93.38 },
+            { instance: "c7i.xlarge", arch: "x86_64", gen: 7, family: "C", coldstart: 1960, rps: 56831.13, latAvg: 2.350, latStd: 0.988, latMax: 35.78 },
+            { instance: "r6id.xlarge", arch: "x86_64", gen: 6, family: "R", coldstart: 2613, rps: 56168.67, latAvg: 3.484, latStd: 0.872, latMax: 30.31 },
+            { instance: "m6idn.xlarge", arch: "x86_64", gen: 6, family: "M", coldstart: 2484, rps: 55915.10, latAvg: 3.506, latStd: 0.924, latMax: 37.74 },
+            { instance: "m6i.xlarge", arch: "x86_64", gen: 6, family: "M", coldstart: 2525, rps: 54568.07, latAvg: 3.598, latStd: 1.056, latMax: 33.10 },
+            { instance: "c6in.xlarge", arch: "x86_64", gen: 6, family: "C", coldstart: 2320, rps: 54138.26, latAvg: 3.626, latStd: 1.058, latMax: 28.78 },
+            { instance: "m6in.xlarge", arch: "x86_64", gen: 6, family: "M", coldstart: 2944, rps: 53224.23, latAvg: 3.696, latStd: 0.918, latMax: 34.95 },
+            { instance: "r6i.xlarge", arch: "x86_64", gen: 6, family: "R", coldstart: 2618, rps: 52725.47, latAvg: 3.732, latStd: 1.082, latMax: 30.50 },
+            { instance: "c6id.xlarge", arch: "x86_64", gen: 6, family: "C", coldstart: 2428, rps: 52560.03, latAvg: 3.748, latStd: 1.080, latMax: 29.19 },
+            { instance: "m6id.xlarge", arch: "x86_64", gen: 6, family: "M", coldstart: 2663, rps: 52057.30, latAvg: 3.784, latStd: 0.966, latMax: 36.64 },
+            { instance: "c6i.xlarge", arch: "x86_64", gen: 6, family: "C", coldstart: 2887, rps: 51816.59, latAvg: 3.798, latStd: 1.096, latMax: 31.98 },
+            { instance: "r7i.xlarge", arch: "x86_64", gen: 7, family: "R", coldstart: 2277, rps: 50766.87, latAvg: 3.772, latStd: 1.424, latMax: 60.00 },
+            { instance: "m7i.xlarge", arch: "x86_64", gen: 7, family: "M", coldstart: 2520, rps: 50387.86, latAvg: 3.854, latStd: 1.182, latMax: 38.63 },
+            { instance: "r7gd.xlarge", arch: "arm64", gen: 7, family: "R", coldstart: 2140, rps: 48883.97, latAvg: 3.958, latStd: 1.374, latMax: 56.38 },
+            { instance: "m7gd.xlarge", arch: "arm64", gen: 7, family: "M", coldstart: 2193, rps: 48466.59, latAvg: 4.016, latStd: 1.420, latMax: 60.68 },
+            { instance: "c7gd.xlarge", arch: "arm64", gen: 7, family: "C", coldstart: 2033, rps: 47893.75, latAvg: 4.074, latStd: 1.426, latMax: 54.50 },
+            { instance: "m7g.xlarge", arch: "arm64", gen: 7, family: "M", coldstart: 2263, rps: 47606.52, latAvg: 4.072, latStd: 1.468, latMax: 57.35 },
+            { instance: "r7g.xlarge", arch: "arm64", gen: 7, family: "R", coldstart: 2381, rps: 46769.91, latAvg: 4.178, latStd: 1.398, latMax: 50.28 },
+            { instance: "c7g.xlarge", arch: "arm64", gen: 7, family: "C", coldstart: 2306, rps: 46556.80, latAvg: 4.174, latStd: 1.442, latMax: 53.41 },
+            { instance: "c5.xlarge", arch: "x86_64", gen: 5, family: "C", coldstart: 3070, rps: 40888.08, latAvg: 4.850, latStd: 1.260, latMax: 40.38 },
+            { instance: "c5d.xlarge", arch: "x86_64", gen: 5, family: "C", coldstart: 2657, rps: 41240.87, latAvg: 4.812, latStd: 1.274, latMax: 47.39 },
+            { instance: "c5n.xlarge", arch: "x86_64", gen: 5, family: "C", coldstart: 2862, rps: 39091.39, latAvg: 5.078, latStd: 1.402, latMax: 37.81 },
+            { instance: "m5zn.xlarge", arch: "x86_64", gen: 5, family: "M", coldstart: 2377, rps: 38519.17, latAvg: 5.114, latStd: 1.426, latMax: 41.95 },
+            { instance: "m5d.xlarge", arch: "x86_64", gen: 5, family: "M", coldstart: 3144, rps: 36802.74, latAvg: 5.354, latStd: 1.472, latMax: 44.13 },
+            { instance: "c6gd.xlarge", arch: "arm64", gen: 6, family: "C", coldstart: 3101, rps: 34129.35, latAvg: 5.856, latStd: 1.944, latMax: 69.57 },
+            { instance: "r5dn.xlarge", arch: "x86_64", gen: 5, family: "R", coldstart: 3223, rps: 34088.88, latAvg: 5.780, latStd: 1.598, latMax: 48.02 },
+            { instance: "m5.xlarge", arch: "x86_64", gen: 5, family: "M", coldstart: 3264, rps: 33929.15, latAvg: 5.802, latStd: 1.538, latMax: 43.35 },
+            { instance: "r5d.xlarge", arch: "x86_64", gen: 5, family: "R", coldstart: 3489, rps: 33579.45, latAvg: 5.860, latStd: 1.556, latMax: 43.67 },
+            { instance: "r5b.xlarge", arch: "x86_64", gen: 5, family: "R", coldstart: 3450, rps: 33432.36, latAvg: 5.892, latStd: 1.554, latMax: 44.49 },
+            { instance: "r5n.xlarge", arch: "x86_64", gen: 5, family: "R", coldstart: 3465, rps: 33348.08, latAvg: 5.904, latStd: 1.530, latMax: 41.41 },
+            { instance: "c6gn.xlarge", arch: "arm64", gen: 6, family: "C", coldstart: 2853, rps: 33213.47, latAvg: 5.942, latStd: 1.990, latMax: 71.28 },
+            { instance: "r5.xlarge", arch: "x86_64", gen: 5, family: "R", coldstart: 3972, rps: 32797.24, latAvg: 6.010, latStd: 1.626, latMax: 48.65 },
+            { instance: "c5a.xlarge", arch: "x86_64", gen: 5, family: "C", coldstart: 3604, rps: 30873.67, latAvg: 6.420, latStd: 1.822, latMax: 57.97 },
+            { instance: "c6g.xlarge", arch: "arm64", gen: 6, family: "C", coldstart: 2982, rps: 30312.09, latAvg: 6.604, latStd: 2.292, latMax: 90.28 },
+            { instance: "m6gd.xlarge", arch: "arm64", gen: 6, family: "M", coldstart: 2976, rps: 29885.81, latAvg: 6.674, latStd: 2.268, latMax: 85.47 },
+            { instance: "r6gd.xlarge", arch: "arm64", gen: 6, family: "R", coldstart: 2922, rps: 29841.39, latAvg: 6.682, latStd: 2.236, latMax: 81.06 },
+            { instance: "m6g.xlarge", arch: "arm64", gen: 6, family: "M", coldstart: 3074, rps: 29560.75, latAvg: 6.754, latStd: 2.288, latMax: 88.91 },
+            { instance: "r6g.xlarge", arch: "arm64", gen: 6, family: "R", coldstart: 2908, rps: 29266.20, latAvg: 6.824, latStd: 2.382, latMax: 92.37 },
+            { instance: "m5a.xlarge", arch: "x86_64", gen: 5, family: "M", coldstart: 4652, rps: 22424.96, latAvg: 8.814, latStd: 2.654, latMax: 66.86 },
+            { instance: "r5a.xlarge", arch: "x86_64", gen: 5, family: "R", coldstart: 4625, rps: 22151.89, latAvg: 8.950, latStd: 2.906, latMax: 85.39 },
+            { instance: "m5ad.xlarge", arch: "x86_64", gen: 5, family: "M", coldstart: 4540, rps: 21802.30, latAvg: 9.078, latStd: 2.852, latMax: 74.89 },
+            { instance: "r5ad.xlarge", arch: "x86_64", gen: 5, family: "R", coldstart: 4345, rps: 20816.62, latAvg: 9.504, latStd: 3.150, latMax: 86.69 }
+        ];
+
+        function getColor(item) {
+            if (item.arch === 'arm64') return '#10b981';
+            if (item.instance.includes('5a')) return '#ef4444';
+            return '#3b82f6';
+        }
+
+        function getBadgeClass(item) {
+            if (item.arch === 'arm64') return 'badge-graviton';
+            if (item.instance.includes('5a')) return 'badge-amd';
+            return 'badge-intel';
+        }
+
+        function getArchLabel(item) {
+            if (item.arch === 'arm64') return 'Graviton';
+            if (item.instance.includes('5a')) return 'AMD';
+            return 'Intel';
+        }
+
+        // RPS Chart with error bars (stdev)
+        const top20Rps = allData.slice(0, 20);
+        new Chart(document.getElementById('rpsChart'), {
+            type: 'bar',
+            data: {
+                labels: top20Rps.map(d => d.instance),
+                datasets: [{
+                    label: 'RPS',
+                    data: top20Rps.map(d => d.rps),
+                    backgroundColor: top20Rps.map(d => getColor(d)),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: 'Requests/sec (높을수록 좋음)' }, beginAtZero: true } }
+            }
+        });
+
+        // Latency Chart (Avg vs Max)
+        const sortedByLatency = [...allData].sort((a, b) => a.latAvg - b.latAvg);
+        const top20Lat = sortedByLatency.slice(0, 20);
+        new Chart(document.getElementById('latencyChart'), {
+            type: 'bar',
+            data: {
+                labels: top20Lat.map(d => d.instance),
+                datasets: [
+                    {
+                        label: 'Avg Latency (ms)',
+                        data: top20Lat.map(d => d.latAvg),
+                        backgroundColor: '#6366f1',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Max Latency (ms)',
+                        data: top20Lat.map(d => d.latMax),
+                        backgroundColor: '#f97316',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { title: { display: true, text: 'Latency (ms) - 낮을수록 좋음' }, beginAtZero: true } }
+            }
+        });
+
+        // Cold Start Chart
+        const sortedByColdstart = [...allData].sort((a, b) => a.coldstart - b.coldstart);
+        const top15Coldstart = sortedByColdstart.slice(0, 15);
+        new Chart(document.getElementById('coldstartChart'), {
+            type: 'bar',
+            data: {
+                labels: top15Coldstart.map(d => d.instance),
+                datasets: [{
+                    label: 'Cold Start (ms)',
+                    data: top15Coldstart.map(d => d.coldstart),
+                    backgroundColor: top15Coldstart.map(d => getColor(d)),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: 'Cold Start (ms)' }, beginAtZero: true } }
+            }
+        });
+
+        // Architecture RPS comparison
+        const gravitonData = allData.filter(d => d.arch === 'arm64');
+        const intelData = allData.filter(d => d.arch === 'x86_64' && !d.instance.includes('5a'));
+        const amdData = allData.filter(d => d.instance.includes('5a'));
+
+        new Chart(document.getElementById('archRpsChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Graviton', 'Intel', 'AMD'],
+                datasets: [{
+                    label: 'Avg RPS',
+                    data: [
+                        Math.round(gravitonData.reduce((s, d) => s + d.rps, 0) / gravitonData.length),
+                        Math.round(intelData.reduce((s, d) => s + d.rps, 0) / intelData.length),
+                        Math.round(amdData.reduce((s, d) => s + d.rps, 0) / amdData.length)
+                    ],
+                    backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'RPS' } } }
+            }
+        });
+
+        // Architecture Cold Start comparison
+        new Chart(document.getElementById('archColdstartChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Graviton', 'Intel', 'AMD'],
+                datasets: [{
+                    label: 'Avg Cold Start (ms)',
+                    data: [
+                        Math.round(gravitonData.reduce((s, d) => s + d.coldstart, 0) / gravitonData.length),
+                        Math.round(intelData.reduce((s, d) => s + d.coldstart, 0) / intelData.length),
+                        Math.round(amdData.reduce((s, d) => s + d.coldstart, 0) / amdData.length)
+                    ],
+                    backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'ms' } } }
+            }
+        });
+
+        // Architecture Latency comparison
+        new Chart(document.getElementById('archLatencyChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Graviton', 'Intel', 'AMD'],
+                datasets: [{
+                    label: 'Avg Latency (ms)',
+                    data: [
+                        (gravitonData.reduce((s, d) => s + d.latAvg, 0) / gravitonData.length).toFixed(2),
+                        (intelData.reduce((s, d) => s + d.latAvg, 0) / intelData.length).toFixed(2),
+                        (amdData.reduce((s, d) => s + d.latAvg, 0) / amdData.length).toFixed(2)
+                    ],
+                    backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'ms' } } }
+            }
+        });
+
+        // Table rendering
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            data.forEach((item, idx) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td><strong>${item.instance}</strong></td>
+                    <td><span class="badge ${getBadgeClass(item)}">${getArchLabel(item)}</span></td>
+                    <td>${item.gen}세대</td>
+                    <td>${item.coldstart.toLocaleString()}ms</td>
+                    <td>${item.rps.toLocaleString()}</td>
+                    <td>${item.latAvg.toFixed(2)}ms</td>
+                    <td>${item.latStd.toFixed(2)}ms</td>
+                    <td>${item.latMax.toFixed(1)}ms</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterAndSortData() {
+            const arch = document.getElementById('archFilter').value;
+            const family = document.getElementById('familyFilter').value;
+            const sortBy = document.getElementById('sortBy').value;
+
+            let filtered = allData;
+            if (arch !== 'all') filtered = filtered.filter(d => d.arch === arch);
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family);
+
+            if (sortBy === 'rps') {
+                filtered = [...filtered].sort((a, b) => b.rps - a.rps);
+            } else if (sortBy === 'coldstart') {
+                filtered = [...filtered].sort((a, b) => a.coldstart - b.coldstart);
+            } else {
+                filtered = [...filtered].sort((a, b) => a.latAvg - b.latAvg);
+            }
+
+            renderTable(filtered);
+        }
+
+        document.getElementById('archFilter').addEventListener('change', filterAndSortData);
+        document.getElementById('familyFilter').addEventListener('change', filterAndSortData);
+        document.getElementById('sortBy').addEventListener('change', filterAndSortData);
+
+        let sortDirection = {};
+        function sortTable(columnIndex) {
+            const tbody = document.getElementById('tableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            sortDirection[columnIndex] = !sortDirection[columnIndex];
+            const dir = sortDirection[columnIndex] ? 1 : -1;
+
+            rows.sort((a, b) => {
+                let aVal = a.cells[columnIndex].textContent;
+                let bVal = b.cells[columnIndex].textContent;
+                if ([0, 3, 4, 5, 6, 7, 8].includes(columnIndex)) {
+                    aVal = parseFloat(aVal.replace(/[^0-9.]/g, ''));
+                    bVal = parseFloat(bVal.replace(/[^0-9.]/g, ''));
+                    return (aVal - bVal) * dir;
+                }
+                return aVal.localeCompare(bVal) * dir;
+            });
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Initial render sorted by RPS
+        renderTable(allData);
+    </script>
+</body>
+</html>

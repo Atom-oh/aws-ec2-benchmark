@@ -32,38 +32,102 @@ kubectl create namespace benchmark
 
 ## 벤치마크 종류 및 실행 방법
 
-### 1. Spring Boot Cold Start (JVM 시작 시간)
+### 1. Spring Boot Benchmark (Coldstart + wrk)
 
-JVM 시작 시간을 측정합니다. "Started DemoApplication in X.XXX seconds" 로그에서 시간 추출.
+SpringBoot 벤치마크는 **Coldstart**(JVM 시작)와 **wrk**(HTTP 처리량) 두 가지로 구성됩니다.
+두 테스트는 독립적이므로 **병렬 실행 가능**합니다.
 
-**단일 실행**
-```bash
-INSTANCE="c8i.xlarge"
-SAFE_NAME=$(echo $INSTANCE | tr '.' '-')
-sed -e "s/INSTANCE_SAFE/${SAFE_NAME}/g" \
-    -e "s/INSTANCE_TYPE/${INSTANCE}/g" \
-    -e "s/ARCH/amd64/g" \
-    benchmarks/springboot/springboot-coldstart.yaml | kubectl apply -f -
+#### 결과 저장 구조
+```
+results/springboot/<instance>/
+├── coldstart1.log ~ coldstart5.log   # JVM Cold Start 5회
+└── wrk1.log ~ wrk5.log               # HTTP 벤치마크 5회
 ```
 
-**51개 병렬 실행 (5회 반복)**
+#### 1-1. Coldstart (완전 병렬 - 255개 동시 실행)
+
+51개 인스턴스 × 5회 = **255개 Job을 동시에 실행** 가능
+
 ```bash
-# Run 1~5 순차 실행
+# 인스턴스 목록
+INTEL="c5.xlarge c5a.xlarge c5d.xlarge c5n.xlarge c6i.xlarge c6id.xlarge c6in.xlarge c7i.xlarge c7i-flex.xlarge c8i.xlarge c8i-flex.xlarge m5.xlarge m5a.xlarge m5ad.xlarge m5d.xlarge m5zn.xlarge m6i.xlarge m6id.xlarge m6idn.xlarge m6in.xlarge m7i.xlarge m7i-flex.xlarge m8i.xlarge r5.xlarge r5a.xlarge r5ad.xlarge r5b.xlarge r5d.xlarge r5dn.xlarge r5n.xlarge r6i.xlarge r6id.xlarge r7i.xlarge r8i.xlarge r8i-flex.xlarge"
+GRAVITON="c6g.xlarge c6gd.xlarge c6gn.xlarge c7g.xlarge c7gd.xlarge c8g.xlarge m6g.xlarge m6gd.xlarge m7g.xlarge m7gd.xlarge m8g.xlarge r6g.xlarge r6gd.xlarge r7g.xlarge r7gd.xlarge r8g.xlarge"
+
+# 모든 인스턴스 × 5회 동시 배포
 for RUN in 1 2 3 4 5; do
-  ./scripts/run-springboot-coldstart.sh $RUN
-  sleep 60  # 노드 정리 대기
+    for instance in $INTEL; do
+        safe_name=$(echo "$instance" | tr '.' '-')
+        cat benchmarks/springboot/springboot-coldstart.yaml | \
+            sed "s/INSTANCE_SAFE/${safe_name}/g" | \
+            sed "s/INSTANCE_TYPE/${instance}/g" | \
+            sed "s/RUN_NUMBER/${RUN}/g" | \
+            sed "s|kubernetes.io/arch: ARCH|kubernetes.io/arch: amd64|g" | \
+            kubectl apply -f -
+    done
+    for instance in $GRAVITON; do
+        safe_name=$(echo "$instance" | tr '.' '-')
+        cat benchmarks/springboot/springboot-coldstart.yaml | \
+            sed "s/INSTANCE_SAFE/${safe_name}/g" | \
+            sed "s/INSTANCE_TYPE/${instance}/g" | \
+            sed "s/RUN_NUMBER/${RUN}/g" | \
+            sed "s|kubernetes.io/arch: ARCH|kubernetes.io/arch: arm64|g" | \
+            kubectl apply -f -
+    done
 done
 ```
 
-**로그 수집**
-```bash
-# 자동 수집 스크립트 (백그라운드)
-nohup ./scripts/collect-startup-times.sh > /tmp/collect.out 2>&1 &
+#### 1-2. wrk HTTP 벤치마크 (인스턴스 간 병렬, 인스턴스 내 순차)
 
-# 수동 수집
-POD=$(kubectl get pods -n benchmark -l job-name=springboot-coldstart-c8i-xlarge-run1 --no-headers -o custom-columns=":metadata.name" | head -1)
-kubectl logs -n benchmark $POD > results/springboot/c8i.xlarge/coldstart1.log
+- 각 인스턴스별로 run1 → run2 → ... → run5 **순차 실행**
+- 서로 다른 인스턴스는 **동시 실행**
+
+```bash
+# Step 1: SpringBoot 서버 51개 배포
+for instance in $INTEL; do
+    safe_name=$(echo "$instance" | tr '.' '-')
+    cat benchmarks/springboot/springboot-server.yaml | \
+        sed "s/INSTANCE_SAFE/${safe_name}/g" | \
+        sed "s/INSTANCE_TYPE/${instance}/g" | \
+        sed "s|kubernetes.io/arch: ARCH|kubernetes.io/arch: amd64|g" | \
+        kubectl apply -f -
+done
+# (Graviton도 동일하게 arm64로 배포)
+
+# Step 2: 인스턴스별 5회 순차 실행 (백그라운드로 병렬화)
+for instance in $INTEL $GRAVITON; do
+    (
+        safe_name=$(echo "$instance" | tr '.' '-')
+        arch=$([[ "$instance" =~ g\. ]] && echo "arm64" || echo "amd64")
+        mkdir -p "results/springboot/$instance"
+
+        for RUN in 1 2 3 4 5; do
+            job_name="springboot-wrk-${safe_name}-run${RUN}"
+            cat benchmarks/springboot/springboot-benchmark.yaml | \
+                sed "s/INSTANCE_SAFE/${safe_name}/g" | \
+                sed "s/INSTANCE_TYPE/${instance}/g" | \
+                sed "s/RUN_NUMBER/${RUN}/g" | \
+                sed "s|kubernetes.io/arch: ARCH|kubernetes.io/arch: ${arch}|g" | \
+                kubectl apply -f -
+
+            kubectl wait --for=condition=complete job/$job_name -n benchmark --timeout=300s
+            pod=$(kubectl get pods -n benchmark -l job-name=$job_name -o name | head -1)
+            kubectl logs -n benchmark $pod > "results/springboot/$instance/wrk${RUN}.log"
+            kubectl delete job $job_name -n benchmark
+        done
+    ) &
+done
+wait
+
+# Step 3: 서버 정리
+kubectl delete deployment -n benchmark -l app=springboot-server
 ```
+
+#### 병렬화 요약
+
+| 테스트 | 병렬화 수준 | 동시 실행 수 |
+|--------|-------------|--------------|
+| Coldstart | 완전 병렬 | 255개 (51 × 5) |
+| wrk | 인스턴스 간 병렬 | 51개 (각 인스턴스 내 5회 순차) |
 
 ### 2. Redis Benchmark
 

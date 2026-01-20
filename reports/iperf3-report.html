@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iperf3 Network 벤치마크 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --graviton: #10b981;
+            --intel: #3b82f6;
+            --amd: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #8b5cf6 100%);
+            color: white;
+            border-radius: 1rem;
+        }
+
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { opacity: 0.9; font-size: 1.1rem; }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .card h3 {
+            color: var(--muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--intel);
+        }
+
+        .card .label { font-size: 0.875rem; color: var(--muted); }
+        .card.graviton .value { color: var(--graviton); }
+
+        .chart-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .chart-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .chart-section .description {
+            color: var(--muted);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .chart-container { position: relative; height: 400px; }
+        .chart-container.tall { height: 500px; }
+        .chart-container.extra-tall { height: 800px; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1rem 0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        td { font-size: 0.875rem; }
+
+        tr:hover { background: #f8fafc; }
+
+        .highlight { background: #fef3c7 !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>iperf3 Network Benchmark</h1>
+            <p>EC2 Instance Network Performance Comparison (xlarge, 4 vCPU)</p>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card">
+                <h3>Top TCP Single Stream</h3>
+                <div class="value">9.53 Gbps</div>
+                <div class="label">m6idn.xlarge (Intel 6th)</div>
+            </div>
+            <div class="card">
+                <h3>Top TCP Parallel</h3>
+                <div class="value">29.80 Gbps</div>
+                <div class="label">m6idn.xlarge (Intel 6th)</div>
+            </div>
+            <div class="card graviton">
+                <h3>Top Graviton Single</h3>
+                <div class="value">9.53 Gbps</div>
+                <div class="label">m8g.xlarge (Graviton4)</div>
+            </div>
+            <div class="card">
+                <h3>Best Jitter</h3>
+                <div class="value">0.004 ms</div>
+                <div class="label">r7i.xlarge</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color" style="background: var(--graviton)"></div> Graviton</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--intel)"></div> Intel</div>
+            <div class="legend-item"><div class="legend-color" style="background: var(--amd)"></div> AMD</div>
+        </div>
+
+        <div class="chart-section">
+            <h2>TCP Parallel Bandwidth (8 Streams)</h2>
+            <p class="description">Network bandwidth with 8 parallel TCP streams (Gbps) - Higher is better</p>
+            <div class="chart-container extra-tall">
+                <canvas id="parallelChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-section">
+                <h2>TCP Single Stream Bandwidth</h2>
+                <p class="description">Network bandwidth with single TCP stream (Gbps)</p>
+                <div class="chart-container tall">
+                    <canvas id="singleChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-section">
+                <h2>UDP Jitter</h2>
+                <p class="description">UDP jitter in milliseconds - Lower is better</p>
+                <div class="chart-container tall">
+                    <canvas id="jitterChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Network Performance by Generation</h2>
+            <p class="description">Average TCP parallel bandwidth by generation and architecture</p>
+            <div class="chart-container">
+                <canvas id="genChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Detailed Results</h2>
+            <p class="description">Complete benchmark data sorted by TCP parallel bandwidth</p>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Instance</th>
+                        <th>Arch</th>
+                        <th>Gen</th>
+                        <th>TCP Single (Gbps)</th>
+                        <th>TCP Parallel (Gbps)</th>
+                        <th>TCP Reverse (Gbps)</th>
+                        <th>UDP (Mbps)</th>
+                        <th>Jitter (ms)</th>
+                        <th>Loss (%)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Data from CSV
+        const rawData = [
+            {instance: "m6idn.xlarge", arch: "intel", gen: 6, single: 9.53, parallel: 29.80, reverse: 9.53, udp: 998, jitter: 0.0070, loss: 0.0115},
+            {instance: "m6in.xlarge", arch: "intel", gen: 6, single: 9.52, parallel: 29.18, reverse: 9.53, udp: 998, jitter: 0.0050, loss: 0.0520},
+            {instance: "c6in.xlarge", arch: "intel", gen: 6, single: 8.61, parallel: 28.64, reverse: 8.62, udp: 998, jitter: 0.0067, loss: 0.0128},
+            {instance: "c5n.xlarge", arch: "intel", gen: 5, single: 8.61, parallel: 24.80, reverse: 8.62, udp: 998, jitter: 0.0190, loss: 0.0282},
+            {instance: "m5zn.xlarge", arch: "intel", gen: 5, single: 9.53, parallel: 24.80, reverse: 9.53, udp: 0, jitter: 0.0000, loss: 0.0000},
+            {instance: "r5dn.xlarge", arch: "intel", gen: 5, single: 9.53, parallel: 24.80, reverse: 9.53, udp: 998, jitter: 0.0175, loss: 0.0225},
+            {instance: "r5n.xlarge", arch: "intel", gen: 5, single: 5.87, parallel: 23.42, reverse: 5.87, udp: 998, jitter: 0.0135, loss: 0.0285},
+            {instance: "c6gn.xlarge", arch: "graviton", gen: 6, single: 5.88, parallel: 23.38, reverse: 5.87, udp: 998, jitter: 0.0103, loss: 0.0142},
+            {instance: "c6i.xlarge", arch: "intel", gen: 6, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0057, loss: 0.0221},
+            {instance: "c6id.xlarge", arch: "intel", gen: 6, single: 9.52, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0063, loss: 0.0183},
+            {instance: "c7g.xlarge", arch: "graviton", gen: 7, single: 5.51, parallel: 12.40, reverse: 5.87, udp: 998, jitter: 0.0055, loss: 0.0038},
+            {instance: "c7gd.xlarge", arch: "graviton", gen: 7, single: 7.71, parallel: 12.40, reverse: 7.70, udp: 999, jitter: 0.0053, loss: 0.0066},
+            {instance: "c7i-flex.xlarge", arch: "intel", gen: 7, single: 7.70, parallel: 12.40, reverse: 7.70, udp: 998, jitter: 0.0063, loss: 0.0583},
+            {instance: "c7i.xlarge", arch: "intel", gen: 7, single: 5.39, parallel: 12.40, reverse: 6.79, udp: 998, jitter: 0.0070, loss: 0.0375},
+            {instance: "c8i.xlarge", arch: "intel", gen: 8, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0193, loss: 0.0487},
+            {instance: "m6i.xlarge", arch: "intel", gen: 6, single: 8.62, parallel: 12.40, reverse: 8.62, udp: 998, jitter: 0.0057, loss: 0.0157},
+            {instance: "m6id.xlarge", arch: "intel", gen: 6, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0060, loss: 0.0135},
+            {instance: "m7g.xlarge", arch: "graviton", gen: 7, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0053, loss: 0.0099},
+            {instance: "m7gd.xlarge", arch: "graviton", gen: 7, single: 4.97, parallel: 12.40, reverse: 4.96, udp: 998, jitter: 0.0065, loss: 0.0095},
+            {instance: "m7i-flex.xlarge", arch: "intel", gen: 7, single: 9.51, parallel: 12.40, reverse: 9.48, udp: 997, jitter: 0.0112, loss: 0.1475},
+            {instance: "m7i.xlarge", arch: "intel", gen: 7, single: 8.61, parallel: 12.40, reverse: 8.62, udp: 998, jitter: 0.0057, loss: 0.0367},
+            {instance: "m8g.xlarge", arch: "graviton", gen: 8, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0200, loss: 0.0105},
+            {instance: "m8i.xlarge", arch: "intel", gen: 8, single: 7.87, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0210, loss: 0.0330},
+            {instance: "r6i.xlarge", arch: "intel", gen: 6, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0050, loss: 0.0150},
+            {instance: "r6id.xlarge", arch: "intel", gen: 6, single: 4.96, parallel: 12.40, reverse: 4.96, udp: 998, jitter: 0.0075, loss: 0.0114},
+            {instance: "r7g.xlarge", arch: "graviton", gen: 7, single: 6.79, parallel: 12.40, reverse: 6.79, udp: 998, jitter: 0.0070, loss: 0.0050},
+            {instance: "r7gd.xlarge", arch: "graviton", gen: 7, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0055, loss: 0.0091},
+            {instance: "r8i-flex.xlarge", arch: "intel", gen: 8, single: 9.49, parallel: 12.40, reverse: 9.49, udp: 998, jitter: 0.0080, loss: 0.0330},
+            {instance: "r8i.xlarge", arch: "intel", gen: 8, single: 9.53, parallel: 12.40, reverse: 9.53, udp: 998, jitter: 0.0060, loss: 0.0260},
+            {instance: "c8i-flex.xlarge", arch: "intel", gen: 8, single: 9.50, parallel: 12.38, reverse: 9.48, udp: 993, jitter: 0.0086, loss: 0.5530},
+            {instance: "r7i.xlarge", arch: "intel", gen: 7, single: 4.96, parallel: 11.81, reverse: 4.96, udp: 998, jitter: 0.0040, loss: 0.0260},
+            {instance: "c8g.xlarge", arch: "graviton", gen: 8, single: 4.96, parallel: 11.30, reverse: 4.96, udp: 998, jitter: 0.0260, loss: 0.0110},
+            {instance: "r8g.xlarge", arch: "graviton", gen: 8, single: 4.74, parallel: 10.69, reverse: 4.74, udp: 998, jitter: 0.0260, loss: 0.0091},
+            {instance: "c5.xlarge", arch: "intel", gen: 5, single: 5.88, parallel: 9.95, reverse: 5.88, udp: 998, jitter: 0.0183, loss: 0.0263},
+            {instance: "c5d.xlarge", arch: "intel", gen: 5, single: 9.53, parallel: 9.95, reverse: 9.53, udp: 998, jitter: 0.0195, loss: 0.0195},
+            {instance: "c6gd.xlarge", arch: "graviton", gen: 6, single: 9.53, parallel: 9.95, reverse: 9.53, udp: 998, jitter: 0.0222, loss: 0.0240},
+            {instance: "m5.xlarge", arch: "intel", gen: 5, single: 7.70, parallel: 9.95, reverse: 7.71, udp: 998, jitter: 0.0263, loss: 0.0353},
+            {instance: "m5a.xlarge", arch: "amd", gen: 5, single: 5.88, parallel: 9.95, reverse: 5.88, udp: 998, jitter: 0.0288, loss: 0.0137},
+            {instance: "m5ad.xlarge", arch: "amd", gen: 5, single: 9.53, parallel: 9.95, reverse: 9.53, udp: 998, jitter: 0.0300, loss: 0.0128},
+            {instance: "m5d.xlarge", arch: "intel", gen: 5, single: 8.62, parallel: 9.95, reverse: 8.62, udp: 998, jitter: 0.0260, loss: 0.0190},
+            {instance: "m6g.xlarge", arch: "graviton", gen: 6, single: 5.88, parallel: 9.95, reverse: 5.88, udp: 998, jitter: 0.0227, loss: 0.0233},
+            {instance: "m6gd.xlarge", arch: "graviton", gen: 6, single: 9.53, parallel: 9.95, reverse: 9.53, udp: 998, jitter: 0.0223, loss: 0.0277},
+            {instance: "r5.xlarge", arch: "intel", gen: 5, single: 7.71, parallel: 9.95, reverse: 7.71, udp: 998, jitter: 0.0270, loss: 0.0210},
+            {instance: "r5a.xlarge", arch: "amd", gen: 5, single: 9.53, parallel: 9.95, reverse: 9.53, udp: 998, jitter: 0.0253, loss: 0.0193},
+            {instance: "r5ad.xlarge", arch: "amd", gen: 5, single: 9.53, parallel: 9.95, reverse: 9.52, udp: 998, jitter: 0.0245, loss: 0.0123},
+            {instance: "r5d.xlarge", arch: "intel", gen: 5, single: 8.62, parallel: 9.95, reverse: 8.62, udp: 998, jitter: 0.0187, loss: 0.0260},
+            {instance: "r6gd.xlarge", arch: "graviton", gen: 6, single: 9.53, parallel: 9.95, reverse: 9.53, udp: 998, jitter: 0.0223, loss: 0.0257},
+            {instance: "c5a.xlarge", arch: "amd", gen: 5, single: 6.78, parallel: 9.93, reverse: 6.79, udp: 998, jitter: 0.0230, loss: 0.0175},
+            {instance: "c6g.xlarge", arch: "graviton", gen: 6, single: 4.15, parallel: 5.16, reverse: 4.14, udp: 998, jitter: 0.0180, loss: 0.0277},
+            {instance: "r5b.xlarge", arch: "intel", gen: 5, single: 3.97, parallel: 3.97, reverse: 3.96, udp: 998, jitter: 0.0170, loss: 0.0203},
+            {instance: "r6g.xlarge", arch: "graviton", gen: 6, single: 3.96, parallel: 3.96, reverse: 3.96, udp: 998, jitter: 0.0200, loss: 0.0275}
+        ];
+
+        // Sort by parallel bandwidth
+        const data = rawData.sort((a, b) => b.parallel - a.parallel);
+
+        const colors = {
+            graviton: '#10b981',
+            intel: '#3b82f6',
+            amd: '#ef4444'
+        };
+
+        // TCP Parallel Chart
+        new Chart(document.getElementById('parallelChart'), {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.instance),
+                datasets: [{
+                    label: 'TCP Parallel (Gbps)',
+                    data: data.map(d => d.parallel),
+                    backgroundColor: data.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Gbps' }
+                    }
+                }
+            }
+        });
+
+        // TCP Single Chart
+        const singleData = [...data].sort((a, b) => b.single - a.single).slice(0, 20);
+        new Chart(document.getElementById('singleChart'), {
+            type: 'bar',
+            data: {
+                labels: singleData.map(d => d.instance),
+                datasets: [{
+                    label: 'TCP Single (Gbps)',
+                    data: singleData.map(d => d.single),
+                    backgroundColor: singleData.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Gbps' }
+                    }
+                }
+            }
+        });
+
+        // Jitter Chart
+        const jitterData = data.filter(d => d.jitter > 0).sort((a, b) => a.jitter - b.jitter).slice(0, 20);
+        new Chart(document.getElementById('jitterChart'), {
+            type: 'bar',
+            data: {
+                labels: jitterData.map(d => d.instance),
+                datasets: [{
+                    label: 'Jitter (ms)',
+                    data: jitterData.map(d => d.jitter),
+                    backgroundColor: jitterData.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'ms (lower is better)' }
+                    }
+                }
+            }
+        });
+
+        // Generation comparison
+        const genGroups = {};
+        data.forEach(d => {
+            const key = `Gen${d.gen} ${d.arch.charAt(0).toUpperCase() + d.arch.slice(1)}`;
+            if (!genGroups[key]) genGroups[key] = [];
+            genGroups[key].push(d.parallel);
+        });
+
+        const genLabels = Object.keys(genGroups).sort();
+        const genAvg = genLabels.map(k => genGroups[k].reduce((a, b) => a + b, 0) / genGroups[k].length);
+
+        new Chart(document.getElementById('genChart'), {
+            type: 'bar',
+            data: {
+                labels: genLabels,
+                datasets: [{
+                    label: 'Avg TCP Parallel (Gbps)',
+                    data: genAvg,
+                    backgroundColor: genLabels.map(l =>
+                        l.includes('Graviton') ? colors.graviton :
+                        l.includes('Amd') ? colors.amd : colors.intel
+                    )
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        title: { display: true, text: 'Gbps' },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Data table
+        const tbody = document.getElementById('dataTable').querySelector('tbody');
+        data.forEach(d => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><strong>${d.instance}</strong></td>
+                <td><span style="color: ${colors[d.arch]}">${d.arch}</span></td>
+                <td>${d.gen}</td>
+                <td>${d.single.toFixed(2)}</td>
+                <td><strong>${d.parallel.toFixed(2)}</strong></td>
+                <td>${d.reverse.toFixed(2)}</td>
+                <td>${d.udp}</td>
+                <td>${d.jitter.toFixed(4)}</td>
+                <td>${d.loss.toFixed(4)}%</td>
+            `;
+            tbody.appendChild(row);
+        });
+    </script>
+</body>
+</html>
