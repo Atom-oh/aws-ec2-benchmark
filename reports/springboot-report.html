@@ -733,17 +733,17 @@
                 datasets: [
                     {
                         label: 'Intel',
-                        data: data.filter(d => d.arch === 'intel' && d.lat99 < 50).map(d => ({x: d.rps200, y: d.lat50, r: Math.min(d.lat99, 20)})),
+                        data: data.filter(d => d.arch === 'intel' && d.lat99 < 50).map(d => ({x: d.rps200, y: d.lat50, r: Math.min(d.lat99, 20), instance: d.instance, lat99: d.lat99})),
                         backgroundColor: 'rgba(59, 130, 246, 0.6)'
                     },
                     {
                         label: 'AMD',
-                        data: data.filter(d => d.arch === 'amd').map(d => ({x: d.rps200, y: d.lat50, r: Math.min(d.lat99, 20)})),
+                        data: data.filter(d => d.arch === 'amd').map(d => ({x: d.rps200, y: d.lat50, r: Math.min(d.lat99, 20), instance: d.instance, lat99: d.lat99})),
                         backgroundColor: 'rgba(239, 68, 68, 0.6)'
                     },
                     {
                         label: 'Graviton',
-                        data: data.filter(d => d.arch === 'graviton').map(d => ({x: d.rps200, y: d.lat50, r: Math.min(d.lat99, 20)})),
+                        data: data.filter(d => d.arch === 'graviton').map(d => ({x: d.rps200, y: d.lat50, r: Math.min(d.lat99, 20), instance: d.instance, lat99: d.lat99})),
                         backgroundColor: 'rgba(16, 185, 129, 0.6)'
                     }
                 ]
@@ -751,7 +751,17 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'top' } },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const d = context.raw;
+                                return d.instance + ': ' + d.x.toLocaleString() + ' req/s, P50: ' + d.y.toFixed(1) + 'ms, P99: ' + d.lat99.toFixed(1) + 'ms';
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: { title: { display: true, text: 'Requests/sec (높을수록 좋음)' } },
                     y: { title: { display: true, text: 'P50 Latency ms (낮을수록 좋음)' } }
