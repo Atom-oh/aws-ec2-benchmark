@@ -407,26 +407,57 @@
             </div>
         </div>
 
-        <!-- 차트 5: 명령어별 성능 비교 -->
+        <!-- 차트 5: 명령어별 성능 비교 (인스턴스 선택) -->
         <div class="chart-section" id="commands">
-            <h2>4. 명령어별 성능 비교 (Top 10)</h2>
-            <p class="description">10개 Redis 명령어의 처리량 비교</p>
-            <div class="chart-container tall">
+            <h2>4. 명령어별 성능 비교</h2>
+            <p class="description">인스턴스를 선택하여 10개 Redis 명령어 성능을 비교합니다</p>
+
+            <!-- 인스턴스 선택 UI -->
+            <div style="margin-bottom: 1rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem;">
+                    <span style="font-weight: 600; font-size: 0.875rem;">인스턴스 선택:</span>
+                    <select id="instanceSelect" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; min-width: 200px;">
+                        <option value="">+ 인스턴스 추가</option>
+                    </select>
+                    <button id="clearSelection" style="padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.8rem;">
+                        초기화
+                    </button>
+                    <button id="presetTop5" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.8rem;">
+                        Top 5 SET
+                    </button>
+                    <button id="presetGraviton" style="padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.8rem;">
+                        Graviton Top 5
+                    </button>
+                </div>
+                <div id="selectedInstances" style="display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 32px;">
+                    <!-- 선택된 인스턴스 태그 -->
+                </div>
+            </div>
+
+            <div class="chart-container extra-tall">
                 <canvas id="commandsChart"></canvas>
             </div>
+
             <div class="analysis-box">
                 <h4>명령어별 특성</h4>
-                <table>
-                    <tr><th>명령어</th><th>특성</th><th>평균 ops/sec (상위 10개)</th></tr>
-                    <tr><td>SET</td><td>쓰기 기본 명령</td><td>~180K</td></tr>
-                    <tr><td>GET</td><td>읽기 기본 명령</td><td>~185K</td></tr>
-                    <tr><td>INCR</td><td>원자적 증가</td><td>~200K</td></tr>
-                    <tr><td>LPUSH/RPUSH</td><td>리스트 삽입</td><td>~200K</td></tr>
-                    <tr><td>LPOP/RPOP</td><td>리스트 제거</td><td>~200K</td></tr>
-                    <tr><td>SADD</td><td>셋 추가</td><td>~200K</td></tr>
-                    <tr><td>HSET</td><td>해시 설정</td><td>~200K</td></tr>
-                    <tr><td>PING</td><td>연결 테스트</td><td>~200K</td></tr>
-                </table>
+                <div class="grid-2" style="margin-top: 0.5rem;">
+                    <table>
+                        <tr><th>명령어</th><th>특성</th></tr>
+                        <tr><td>SET</td><td>키-값 저장 (쓰기 기본)</td></tr>
+                        <tr><td>GET</td><td>키-값 조회 (읽기 기본)</td></tr>
+                        <tr><td>INCR</td><td>정수 원자적 증가</td></tr>
+                        <tr><td>LPUSH</td><td>리스트 좌측 삽입</td></tr>
+                        <tr><td>LPOP</td><td>리스트 좌측 제거</td></tr>
+                    </table>
+                    <table>
+                        <tr><th>명령어</th><th>특성</th></tr>
+                        <tr><td>RPUSH</td><td>리스트 우측 삽입</td></tr>
+                        <tr><td>RPOP</td><td>리스트 우측 제거</td></tr>
+                        <tr><td>SADD</td><td>셋에 멤버 추가</td></tr>
+                        <tr><td>HSET</td><td>해시 필드 설정</td></tr>
+                        <tr><td>PING</td><td>연결 테스트 (지연시간)</td></tr>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -787,30 +818,132 @@
             }
         });
 
-        // 차트 5: 명령어별 성능 (Top 10 인스턴스 평균)
-        const top10 = [...data].sort((a, b) => b.set - a.set).slice(0, 10);
+        // 차트 5: 명령어별 성능 비교 (인스턴스 선택)
         const commands = ['set', 'get', 'incr', 'lpush', 'lpop', 'rpush', 'rpop', 'sadd', 'hset', 'ping'];
         const cmdLabels = ['SET', 'GET', 'INCR', 'LPUSH', 'LPOP', 'RPUSH', 'RPOP', 'SADD', 'HSET', 'PING'];
-        const cmdAvgs = commands.map(cmd => Math.round(top10.reduce((s, d) => s + d[cmd], 0) / 10));
 
-        new Chart(document.getElementById('commandsChart'), {
-            type: 'bar',
-            data: {
-                labels: cmdLabels,
-                datasets: [{
-                    label: 'Top 10 평균 ops/sec',
-                    data: cmdAvgs,
-                    backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef'],
-                    borderRadius: 6,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, title: { display: true, text: 'ops/sec' } } }
-            }
+        // 인스턴스별 고유 색상
+        const instanceColors = [
+            '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981',
+            '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
+            '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#78716c'
+        ];
+
+        let selectedInstances = [];
+        let commandsChart = null;
+
+        // 드롭다운 채우기
+        const instanceSelect = document.getElementById('instanceSelect');
+        const sortedBySet = [...data].sort((a, b) => b.set - a.set);
+        sortedBySet.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.instance;
+            opt.textContent = `${d.instance} (${d.arch}, ${d.set.toLocaleString()} SET)`;
+            instanceSelect.appendChild(opt);
         });
+
+        // 선택된 인스턴스 태그 표시
+        function renderSelectedTags() {
+            const container = document.getElementById('selectedInstances');
+            container.innerHTML = selectedInstances.map((inst, idx) => `
+                <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: ${instanceColors[idx % instanceColors.length]}; color: white; border-radius: 9999px; font-size: 0.8rem; font-weight: 500;">
+                    ${inst}
+                    <span onclick="removeInstance('${inst}')" style="cursor: pointer; margin-left: 0.25rem; font-size: 1rem; line-height: 1;">&times;</span>
+                </span>
+            `).join('');
+        }
+
+        // 인스턴스 제거
+        window.removeInstance = function(inst) {
+            selectedInstances = selectedInstances.filter(i => i !== inst);
+            renderSelectedTags();
+            updateCommandsChart();
+        };
+
+        // 차트 업데이트
+        function updateCommandsChart() {
+            if (commandsChart) commandsChart.destroy();
+
+            if (selectedInstances.length === 0) {
+                // 선택된 인스턴스가 없으면 Top 5 표시
+                selectedInstances = sortedBySet.slice(0, 5).map(d => d.instance);
+                renderSelectedTags();
+            }
+
+            const datasets = selectedInstances.map((inst, idx) => {
+                const d = data.find(x => x.instance === inst);
+                return {
+                    label: inst,
+                    data: commands.map(cmd => d[cmd]),
+                    backgroundColor: instanceColors[idx % instanceColors.length],
+                    borderRadius: 4,
+                };
+            });
+
+            commandsChart = new Chart(document.getElementById('commandsChart'), {
+                type: 'bar',
+                data: { labels: cmdLabels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { padding: 15, usePointStyle: true }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} ops/sec`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'ops/sec' },
+                            ticks: { callback: v => v >= 1000 ? (v/1000) + 'K' : v }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 이벤트 리스너
+        instanceSelect.addEventListener('change', (e) => {
+            if (e.target.value && !selectedInstances.includes(e.target.value)) {
+                if (selectedInstances.length >= 10) {
+                    alert('최대 10개까지 선택 가능합니다.');
+                    e.target.value = '';
+                    return;
+                }
+                selectedInstances.push(e.target.value);
+                renderSelectedTags();
+                updateCommandsChart();
+            }
+            e.target.value = '';
+        });
+
+        document.getElementById('clearSelection').addEventListener('click', () => {
+            selectedInstances = [];
+            renderSelectedTags();
+            updateCommandsChart();
+        });
+
+        document.getElementById('presetTop5').addEventListener('click', () => {
+            selectedInstances = sortedBySet.slice(0, 5).map(d => d.instance);
+            renderSelectedTags();
+            updateCommandsChart();
+        });
+
+        document.getElementById('presetGraviton').addEventListener('click', () => {
+            const gravitonTop5 = sortedBySet.filter(d => d.arch === 'Graviton').slice(0, 5);
+            selectedInstances = gravitonTop5.map(d => d.instance);
+            renderSelectedTags();
+            updateCommandsChart();
+        });
+
+        // 초기 차트 로드
+        updateCommandsChart();
 
         // 차트 6: 버블 차트
         new Chart(document.getElementById('bubbleChart'), {
