@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elasticsearch Cold Start 벤치마크 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --graviton: #10b981;
+            --intel: #3b82f6;
+            --amd: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ef4444 100%);
+            color: white;
+            border-radius: 1rem;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { opacity: 0.9; font-size: 1.1rem; }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .card h3 {
+            color: var(--muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .card .value { font-size: 1.5rem; font-weight: 700; color: var(--intel); }
+        .card .label { font-size: 0.875rem; color: var(--muted); }
+        .card.graviton .value { color: var(--graviton); }
+        .card.warn .value { color: var(--amd); }
+        .chart-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .chart-section h2 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+        .chart-section .description { color: var(--muted); margin-bottom: 1rem; font-size: 0.875rem; }
+        .chart-container { position: relative; height: 400px; }
+        .chart-container.tall { height: 600px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .insights {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        .insights h4 { color: #b45309; margin-bottom: 0.5rem; }
+        .insights ul { margin-left: 1.5rem; color: #92400e; }
+        .highlight-box {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            margin: 1rem 0;
+        }
+        .highlight-box h4 { color: #475569; margin-bottom: 0.75rem; font-size: 1rem; }
+        .highlight-box ul { margin-left: 1.5rem; color: #64748b; }
+        .highlight-box li { margin-bottom: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.875rem; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-weight: 600; cursor: pointer; }
+        th:hover { background: #e2e8f0; }
+        tr:hover { background: #f8fafc; }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge.graviton { background: #d1fae5; color: #065f46; }
+        .badge.intel { background: #dbeafe; color: #1e40af; }
+        .badge.amd { background: #fee2e2; color: #991b1b; }
+        .filter-row { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .filter-row select {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .chart-container { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Elasticsearch Cold Start Benchmark</h1>
+            <p>51개 EC2 인스턴스 타입별 Elasticsearch 8.11.0 시작 성능 비교 (xlarge, 4 vCPU)</p>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card graviton">
+                <h3>최단 Cold Start</h3>
+                <div class="value">10.69s</div>
+                <div class="label">m8g.xlarge (Graviton4)</div>
+            </div>
+            <div class="card">
+                <h3>최고 Bulk Index</h3>
+                <div class="value">230 ms</div>
+                <div class="label">r8g.xlarge / c8g.xlarge</div>
+            </div>
+            <div class="card graviton">
+                <h3>Graviton 평균</h3>
+                <div class="value">14.04s</div>
+                <div class="label">Cold Start 평균</div>
+            </div>
+            <div class="card">
+                <h3>Intel 평균</h3>
+                <div class="value">16.68s</div>
+                <div class="label">Cold Start 평균</div>
+            </div>
+            <div class="card warn">
+                <h3>AMD (5a) 평균</h3>
+                <div class="value">22.79s</div>
+                <div class="label">Cold Start 평균</div>
+            </div>
+        </div>
+
+        <div class="insights">
+            <h4>Key Insights</h4>
+            <ul>
+                <li><strong>Graviton4 압도적 우위:</strong> m8g.xlarge(10.69s)가 가장 빠른 Cold Start 기록, Intel 대비 36% 빠름</li>
+                <li><strong>8세대 전반적 강세:</strong> Cold Start Top 5 중 4개가 8세대 (m8g, r8g, c8g, m8i)</li>
+                <li><strong>AMD 5a 시리즈 부진:</strong> r5a.xlarge(26.69s)가 가장 느림 - JVM 최적화 부족으로 추정</li>
+                <li><strong>Bulk Index 성능:</strong> 8세대 Graviton이 230ms로 최고, 5세대 대비 50% 향상</li>
+            </ul>
+        </div>
+
+        <div class="chart-section">
+            <h2>Cold Start Top 20 (낮을수록 좋음)</h2>
+            <p class="description">Elasticsearch 프로세스 시작부터 클러스터 Ready 상태까지 소요 시간</p>
+            <div class="chart-container tall">
+                <canvas id="coldStartChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-section">
+                <h2>아키텍처별 Cold Start 비교</h2>
+                <p class="description">평균 Cold Start 시간 (초)</p>
+                <div class="chart-container">
+                    <canvas id="archChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-section">
+                <h2>세대별 Cold Start 비교</h2>
+                <p class="description">Intel vs Graviton 세대별 비교</p>
+                <div class="chart-container">
+                    <canvas id="genChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>Bulk Index 성능 Top 20 (낮을수록 좋음)</h2>
+            <p class="description">1,000개 문서 Bulk 인덱싱 소요 시간 (ms)</p>
+            <div class="chart-container tall">
+                <canvas id="bulkChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-section">
+                <h2>패밀리별 Cold Start 비교</h2>
+                <p class="description">C(Compute), M(General), R(Memory) 패밀리 비교</p>
+                <div class="chart-container">
+                    <canvas id="familyChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-section">
+                <h2>Search 레이턴시 비교</h2>
+                <p class="description">match_all vs term 쿼리 평균 응답 시간 (ms)</p>
+                <div class="chart-container">
+                    <canvas id="searchChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h4>Methodology</h4>
+            <ul>
+                <li><strong>Elasticsearch Version:</strong> 8.11.0 (single-node, security disabled)</li>
+                <li><strong>JVM:</strong> Bundled OpenJDK 21, Heap 60% of available memory (~4.6GB)</li>
+                <li><strong>Cold Start 측정:</strong> ES 프로세스 시작 시점 ~ HTTP 9200 응답 및 cluster status green</li>
+                <li><strong>Index Test:</strong> Sequential 100 docs + Bulk 1,000 docs</li>
+                <li><strong>Search Test:</strong> match_all 10회, term query 10회 평균</li>
+                <li><strong>반복 횟수:</strong> 인스턴스당 5회 실행, IQR 기반 이상치 제거 후 평균</li>
+            </ul>
+        </div>
+
+        <div class="chart-section">
+            <h2>전체 데이터 테이블</h2>
+            <div class="filter-row">
+                <select id="archFilter">
+                    <option value="">전체 아키텍처</option>
+                    <option value="arm64">arm64 (Graviton)</option>
+                    <option value="x86_64">x86_64 (Intel/AMD)</option>
+                </select>
+                <select id="genFilter">
+                    <option value="">전체 세대</option>
+                    <option value="5">5세대</option>
+                    <option value="6">6세대</option>
+                    <option value="7">7세대</option>
+                    <option value="8">8세대</option>
+                </select>
+                <select id="familyFilter">
+                    <option value="">전체 패밀리</option>
+                    <option value="C">C (Compute)</option>
+                    <option value="M">M (General)</option>
+                    <option value="R">R (Memory)</option>
+                </select>
+            </div>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">Rank</th>
+                        <th onclick="sortTable(1)">Instance</th>
+                        <th onclick="sortTable(2)">Arch</th>
+                        <th onclick="sortTable(3)">Gen</th>
+                        <th onclick="sortTable(4)">Family</th>
+                        <th onclick="sortTable(5)">Cold Start (s)</th>
+                        <th onclick="sortTable(6)">Bulk Index (ms)</th>
+                        <th onclick="sortTable(7)">Seq Index (ms)</th>
+                        <th onclick="sortTable(8)">Search All (ms)</th>
+                        <th onclick="sortTable(9)">Search Term (ms)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const rawData = [
+            { instance: "c5.xlarge", arch: "x86_64", gen: 5, family: "C", coldStart: 17607, seqIndex: 2064, bulkIndex: 388, searchAll: 20, searchTerm: 13, coldStd: 1203, bulkStd: 23 },
+            { instance: "c5a.xlarge", arch: "x86_64", gen: 5, family: "C", coldStart: 17516, seqIndex: 2379, bulkIndex: 382, searchAll: 24, searchTerm: 14, coldStd: 711, bulkStd: 8 },
+            { instance: "c5d.xlarge", arch: "x86_64", gen: 5, family: "C", coldStart: 19575, seqIndex: 2410, bulkIndex: 427, searchAll: 23, searchTerm: 12, coldStd: 1405, bulkStd: 48 },
+            { instance: "c5n.xlarge", arch: "x86_64", gen: 5, family: "C", coldStart: 17145, seqIndex: 2490, bulkIndex: 398, searchAll: 25, searchTerm: 14, coldStd: 1418, bulkStd: 36 },
+            { instance: "c6g.xlarge", arch: "arm64", gen: 6, family: "C", coldStart: 16997, seqIndex: 2477, bulkIndex: 458, searchAll: 24, searchTerm: 13, coldStd: 853, bulkStd: 20 },
+            { instance: "c6gd.xlarge", arch: "arm64", gen: 6, family: "C", coldStart: 17328, seqIndex: 2390, bulkIndex: 445, searchAll: 24, searchTerm: 14, coldStd: 1331, bulkStd: 14 },
+            { instance: "c6gn.xlarge", arch: "arm64", gen: 6, family: "C", coldStart: 16802, seqIndex: 2250, bulkIndex: 449, searchAll: 23, searchTerm: 13, coldStd: 935, bulkStd: 20 },
+            { instance: "c6i.xlarge", arch: "x86_64", gen: 6, family: "C", coldStart: 17229, seqIndex: 1985, bulkIndex: 358, searchAll: 19, searchTerm: 14, coldStd: 1131, bulkStd: 10 },
+            { instance: "c6id.xlarge", arch: "x86_64", gen: 6, family: "C", coldStart: 17010, seqIndex: 1851, bulkIndex: 344, searchAll: 18, searchTerm: 10, coldStd: 1310, bulkStd: 24 },
+            { instance: "c6in.xlarge", arch: "x86_64", gen: 6, family: "C", coldStart: 15696, seqIndex: 1820, bulkIndex: 348, searchAll: 17, searchTerm: 9, coldStd: 705, bulkStd: 13 },
+            { instance: "c7g.xlarge", arch: "arm64", gen: 7, family: "C", coldStart: 13777, seqIndex: 2032, bulkIndex: 353, searchAll: 21, searchTerm: 12, coldStd: 890, bulkStd: 4 },
+            { instance: "c7gd.xlarge", arch: "arm64", gen: 7, family: "C", coldStart: 12786, seqIndex: 1790, bulkIndex: 333, searchAll: 19, searchTerm: 10, coldStd: 954, bulkStd: 7 },
+            { instance: "c7i-flex.xlarge", arch: "x86_64", gen: 7, family: "C", coldStart: 15018, seqIndex: 1875, bulkIndex: 290, searchAll: 16, searchTerm: 9, coldStd: 615, bulkStd: 23 },
+            { instance: "c7i.xlarge", arch: "x86_64", gen: 7, family: "C", coldStart: 15856, seqIndex: 1812, bulkIndex: 301, searchAll: 15, searchTerm: 8, coldStd: 457, bulkStd: 31 },
+            { instance: "c8g.xlarge", arch: "arm64", gen: 8, family: "C", coldStart: 11130, seqIndex: 1704, bulkIndex: 230, searchAll: 19, searchTerm: 10, coldStd: 1417, bulkStd: 10 },
+            { instance: "c8i-flex.xlarge", arch: "x86_64", gen: 8, family: "C", coldStart: 15928, seqIndex: 1408, bulkIndex: 266, searchAll: 13, searchTerm: 8, coldStd: 480, bulkStd: 20 },
+            { instance: "c8i.xlarge", arch: "x86_64", gen: 8, family: "C", coldStart: 14627, seqIndex: 1480, bulkIndex: 248, searchAll: 13, searchTerm: 7, coldStd: 1232, bulkStd: 16 },
+            { instance: "m5.xlarge", arch: "x86_64", gen: 5, family: "M", coldStart: 18174, seqIndex: 2561, bulkIndex: 433, searchAll: 26, searchTerm: 12, coldStd: 929, bulkStd: 15 },
+            { instance: "m5a.xlarge", arch: "x86_64", gen: 5, family: "M", coldStart: 25252, seqIndex: 3508, bulkIndex: 564, searchAll: 0, searchTerm: 0, coldStd: 1982, bulkStd: 22 },
+            { instance: "m5ad.xlarge", arch: "x86_64", gen: 5, family: "M", coldStart: 24494, seqIndex: 3414, bulkIndex: 553, searchAll: 39, searchTerm: 21, coldStd: 1508, bulkStd: 26 },
+            { instance: "m5d.xlarge", arch: "x86_64", gen: 5, family: "M", coldStart: 17829, seqIndex: 2434, bulkIndex: 411, searchAll: 26, searchTerm: 12, coldStd: 677, bulkStd: 17 },
+            { instance: "m5zn.xlarge", arch: "x86_64", gen: 5, family: "M", coldStart: 15588, seqIndex: 2005, bulkIndex: 338, searchAll: 21, searchTerm: 10, coldStd: 2050, bulkStd: 9 },
+            { instance: "m6g.xlarge", arch: "arm64", gen: 6, family: "M", coldStart: 17794, seqIndex: 2702, bulkIndex: 477, searchAll: 27, searchTerm: 14, coldStd: 923, bulkStd: 26 },
+            { instance: "m6gd.xlarge", arch: "arm64", gen: 6, family: "M", coldStart: 17205, seqIndex: 2589, bulkIndex: 441, searchAll: 23, searchTerm: 12, coldStd: 705, bulkStd: 25 },
+            { instance: "m6i.xlarge", arch: "x86_64", gen: 6, family: "M", coldStart: 15454, seqIndex: 2088, bulkIndex: 346, searchAll: 20, searchTerm: 9, coldStd: 2070, bulkStd: 18 },
+            { instance: "m6id.xlarge", arch: "x86_64", gen: 6, family: "M", coldStart: 14356, seqIndex: 2203, bulkIndex: 378, searchAll: 21, searchTerm: 10, coldStd: 255, bulkStd: 53 },
+            { instance: "m6idn.xlarge", arch: "x86_64", gen: 6, family: "M", coldStart: 15252, seqIndex: 1981, bulkIndex: 340, searchAll: 20, searchTerm: 10, coldStd: 1383, bulkStd: 12 },
+            { instance: "m6in.xlarge", arch: "x86_64", gen: 6, family: "M", coldStart: 14796, seqIndex: 2109, bulkIndex: 352, searchAll: 18, searchTerm: 9, coldStd: 1671, bulkStd: 10 },
+            { instance: "m7g.xlarge", arch: "arm64", gen: 7, family: "M", coldStart: 12725, seqIndex: 1866, bulkIndex: 335, searchAll: 20, searchTerm: 11, coldStd: 95, bulkStd: 11 },
+            { instance: "m7gd.xlarge", arch: "arm64", gen: 7, family: "M", coldStart: 12180, seqIndex: 1806, bulkIndex: 333, searchAll: 20, searchTerm: 11, coldStd: 68, bulkStd: 9 },
+            { instance: "m7i-flex.xlarge", arch: "x86_64", gen: 7, family: "M", coldStart: 13868, seqIndex: 2047, bulkIndex: 291, searchAll: 14, searchTerm: 9, coldStd: 1746, bulkStd: 35 },
+            { instance: "m7i.xlarge", arch: "x86_64", gen: 7, family: "M", coldStart: 12658, seqIndex: 2170, bulkIndex: 310, searchAll: 17, searchTerm: 9, coldStd: 1015, bulkStd: 33 },
+            { instance: "m8g.xlarge", arch: "arm64", gen: 8, family: "M", coldStart: 10691, seqIndex: 1620, bulkIndex: 238, searchAll: 22, searchTerm: 11, coldStd: 679, bulkStd: 8 },
+            { instance: "m8i.xlarge", arch: "x86_64", gen: 8, family: "M", coldStart: 11972, seqIndex: 1672, bulkIndex: 268, searchAll: 16, searchTerm: 7, coldStd: 2155, bulkStd: 19 },
+            { instance: "r5.xlarge", arch: "x86_64", gen: 5, family: "R", coldStart: 20516, seqIndex: 2612, bulkIndex: 413, searchAll: 25, searchTerm: 14, coldStd: 1004, bulkStd: 13 },
+            { instance: "r5a.xlarge", arch: "x86_64", gen: 5, family: "R", coldStart: 26694, seqIndex: 3760, bulkIndex: 572, searchAll: 37, searchTerm: 22, coldStd: 3036, bulkStd: 96 },
+            { instance: "r5ad.xlarge", arch: "x86_64", gen: 5, family: "R", coldStart: 26246, seqIndex: 4219, bulkIndex: 626, searchAll: 36, searchTerm: 22, coldStd: 723, bulkStd: 94 },
+            { instance: "r5b.xlarge", arch: "x86_64", gen: 5, family: "R", coldStart: 21041, seqIndex: 2674, bulkIndex: 414, searchAll: 30, searchTerm: 16, coldStd: 2213, bulkStd: 22 },
+            { instance: "r5d.xlarge", arch: "x86_64", gen: 5, family: "R", coldStart: 19889, seqIndex: 2722, bulkIndex: 405, searchAll: 26, searchTerm: 15, coldStd: 1128, bulkStd: 7 },
+            { instance: "r5dn.xlarge", arch: "x86_64", gen: 5, family: "R", coldStart: 20847, seqIndex: 2713, bulkIndex: 435, searchAll: 30, searchTerm: 14, coldStd: 1571, bulkStd: 35 },
+            { instance: "r5n.xlarge", arch: "x86_64", gen: 5, family: "R", coldStart: 21336, seqIndex: 2768, bulkIndex: 440, searchAll: 0, searchTerm: 0, coldStd: 1199, bulkStd: 29 },
+            { instance: "r6g.xlarge", arch: "arm64", gen: 6, family: "R", coldStart: 19529, seqIndex: 2731, bulkIndex: 479, searchAll: 26, searchTerm: 14, coldStd: 1339, bulkStd: 22 },
+            { instance: "r6gd.xlarge", arch: "arm64", gen: 6, family: "R", coldStart: 18343, seqIndex: 2375, bulkIndex: 446, searchAll: 27, searchTerm: 14, coldStd: 413, bulkStd: 14 },
+            { instance: "r6i.xlarge", arch: "x86_64", gen: 6, family: "R", coldStart: 15901, seqIndex: 3100, bulkIndex: 371, searchAll: 34, searchTerm: 14, coldStd: 883, bulkStd: 49 },
+            { instance: "r6id.xlarge", arch: "x86_64", gen: 6, family: "R", coldStart: 15629, seqIndex: 3228, bulkIndex: 369, searchAll: 26, searchTerm: 10, coldStd: 1306, bulkStd: 29 },
+            { instance: "r7g.xlarge", arch: "arm64", gen: 7, family: "R", coldStart: 14122, seqIndex: 2011, bulkIndex: 320, searchAll: 20, searchTerm: 10, coldStd: 564, bulkStd: 20 },
+            { instance: "r7gd.xlarge", arch: "arm64", gen: 7, family: "R", coldStart: 13897, seqIndex: 1865, bulkIndex: 353, searchAll: 22, searchTerm: 11, coldStd: 444, bulkStd: 46 },
+            { instance: "r7i.xlarge", arch: "x86_64", gen: 7, family: "R", coldStart: 14914, seqIndex: 2609, bulkIndex: 302, searchAll: 17, searchTerm: 8, coldStd: 1361, bulkStd: 25 },
+            { instance: "r8g.xlarge", arch: "arm64", gen: 8, family: "R", coldStart: 10946, seqIndex: 1492, bulkIndex: 230, searchAll: 17, searchTerm: 10, coldStd: 196, bulkStd: 5 },
+            { instance: "r8i-flex.xlarge", arch: "x86_64", gen: 8, family: "R", coldStart: 12326, seqIndex: 2505, bulkIndex: 266, searchAll: 15, searchTerm: 8, coldStd: 1138, bulkStd: 2 },
+            { instance: "r8i.xlarge", arch: "x86_64", gen: 8, family: "R", coldStart: 12396, seqIndex: 1808, bulkIndex: 263, searchAll: 15, searchTerm: 8, coldStd: 1848, bulkStd: 0 }
+        ];
+
+        // Sort by cold start for ranking
+        const sortedData = [...rawData].sort((a, b) => a.coldStart - b.coldStart);
+
+        // Color helper
+        function getColor(arch) {
+            if (arch === 'arm64') return 'rgba(16, 185, 129, 0.8)';
+            return 'rgba(59, 130, 246, 0.8)';
+        }
+
+        function getBorderColor(arch) {
+            if (arch === 'arm64') return 'rgb(16, 185, 129)';
+            return 'rgb(59, 130, 246)';
+        }
+
+        // Cold Start Top 20 Chart
+        const top20 = sortedData.slice(0, 20);
+        new Chart(document.getElementById('coldStartChart'), {
+            type: 'bar',
+            data: {
+                labels: top20.map(d => d.instance),
+                datasets: [{
+                    label: 'Cold Start (초)',
+                    data: top20.map(d => d.coldStart / 1000),
+                    backgroundColor: top20.map(d => getColor(d.arch)),
+                    borderColor: top20.map(d => getBorderColor(d.arch)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.parsed.x.toFixed(2)}초`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Cold Start (초) - 낮을수록 좋음' }
+                    }
+                }
+            }
+        });
+
+        // Architecture Comparison Chart
+        const gravitonData = rawData.filter(d => d.arch === 'arm64');
+        const intelData = rawData.filter(d => d.arch === 'x86_64' && !d.instance.includes('5a'));
+        const amdData = rawData.filter(d => d.instance.includes('5a'));
+
+        const avgGraviton = gravitonData.reduce((s, d) => s + d.coldStart, 0) / gravitonData.length / 1000;
+        const avgIntel = intelData.reduce((s, d) => s + d.coldStart, 0) / intelData.length / 1000;
+        const avgAmd = amdData.reduce((s, d) => s + d.coldStart, 0) / amdData.length / 1000;
+
+        new Chart(document.getElementById('archChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Graviton (arm64)', 'Intel (x86_64)', 'AMD (5a series)'],
+                datasets: [{
+                    label: 'Cold Start (초)',
+                    data: [avgGraviton, avgIntel, avgAmd],
+                    backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(59, 130, 246, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+                    borderColor: ['rgb(16, 185, 129)', 'rgb(59, 130, 246)', 'rgb(239, 68, 68)'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.parsed.y.toFixed(2)}초`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Cold Start (초)' }
+                    }
+                }
+            }
+        });
+
+        // Generation Comparison Chart
+        const genGroups = {
+            'Intel 5세대': rawData.filter(d => d.arch === 'x86_64' && d.gen === 5 && !d.instance.includes('5a')),
+            'Intel 6세대': rawData.filter(d => d.arch === 'x86_64' && d.gen === 6),
+            'Intel 7세대': rawData.filter(d => d.arch === 'x86_64' && d.gen === 7),
+            'Intel 8세대': rawData.filter(d => d.arch === 'x86_64' && d.gen === 8),
+            'Graviton2 (6세대)': rawData.filter(d => d.arch === 'arm64' && d.gen === 6),
+            'Graviton3 (7세대)': rawData.filter(d => d.arch === 'arm64' && d.gen === 7),
+            'Graviton4 (8세대)': rawData.filter(d => d.arch === 'arm64' && d.gen === 8)
+        };
+
+        const genLabels = Object.keys(genGroups);
+        const genAvgs = genLabels.map(k => {
+            const g = genGroups[k];
+            return g.length ? g.reduce((s, d) => s + d.coldStart, 0) / g.length / 1000 : 0;
+        });
+
+        new Chart(document.getElementById('genChart'), {
+            type: 'bar',
+            data: {
+                labels: genLabels,
+                datasets: [{
+                    label: 'Cold Start (초)',
+                    data: genAvgs,
+                    backgroundColor: genLabels.map(l => l.includes('Graviton') ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)'),
+                    borderColor: genLabels.map(l => l.includes('Graviton') ? 'rgb(16, 185, 129)' : 'rgb(59, 130, 246)'),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Cold Start (초)' }
+                    }
+                }
+            }
+        });
+
+        // Bulk Index Top 20 Chart
+        const bulkSorted = [...rawData].sort((a, b) => a.bulkIndex - b.bulkIndex).slice(0, 20);
+        new Chart(document.getElementById('bulkChart'), {
+            type: 'bar',
+            data: {
+                labels: bulkSorted.map(d => d.instance),
+                datasets: [{
+                    label: 'Bulk Index (ms)',
+                    data: bulkSorted.map(d => d.bulkIndex),
+                    backgroundColor: bulkSorted.map(d => getColor(d.arch)),
+                    borderColor: bulkSorted.map(d => getBorderColor(d.arch)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.parsed.x} ms`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Bulk Index 1000 docs (ms) - 낮을수록 좋음' }
+                    }
+                }
+            }
+        });
+
+        // Family Comparison Chart
+        const families = ['C', 'M', 'R'];
+        const familyAvgs = families.map(f => {
+            const fd = rawData.filter(d => d.family === f);
+            return fd.reduce((s, d) => s + d.coldStart, 0) / fd.length / 1000;
+        });
+
+        new Chart(document.getElementById('familyChart'), {
+            type: 'bar',
+            data: {
+                labels: ['C (Compute)', 'M (General)', 'R (Memory)'],
+                datasets: [{
+                    label: 'Cold Start (초)',
+                    data: familyAvgs,
+                    backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(168, 85, 247, 0.8)', 'rgba(236, 72, 153, 0.8)'],
+                    borderColor: ['rgb(59, 130, 246)', 'rgb(168, 85, 247)', 'rgb(236, 72, 153)'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Cold Start (초)' }
+                    }
+                }
+            }
+        });
+
+        // Search Latency Chart - Top 15 by search_all
+        const searchFiltered = rawData.filter(d => d.searchAll > 0);
+        const searchSorted = [...searchFiltered].sort((a, b) => a.searchAll - b.searchAll).slice(0, 15);
+        new Chart(document.getElementById('searchChart'), {
+            type: 'bar',
+            data: {
+                labels: searchSorted.map(d => d.instance),
+                datasets: [
+                    {
+                        label: 'match_all (ms)',
+                        data: searchSorted.map(d => d.searchAll),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'term query (ms)',
+                        data: searchSorted.map(d => d.searchTerm),
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: 'rgb(16, 185, 129)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Latency (ms)' }
+                    }
+                }
+            }
+        });
+
+        // Table rendering
+        function renderTable(data) {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+            data.forEach((d, i) => {
+                const badgeClass = d.arch === 'arm64' ? 'graviton' : (d.instance.includes('5a') ? 'amd' : 'intel');
+                const badgeText = d.arch === 'arm64' ? 'Graviton' : (d.instance.includes('5a') ? 'AMD' : 'Intel');
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td><strong>${d.instance}</strong></td>
+                        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                        <td>${d.gen}</td>
+                        <td>${d.family}</td>
+                        <td>${(d.coldStart / 1000).toFixed(2)}</td>
+                        <td>${d.bulkIndex}</td>
+                        <td>${d.seqIndex}</td>
+                        <td>${d.searchAll || '-'}</td>
+                        <td>${d.searchTerm || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function filterData() {
+            const arch = document.getElementById('archFilter').value;
+            const gen = document.getElementById('genFilter').value;
+            const family = document.getElementById('familyFilter').value;
+
+            let filtered = sortedData;
+            if (arch) filtered = filtered.filter(d => d.arch === arch);
+            if (gen) filtered = filtered.filter(d => d.gen === parseInt(gen));
+            if (family) filtered = filtered.filter(d => d.family === family);
+
+            renderTable(filtered);
+        }
+
+        document.getElementById('archFilter').addEventListener('change', filterData);
+        document.getElementById('genFilter').addEventListener('change', filterData);
+        document.getElementById('familyFilter').addEventListener('change', filterData);
+
+        // Initial render
+        renderTable(sortedData);
+
+        // Sort table
+        let sortDir = 1;
+        let lastCol = -1;
+        function sortTable(col) {
+            if (lastCol === col) sortDir *= -1;
+            else sortDir = 1;
+            lastCol = col;
+
+            const keys = ['rank', 'instance', 'arch', 'gen', 'family', 'coldStart', 'bulkIndex', 'seqIndex', 'searchAll', 'searchTerm'];
+            const key = keys[col];
+
+            const sorted = [...sortedData].sort((a, b) => {
+                let va = key === 'coldStart' ? a.coldStart / 1000 : a[key];
+                let vb = key === 'coldStart' ? b.coldStart / 1000 : b[key];
+                if (typeof va === 'string') return sortDir * va.localeCompare(vb);
+                return sortDir * (va - vb);
+            });
+            renderTable(sorted);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis 벤치마크 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --graviton: #10b981;
+            --intel: #3b82f6;
+            --amd: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f97316 100%);
+            color: white;
+            border-radius: 1rem;
+        }
+
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { opacity: 0.9; font-size: 1.1rem; }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .card h3 {
+            color: var(--muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--intel);
+        }
+
+        .card .label { font-size: 0.875rem; color: var(--muted); }
+        .card.graviton .value { color: var(--graviton); }
+
+        .chart-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .chart-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .chart-section .description {
+            color: var(--muted);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .chart-container { position: relative; height: 400px; }
+        .chart-container.tall { height: 500px; }
+        .chart-container.extra-tall { height: 800px; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .legend-custom {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+
+        .insights {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .insights h4 { color: #92400e; margin-bottom: 0.5rem; }
+        .insights ul { margin-left: 1.5rem; color: #78350f; }
+
+        .warning-box {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left: 4px solid #ef4444;
+            padding: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .warning-box h4 { color: #991b1b; margin-bottom: 0.5rem; }
+        .warning-box ul { margin-left: 1.5rem; color: #7f1d1d; }
+
+        .analysis-box {
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .analysis-box h4 { margin-bottom: 0.5rem; color: var(--text); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.875rem; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-graviton { background: #d1fae5; color: #065f46; }
+        .badge-intel { background: #dbeafe; color: #1e40af; }
+        .badge-amd { background: #fee2e2; color: #991b1b; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 1200px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            header h1 { font-size: 1.5rem; }
+            .chart-container { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Redis 벤치마크</h1>
+            <p>AWS EC2 인스턴스 51종 성능 비교 분석 (5세대 ~ 8세대)</p>
+            <p style="opacity: 0.7; margin-top: 0.5rem;">2026년 1월 | 서울 리전 (ap-northeast-2) | 5회 반복 측정</p>
+        </header>
+
+        <!-- 주요 요약 카드 -->
+        <div class="summary-cards">
+            <div class="card">
+                <h3>SET 최고 성능</h3>
+                <div class="value">m6in.xlarge</div>
+                <div class="label">263,028 ops/sec</div>
+            </div>
+            <div class="card">
+                <h3>최고 가성비</h3>
+                <div class="value">c7i.xlarge</div>
+                <div class="label">1,084,403 ops/sec/$</div>
+            </div>
+            <div class="card graviton">
+                <h3>Graviton 최강</h3>
+                <div class="value">c6g.xlarge</div>
+                <div class="label">517,825 value score</div>
+            </div>
+            <div class="card">
+                <h3>Intel 최강</h3>
+                <div class="value">m6in.xlarge</div>
+                <div class="label">926,155 ops/sec/$</div>
+            </div>
+            <div class="card">
+                <h3>테스트 수</h3>
+                <div class="value">51개</div>
+                <div class="label">인스턴스 × 5회 반복</div>
+            </div>
+        </div>
+
+        <!-- 목차 -->
+        <div class="chart-section" style="padding: 1rem 1.5rem;">
+            <h2>목차</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; margin-top: 0.75rem;">
+                <a href="#methodology" style="color: var(--intel); text-decoration: none;">1. 테스트 방법론</a>
+                <a href="#environment" style="color: var(--intel); text-decoration: none;">2. 테스트 환경</a>
+                <a href="#results" style="color: var(--intel); text-decoration: none;">3. 성능 분석 결과</a>
+                <a href="#commands" style="color: var(--intel); text-decoration: none;">4. 명령어별 성능</a>
+                <a href="#full-results" style="color: var(--intel); text-decoration: none;">5. 전체 결과 (51개)</a>
+                <a href="#conclusion" style="color: var(--intel); text-decoration: none;">6. 결론 및 추천</a>
+            </div>
+        </div>
+
+        <!-- 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <h2>1. 테스트 방법론</h2>
+            <p class="description">Redis 벤치마크 측정 방법 및 메트릭 설명</p>
+
+            <div class="grid-2" style="margin-top: 1rem;">
+                <div>
+                    <h4 style="margin-bottom: 0.75rem;">왜 Redis 벤치마크가 중요한가?</h4>
+                    <ul style="margin-left: 1.5rem; color: var(--muted);">
+                        <li><strong>캐시 성능</strong> - 애플리케이션 응답 속도 결정</li>
+                        <li><strong>처리량</strong> - 동시 요청 처리 능력</li>
+                        <li><strong>비용 최적화</strong> - ops/$ 효율성 분석</li>
+                        <li><strong>스케일링 계획</strong> - 용량 산정 기준</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 0.75rem;">수집 메트릭 (10종)</h4>
+                    <table>
+                        <tr><th>메트릭</th><th>설명</th></tr>
+                        <tr><td>SET</td><td>키-값 저장</td></tr>
+                        <tr><td>GET</td><td>키-값 조회</td></tr>
+                        <tr><td>INCR</td><td>정수 증가</td></tr>
+                        <tr><td>LPUSH/LPOP</td><td>리스트 좌측 삽입/제거</td></tr>
+                        <tr><td>RPUSH/RPOP</td><td>리스트 우측 삽입/제거</td></tr>
+                        <tr><td>SADD</td><td>셋 추가</td></tr>
+                        <tr><td>HSET</td><td>해시 필드 설정</td></tr>
+                        <tr><td>PING</td><td>연결 테스트</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="analysis-box" style="margin-top: 1rem;">
+                <h4>테스트 워크플로우</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem;">
+                    <span class="badge badge-intel" style="padding: 0.5rem 1rem;">1. 노드 프로비저닝</span>
+                    <span style="color: var(--muted);">→</span>
+                    <span class="badge badge-intel" style="padding: 0.5rem 1rem;">2. Redis 서버 시작</span>
+                    <span style="color: var(--muted);">→</span>
+                    <span class="badge badge-intel" style="padding: 0.5rem 1rem;">3. redis-benchmark 실행</span>
+                    <span style="color: var(--muted);">→</span>
+                    <span class="badge badge-intel" style="padding: 0.5rem 1rem;">4. 10개 명령 측정</span>
+                    <span style="color: var(--muted);">→</span>
+                    <span class="badge badge-intel" style="padding: 0.5rem 1rem;">5. 5회 반복</span>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>테스트 설정</h4>
+                <ul>
+                    <li><strong>테스트 도구:</strong> redis-benchmark (Standard mode)</li>
+                    <li><strong>클라이언트:</strong> 50개 동시 연결</li>
+                    <li><strong>요청 수:</strong> 100,000 requests per command</li>
+                    <li><strong>스레드:</strong> 3 threads</li>
+                    <li><strong>반복:</strong> 인스턴스당 5회 측정, 평균값 사용</li>
+                    <li><strong>격리:</strong> Pod Anti-affinity로 노드 단독 사용</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 테스트 환경 -->
+        <div class="chart-section" id="environment">
+            <h2>2. 테스트 환경</h2>
+            <p class="description">인프라 구성 및 Redis 설정</p>
+
+            <div class="grid-3" style="margin-top: 1rem;">
+                <div class="analysis-box" style="margin-top: 0;">
+                    <h4>인프라 구성</h4>
+                    <table>
+                        <tr><td>플랫폼</td><td><strong>Amazon EKS 1.34</strong></td></tr>
+                        <tr><td>리전</td><td>ap-northeast-2 (서울)</td></tr>
+                        <tr><td>노드 프로비저너</td><td>Karpenter 1.5.0</td></tr>
+                        <tr><td>컨테이너 런타임</td><td>containerd</td></tr>
+                    </table>
+                </div>
+                <div class="analysis-box" style="margin-top: 0;">
+                    <h4>인스턴스 구성</h4>
+                    <table>
+                        <tr><td>vCPU</td><td><strong>4 (xlarge)</strong></td></tr>
+                        <tr><td>테스트 인스턴스</td><td>51종</td></tr>
+                        <tr><td>아키텍처</td><td>x86_64, arm64</td></tr>
+                        <tr><td>세대</td><td>5th ~ 8th</td></tr>
+                    </table>
+                </div>
+                <div class="analysis-box" style="margin-top: 0;">
+                    <h4>Redis 설정</h4>
+                    <table>
+                        <tr><td>버전</td><td><strong>Redis 7.x</strong></td></tr>
+                        <tr><td>메모리 정책</td><td>noeviction</td></tr>
+                        <tr><td>지속성</td><td>비활성화</td></tr>
+                        <tr><td>네트워크</td><td>Pod 내 localhost</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 성능 분석 시작 -->
+        <div id="results"></div>
+
+        <!-- 차트 1: Top 20 SET 성능 -->
+        <div class="chart-section">
+            <h2>3. Top 20 SET 성능</h2>
+            <p class="description">높을수록 좋음 | 초록: Graviton, 파랑: Intel, 빨강: AMD</p>
+            <div class="chart-container tall">
+                <canvas id="top20SetChart"></canvas>
+            </div>
+            <div class="legend-custom">
+                <div class="legend-item"><div class="legend-color" style="background: #10b981;"></div><span>Graviton (arm64)</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: #3b82f6;"></div><span>Intel (x86_64)</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: #ef4444;"></div><span>AMD (x86_64)</span></div>
+            </div>
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>m6in.xlarge</strong>가 263K ops/sec로 SET 성능 1위</li>
+                    <li><strong>c7i.xlarge</strong>가 218K ops/sec로 2위 (가성비 최고)</li>
+                    <li>6세대 Intel (m6in, m6idn)이 상위권 독식</li>
+                    <li>Graviton 최고는 m7gd.xlarge (79K ops/sec)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- 차트 2: Top 20 GET 성능 -->
+            <div class="chart-section">
+                <h2>Top 20 GET 성능</h2>
+                <p class="description">초당 GET 명령 처리량 (ops/sec)</p>
+                <div class="chart-container">
+                    <canvas id="top20GetChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 차트 3: 가성비 Top 15 -->
+            <div class="chart-section">
+                <h2>가성비 Top 15 (Value Score)</h2>
+                <p class="description">SET ops/sec / $/hr | 높을수록 좋음</p>
+                <div class="chart-container">
+                    <canvas id="valueChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 차트 4: 세대별 + 아키텍처별 성능 -->
+        <div class="chart-section">
+            <h2>세대별 SET/GET 성능 비교 (Intel vs Graviton)</h2>
+            <p class="description">각 세대 내 아키텍처별 평균 ops/sec</p>
+            <div class="chart-container">
+                <canvas id="genArchChart"></canvas>
+            </div>
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>6세대 Intel</strong>이 SET/GET 모두 최고 성능</li>
+                    <li><strong>7세대 Intel</strong> (c7i)도 우수한 성능</li>
+                    <li><strong>Graviton</strong>은 6-7세대에서 비슷한 성능 유지</li>
+                    <li><strong>8세대</strong>는 Intel/Graviton 모두 낮은 성능 - 추가 조사 필요</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 차트 5: 명령어별 성능 비교 -->
+        <div class="chart-section" id="commands">
+            <h2>4. 명령어별 성능 비교 (Top 10)</h2>
+            <p class="description">10개 Redis 명령어의 처리량 비교</p>
+            <div class="chart-container tall">
+                <canvas id="commandsChart"></canvas>
+            </div>
+            <div class="analysis-box">
+                <h4>명령어별 특성</h4>
+                <table>
+                    <tr><th>명령어</th><th>특성</th><th>평균 ops/sec (상위 10개)</th></tr>
+                    <tr><td>SET</td><td>쓰기 기본 명령</td><td>~180K</td></tr>
+                    <tr><td>GET</td><td>읽기 기본 명령</td><td>~185K</td></tr>
+                    <tr><td>INCR</td><td>원자적 증가</td><td>~200K</td></tr>
+                    <tr><td>LPUSH/RPUSH</td><td>리스트 삽입</td><td>~200K</td></tr>
+                    <tr><td>LPOP/RPOP</td><td>리스트 제거</td><td>~200K</td></tr>
+                    <tr><td>SADD</td><td>셋 추가</td><td>~200K</td></tr>
+                    <tr><td>HSET</td><td>해시 설정</td><td>~200K</td></tr>
+                    <tr><td>PING</td><td>연결 테스트</td><td>~200K</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- 차트 6: 가격 대비 성능 버블 차트 -->
+        <div class="chart-section">
+            <h2>가격 대비 성능 분석</h2>
+            <p class="description">X축: 시간당 비용($), Y축: SET ops/sec | 좌측 상단이 최적</p>
+            <div class="chart-container tall">
+                <canvas id="bubbleChart"></canvas>
+            </div>
+            <div class="legend-custom">
+                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+            </div>
+        </div>
+
+        <!-- 피해야 할 인스턴스 -->
+        <div class="chart-section">
+            <h2>주의: 낮은 SET 성능 인스턴스</h2>
+            <p class="description">8세대 및 일부 AMD 인스턴스에서 SET 성능 저하 확인</p>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="lowPerformanceChart"></canvas>
+            </div>
+            <div class="warning-box">
+                <h4>주의 사항</h4>
+                <ul>
+                    <li><strong>c5a.xlarge</strong>: AMD 5세대, 40K ops/sec로 가장 낮은 SET 성능</li>
+                    <li><strong>r5ad.xlarge</strong>: AMD 5세대, 40K ops/sec</li>
+                    <li><strong>r8i.xlarge, m8i.xlarge</strong>: 8세대 Intel도 40-48K ops/sec로 저조</li>
+                    <li><strong>c8i-flex, r8i-flex</strong>: flex 버전도 40K ops/sec 수준</li>
+                    <li>대안: <strong>c7i.xlarge</strong> (218K ops/sec) 또는 <strong>m6in.xlarge</strong> (263K ops/sec)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 추천 테이블 -->
+        <div class="chart-section">
+            <h2>용도별 추천 인스턴스</h2>
+            <table>
+                <thead>
+                    <tr><th>용도</th><th>추천 인스턴스</th><th>SET ops/sec</th><th>$/hr</th><th>Value Score</th><th>선택 이유</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>최고 성능</strong></td>
+                        <td><span class="badge badge-intel">m6in.xlarge</span></td>
+                        <td>263,028</td><td>$0.284</td><td>926,155</td>
+                        <td>SET 성능 전체 1위</td>
+                    </tr>
+                    <tr>
+                        <td><strong>최고 가성비</strong></td>
+                        <td><span class="badge badge-intel">c7i.xlarge</span> (추천)</td>
+                        <td>217,965</td><td>$0.201</td><td>1,084,403</td>
+                        <td>가성비 전체 1위</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Graviton 선호</strong></td>
+                        <td><span class="badge badge-graviton">c6g.xlarge</span></td>
+                        <td>79,745</td><td>$0.154</td><td>517,825</td>
+                        <td>Graviton 가성비 최고</td>
+                    </tr>
+                    <tr>
+                        <td><strong>예산 절감</strong></td>
+                        <td><span class="badge badge-graviton">c6g.xlarge</span></td>
+                        <td>79,745</td><td>$0.154</td><td>517,825</td>
+                        <td>가장 저렴한 가격</td>
+                    </tr>
+                    <tr>
+                        <td><strong>대용량 메모리</strong></td>
+                        <td><span class="badge badge-intel">r6i.xlarge</span></td>
+                        <td>79,745</td><td>$0.284</td><td>280,792</td>
+                        <td>32GB RAM + 적절한 성능</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 전체 결과 테이블 -->
+        <div class="chart-section" id="full-results">
+            <h2>5. 전체 결과 (51개 인스턴스)</h2>
+            <p class="description">모든 테스트 인스턴스의 상세 결과 | 열 헤더 클릭으로 정렬</p>
+
+            <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="tableSearch" placeholder="인스턴스 검색..."
+                    style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; width: 200px;">
+                <select id="archFilter" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                    <option value="">모든 아키텍처</option>
+                    <option value="Graviton">Graviton</option>
+                    <option value="Intel">Intel</option>
+                    <option value="AMD">AMD</option>
+                </select>
+                <select id="genFilter" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                    <option value="">모든 세대</option>
+                    <option value="8">8세대</option>
+                    <option value="7">7세대</option>
+                    <option value="6">6세대</option>
+                    <option value="5">5세대</option>
+                </select>
+                <select id="familyFilter" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                    <option value="">모든 패밀리</option>
+                    <option value="C">C (컴퓨팅)</option>
+                    <option value="M">M (범용)</option>
+                    <option value="R">R (메모리)</option>
+                </select>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="fullResultsTable">
+                    <thead>
+                        <tr>
+                            <th data-sort="rank" style="cursor: pointer;">순위</th>
+                            <th data-sort="instance" style="cursor: pointer;">인스턴스</th>
+                            <th data-sort="arch" style="cursor: pointer;">아키텍처</th>
+                            <th data-sort="gen" style="cursor: pointer;">세대</th>
+                            <th data-sort="set" style="cursor: pointer;">SET</th>
+                            <th data-sort="get" style="cursor: pointer;">GET</th>
+                            <th data-sort="incr" style="cursor: pointer;">INCR</th>
+                            <th data-sort="lpush" style="cursor: pointer;">LPUSH</th>
+                            <th data-sort="price" style="cursor: pointer;">$/hr</th>
+                            <th data-sort="value" style="cursor: pointer;">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fullResultsBody">
+                        <!-- JavaScript로 채워짐 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 결론 -->
+        <div class="chart-section" id="conclusion">
+            <h2>6. 결론</h2>
+            <p class="description">핵심 시사점 및 최종 추천</p>
+
+            <div class="grid-2" style="margin-top: 1rem; gap: 1.5rem;">
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--intel);">핵심 시사점</h4>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">1</span>
+                            <span><strong>m6in.xlarge가 SET 성능 1위</strong> - 263K ops/sec</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #3b82f6; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">2</span>
+                            <span><strong>c7i.xlarge가 가성비 1위</strong> - 1.08M ops/sec/$</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #6366f1; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">3</span>
+                            <span><strong>6-7세대 Intel이 Redis에 최적</strong> - 8세대는 성능 저하</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #f59e0b; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">4</span>
+                            <span><strong>AMD 5세대 피하기</strong> - SET 성능 40K 수준</span>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                            <span style="background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">5</span>
+                            <span><strong>Graviton은 c6g.xlarge 추천</strong> - 저렴하고 적절한 성능</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="margin-bottom: 1rem; color: var(--graviton);">최종 추천</h4>
+                    <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 1rem; padding: 1.5rem; text-align: center;">
+                        <div style="font-size: 0.875rem; color: #1e40af; margin-bottom: 0.5rem;">범용 Redis 캐시 워크로드</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #1e3a8a;">c7i.xlarge</div>
+                        <div style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem; font-size: 0.875rem; color: #1e40af;">
+                            <span>218K ops/sec</span>
+                            <span>$0.201/hr</span>
+                            <span>가성비 1위</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                        <div style="background: #d1fae5; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #065f46;">최고 성능</div>
+                            <div style="font-weight: 600; color: #047857;">m6in.xlarge</div>
+                        </div>
+                        <div style="background: #fef3c7; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #92400e;">예산 절감</div>
+                            <div style="font-weight: 600; color: #78350f;">c6g.xlarge</div>
+                        </div>
+                        <div style="background: #f3e8ff; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #6b21a8;">Graviton 최강</div>
+                            <div style="font-weight: 600; color: #581c87;">c7g.xlarge</div>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #475569;">대용량 메모리</div>
+                            <div style="font-weight: 600; color: #334155;">r6i.xlarge</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>벤치마크 자동화 시스템 | 데이터 수집: 2026년 1월 | 리전: ap-northeast-2 (서울)</p>
+            <p>테스트 환경: Amazon EKS 1.34 + Karpenter | 5회 반복 측정 평균값</p>
+        </footer>
+    </div>
+
+    <script>
+        // 전체 데이터 (51개 인스턴스, 5회 평균)
+        const data = [
+            {"instance":"m6in.xlarge","arch":"Intel","gen":6,"family":"M","runs":5,"set":263028,"get":271987,"incr":281986,"lpush":281981,"lpop":281981,"rpush":281999,"rpop":282300,"sadd":282300,"hset":281675,"ping":281981,"price":0.284,"value":926155},
+            {"instance":"c7i.xlarge","arch":"Intel","gen":7,"family":"C","runs":5,"set":217965,"get":218220,"incr":250554,"lpush":250554,"lpop":250580,"rpush":250246,"rpop":250287,"sadd":249994,"hset":249978,"ping":250580,"price":0.201,"value":1084403},
+            {"instance":"m7i-flex.xlarge","arch":"Intel","gen":7,"family":"M","runs":5,"set":175727,"get":183658,"incr":175858,"lpush":159796,"lpop":175803,"rpush":183698,"rpop":167781,"sadd":183800,"hset":175727,"ping":183775,"price":0.204,"value":861407},
+            {"instance":"c8i.xlarge","arch":"Intel","gen":8,"family":"C","runs":5,"set":140823,"get":140951,"incr":188895,"lpush":188920,"lpop":188929,"rpush":188955,"rpop":189188,"sadd":189308,"hset":188938,"ping":188869,"price":0.211,"value":667408},
+            {"instance":"c6i.xlarge","arch":"Intel","gen":6,"family":"C","runs":5,"set":90539,"get":90504,"incr":154478,"lpush":149144,"lpop":154478,"rpush":154529,"rpop":154478,"sadd":154478,"hset":154488,"ping":154417,"price":0.192,"value":471557},
+            {"instance":"c6in.xlarge","arch":"Intel","gen":6,"family":"C","runs":5,"set":90377,"get":90376,"incr":162398,"lpush":154488,"lpop":154452,"rpush":154478,"rpop":154478,"sadd":154478,"hset":154427,"ping":154417,"price":0.252,"value":358639},
+            {"instance":"c5n.xlarge","arch":"Intel","gen":5,"family":"C","runs":5,"set":83769,"get":83789,"incr":126560,"lpush":111330,"lpop":126505,"rpush":122718,"rpop":126485,"sadd":122718,"hset":122702,"ping":126629,"price":0.244,"value":343316},
+            {"instance":"m5zn.xlarge","arch":"Intel","gen":5,"family":"M","runs":5,"set":79873,"get":79745,"incr":159770,"lpush":154496,"lpop":159898,"rpush":154564,"rpop":159744,"sadd":154478,"hset":159796,"ping":159719,"price":0.367,"value":217638},
+            {"instance":"m7gd.xlarge","arch":"Graviton","gen":7,"family":"M","runs":5,"set":79873,"get":79873,"incr":159872,"lpush":159821,"lpop":159796,"rpush":159821,"rpop":159795,"sadd":159898,"hset":159821,"ping":159847,"price":0.217,"value":368078},
+            {"instance":"r5d.xlarge","arch":"Intel","gen":5,"family":"R","runs":5,"set":79873,"get":79745,"incr":129373,"lpush":125551,"lpop":133191,"rpush":133191,"rpop":133156,"sadd":133209,"hset":133245,"ping":133245,"price":0.324,"value":246522},
+            {"instance":"c5.xlarge","arch":"Intel","gen":5,"family":"C","runs":5,"set":79809,"get":79809,"incr":133191,"lpush":118008,"lpop":133209,"rpush":133191,"rpop":133191,"sadd":129356,"hset":133227,"ping":129386,"price":0.192,"value":415672},
+            {"instance":"c6gn.xlarge","arch":"Graviton","gen":6,"family":"C","runs":5,"set":79809,"get":79809,"incr":175843,"lpush":159719,"lpop":133191,"rpush":183752,"rpop":167741,"sadd":183724,"hset":159770,"ping":183673,"price":0.194,"value":411387},
+            {"instance":"m6g.xlarge","arch":"Graviton","gen":6,"family":"M","runs":5,"set":79809,"get":79873,"incr":159796,"lpush":159898,"lpop":133191,"rpush":159847,"rpop":159796,"sadd":159872,"hset":159795,"ping":159770,"price":0.173,"value":461324},
+            {"instance":"m6gd.xlarge","arch":"Graviton","gen":6,"family":"M","runs":5,"set":79809,"get":79873,"incr":191735,"lpush":159693,"lpop":133156,"rpush":191670,"rpop":199721,"sadd":191709,"hset":167832,"ping":191800,"price":0.208,"value":383697},
+            {"instance":"m6id.xlarge","arch":"Intel","gen":6,"family":"M","runs":5,"set":79809,"get":79936,"incr":133227,"lpush":133227,"lpop":133227,"rpush":133209,"rpop":133245,"sadd":133156,"hset":133156,"ping":133245,"price":0.27,"value":295589},
+            {"instance":"r5.xlarge","arch":"Intel","gen":5,"family":"R","runs":5,"set":79809,"get":79809,"incr":133227,"lpush":114168,"lpop":117965,"rpush":117968,"rpop":121755,"sadd":117960,"hset":121804,"ping":125630,"price":0.284,"value":281018},
+            {"instance":"r7g.xlarge","arch":"Graviton","gen":7,"family":"R","runs":5,"set":79809,"get":79809,"incr":199800,"lpush":199761,"lpop":191789,"rpush":199641,"rpop":199601,"sadd":199721,"hset":199641,"ping":199800,"price":0.238,"value":335332},
+            {"instance":"c6g.xlarge","arch":"Graviton","gen":6,"family":"C","runs":5,"set":79745,"get":79873,"incr":175764,"lpush":159898,"lpop":133156,"rpush":199601,"rpop":199721,"sadd":199840,"hset":199641,"ping":199760,"price":0.154,"value":517825},
+            {"instance":"c6id.xlarge","arch":"Intel","gen":6,"family":"C","runs":5,"set":79745,"get":79809,"incr":167705,"lpush":159923,"lpop":159795,"rpush":159744,"rpop":159744,"sadd":159719,"hset":159821,"ping":159821,"price":0.24,"value":332271},
+            {"instance":"c7i-flex.xlarge","arch":"Intel","gen":7,"family":"C","runs":5,"set":79745,"get":79873,"incr":150275,"lpush":154470,"lpop":167770,"rpush":175778,"rpop":175738,"sadd":183738,"hset":162398,"ping":175778,"price":0.181,"value":440580},
+            {"instance":"m5.xlarge","arch":"Intel","gen":5,"family":"M","runs":5,"set":79745,"get":79936,"incr":114155,"lpush":114168,"lpop":117994,"rpush":114168,"rpop":114220,"sadd":117991,"hset":118025,"ping":117955,"price":0.216,"value":369190},
+            {"instance":"m5d.xlarge","arch":"Intel","gen":5,"family":"M","runs":5,"set":79745,"get":79809,"incr":133103,"lpush":117942,"lpop":133262,"rpush":133174,"rpop":133209,"sadd":133209,"hset":133245,"ping":133174,"price":0.254,"value":313957},
+            {"instance":"m6idn.xlarge","arch":"Intel","gen":6,"family":"M","runs":5,"set":79745,"get":79873,"incr":133227,"lpush":133191,"lpop":133191,"rpush":133209,"rpop":133174,"sadd":133227,"hset":133209,"ping":133174,"price":0.338,"value":235932},
+            {"instance":"m7i.xlarge","arch":"Intel","gen":7,"family":"M","runs":5,"set":79745,"get":79873,"incr":133191,"lpush":133191,"lpop":133262,"rpush":138535,"rpop":133174,"sadd":133245,"hset":133227,"ping":138491,"price":0.226,"value":352854},
+            {"instance":"r5b.xlarge","arch":"Intel","gen":5,"family":"R","runs":5,"set":79745,"get":79936,"incr":133191,"lpush":117938,"lpop":129435,"rpush":133191,"rpop":133138,"sadd":125565,"hset":133174,"ping":133156,"price":0.34,"value":234544},
+            {"instance":"r5dn.xlarge","arch":"Intel","gen":5,"family":"R","runs":5,"set":79745,"get":79745,"incr":133245,"lpush":117981,"lpop":129391,"rpush":133227,"rpop":133209,"sadd":133191,"hset":133156,"ping":133174,"price":0.38,"value":209855},
+            {"instance":"r6gd.xlarge","arch":"Graviton","gen":6,"family":"R","runs":5,"set":79745,"get":79873,"incr":167792,"lpush":159898,"lpop":133209,"rpush":175764,"rpop":183724,"sadd":183749,"hset":167821,"ping":183815,"price":0.273,"value":292106},
+            {"instance":"r6i.xlarge","arch":"Intel","gen":6,"family":"R","runs":5,"set":79745,"get":79745,"incr":159745,"lpush":159796,"lpop":159847,"rpush":167796,"rpop":159795,"sadd":175738,"hset":159847,"ping":159744,"price":0.284,"value":280792},
+            {"instance":"r6id.xlarge","arch":"Intel","gen":6,"family":"R","runs":5,"set":79745,"get":79745,"incr":159796,"lpush":159796,"lpop":159719,"rpush":159872,"rpop":159770,"sadd":159898,"hset":159821,"ping":159847,"price":0.355,"value":224634},
+            {"instance":"r7gd.xlarge","arch":"Graviton","gen":7,"family":"R","runs":5,"set":79745,"get":79873,"incr":159795,"lpush":138542,"lpop":133191,"rpush":159847,"rpop":159770,"sadd":159847,"hset":159821,"ping":159795,"price":0.284,"value":280792},
+            {"instance":"r7i.xlarge","arch":"Intel","gen":7,"family":"R","runs":5,"set":79745,"get":79809,"incr":199681,"lpush":159770,"lpop":191749,"rpush":199760,"rpop":199721,"sadd":199880,"hset":199681,"ping":199760,"price":0.298,"value":267601},
+            {"instance":"r8g.xlarge","arch":"Graviton","gen":8,"family":"R","runs":5,"set":79745,"get":79936,"incr":159872,"lpush":159795,"lpop":159795,"rpush":159847,"rpop":159796,"sadd":159847,"hset":159923,"ping":159795,"price":0.25,"value":318980},
+            {"instance":"c7g.xlarge","arch":"Graviton","gen":7,"family":"C","runs":5,"set":79682,"get":79809,"incr":199681,"lpush":199721,"lpop":191829,"rpush":199641,"rpop":199561,"sadd":199760,"hset":199721,"ping":199601,"price":0.162,"value":491864},
+            {"instance":"c6gd.xlarge","arch":"Graviton","gen":6,"family":"C","runs":5,"set":79681,"get":79809,"incr":183684,"lpush":159770,"lpop":133209,"rpush":175752,"rpop":191684,"sadd":183698,"hset":167730,"ping":191920,"price":0.185,"value":430708},
+            {"instance":"c7gd.xlarge","arch":"Graviton","gen":7,"family":"C","runs":5,"set":79681,"get":79873,"incr":199800,"lpush":199561,"lpop":199681,"rpush":199641,"rpop":199681,"sadd":199681,"hset":199721,"ping":199720,"price":0.193,"value":412855},
+            {"instance":"c8g.xlarge","arch":"Graviton","gen":8,"family":"C","runs":5,"set":79681,"get":79873,"incr":159898,"lpush":159898,"lpop":159770,"rpush":159923,"rpop":159795,"sadd":159770,"hset":159847,"ping":159821,"price":0.17,"value":468712},
+            {"instance":"m6i.xlarge","arch":"Intel","gen":6,"family":"M","runs":5,"set":79681,"get":79745,"incr":159744,"lpush":159770,"lpop":159796,"rpush":159770,"rpop":159770,"sadd":159744,"hset":159821,"ping":167781,"price":0.216,"value":368894},
+            {"instance":"m7g.xlarge","arch":"Graviton","gen":7,"family":"M","runs":5,"set":79681,"get":79809,"incr":199721,"lpush":199641,"lpop":191684,"rpush":199601,"rpop":199800,"sadd":199800,"hset":199681,"ping":199681,"price":0.182,"value":437808},
+            {"instance":"m8g.xlarge","arch":"Graviton","gen":8,"family":"M","runs":5,"set":79681,"get":79809,"incr":159847,"lpush":159847,"lpop":159847,"rpush":159821,"rpop":159923,"sadd":159898,"hset":159770,"ping":159770,"price":0.191,"value":417178},
+            {"instance":"r6g.xlarge","arch":"Graviton","gen":6,"family":"R","runs":5,"set":79681,"get":79873,"incr":199760,"lpush":159847,"lpop":133191,"rpush":199800,"rpop":191695,"sadd":191735,"hset":183778,"ping":191735,"price":0.227,"value":351018},
+            {"instance":"r5n.xlarge","arch":"Intel","gen":5,"family":"R","runs":5,"set":79618,"get":79873,"incr":133174,"lpush":121725,"lpop":133227,"rpush":133227,"rpop":129373,"sadd":133191,"hset":129404,"ping":133209,"price":0.34,"value":234171},
+            {"instance":"c5d.xlarge","arch":"Intel","gen":5,"family":"C","runs":5,"set":71904,"get":71857,"incr":133191,"lpush":133227,"lpop":133138,"rpush":133227,"rpop":133138,"sadd":133191,"hset":133174,"ping":129391,"price":0.218,"value":329835},
+            {"instance":"m8i.xlarge","arch":"Intel","gen":8,"family":"M","runs":5,"set":47872,"get":48000,"incr":133191,"lpush":133174,"lpop":133191,"rpush":133191,"rpop":133262,"sadd":133174,"hset":133209,"ping":133191,"price":0.238,"value":201143},
+            {"instance":"c8i-flex.xlarge","arch":"Intel","gen":8,"family":"C","runs":5,"set":39952,"get":39952,"incr":133209,"lpush":133191,"lpop":133174,"rpush":133209,"rpop":133227,"sadd":133191,"hset":133191,"ping":133174,"price":0.19,"value":210274},
+            {"instance":"r8i-flex.xlarge","arch":"Intel","gen":8,"family":"R","runs":5,"set":39952,"get":39920,"incr":133227,"lpush":133227,"lpop":133227,"rpush":133227,"rpop":133174,"sadd":133156,"hset":133156,"ping":133174,"price":0.282,"value":141674},
+            {"instance":"c5a.xlarge","arch":"AMD","gen":5,"family":"C","runs":5,"set":39936,"get":47984,"incr":91046,"lpush":88818,"lpop":93228,"rpush":91010,"rpop":93248,"sadd":88818,"hset":91042,"ping":95468,"price":0.172,"value":232186},
+            {"instance":"r5ad.xlarge","arch":"AMD","gen":5,"family":"R","runs":5,"set":39936,"get":39952,"incr":72659,"lpush":72674,"lpop":72643,"rpush":71444,"rpop":72680,"sadd":72669,"hset":71450,"ping":72669,"price":0.296,"value":134919},
+            {"instance":"r8i.xlarge","arch":"Intel","gen":8,"family":"R","runs":5,"set":39936,"get":55968,"incr":133156,"lpush":133209,"lpop":133227,"rpush":133245,"rpop":133209,"sadd":133209,"hset":133245,"ping":133191,"price":0.313,"value":127591},
+            {"instance":"m5a.xlarge","arch":"AMD","gen":5,"family":"M","runs":5,"set":39920,"get":39936,"incr":74099,"lpush":72659,"lpop":72648,"rpush":74116,"rpop":72669,"sadd":72669,"hset":72674,"ping":72653,"price":0.194,"value":205773},
+            {"instance":"m5ad.xlarge","arch":"AMD","gen":5,"family":"M","runs":5,"set":39920,"get":39952,"incr":72685,"lpush":71449,"lpop":72664,"rpush":72659,"rpop":72669,"sadd":72685,"hset":71438,"ping":72680,"price":0.234,"value":170598},
+            {"instance":"r5a.xlarge","arch":"AMD","gen":5,"family":"R","runs":5,"set":39920,"get":39952,"incr":71460,"lpush":70236,"lpop":71438,"rpush":71473,"rpop":72669,"sadd":71460,"hset":72669,"ping":72664,"price":0.256,"value":155938}
+        ];
+
+        const colorMap = { 'Graviton': '#10b981', 'Intel': '#3b82f6', 'AMD': '#ef4444' };
+        const archBadge = { 'Graviton': 'badge-graviton', 'Intel': 'badge-intel', 'AMD': 'badge-amd' };
+
+        // 차트 1: Top 20 SET 성능
+        const top20Set = [...data].sort((a, b) => b.set - a.set).slice(0, 20);
+        new Chart(document.getElementById('top20SetChart'), {
+            type: 'bar',
+            data: {
+                labels: top20Set.map(d => d.instance),
+                datasets: [{
+                    label: 'SET ops/sec',
+                    data: top20Set.map(d => d.set),
+                    backgroundColor: top20Set.map(d => colorMap[d.arch]),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { title: { display: true, text: 'SET ops/sec' } },
+                    y: { ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+
+        // 차트 2: Top 20 GET 성능
+        const top20Get = [...data].sort((a, b) => b.get - a.get).slice(0, 20);
+        new Chart(document.getElementById('top20GetChart'), {
+            type: 'bar',
+            data: {
+                labels: top20Get.map(d => d.instance),
+                datasets: [{
+                    label: 'GET ops/sec',
+                    data: top20Get.map(d => d.get),
+                    backgroundColor: top20Get.map(d => colorMap[d.arch]),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: 'GET ops/sec' } } }
+            }
+        });
+
+        // 차트 3: 가성비 Top 15
+        const top15Value = [...data].sort((a, b) => b.value - a.value).slice(0, 15);
+        new Chart(document.getElementById('valueChart'), {
+            type: 'bar',
+            data: {
+                labels: top15Value.map(d => d.instance),
+                datasets: [{
+                    label: 'Value (ops/sec/$)',
+                    data: top15Value.map(d => d.value),
+                    backgroundColor: top15Value.map(d => colorMap[d.arch]),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: 'Value Score (SET/price)' } } }
+            }
+        });
+
+        // 차트 4: 세대별 + 아키텍처별 SET/GET 성능
+        function calcAvg(arr, key) {
+            return arr.length ? Math.round(arr.reduce((s, d) => s + d[key], 0) / arr.length) : 0;
+        }
+
+        const gens = [5, 6, 7, 8];
+        const intelSet = gens.map(g => calcAvg(data.filter(d => d.gen === g && (d.arch === 'Intel' || d.arch === 'AMD')), 'set'));
+        const gravitonSet = gens.map(g => calcAvg(data.filter(d => d.gen === g && d.arch === 'Graviton'), 'set'));
+        const intelGet = gens.map(g => calcAvg(data.filter(d => d.gen === g && (d.arch === 'Intel' || d.arch === 'AMD')), 'get'));
+        const gravitonGet = gens.map(g => calcAvg(data.filter(d => d.gen === g && d.arch === 'Graviton'), 'get'));
+
+        new Chart(document.getElementById('genArchChart'), {
+            type: 'bar',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: [
+                    { label: 'Intel SET', data: intelSet, backgroundColor: '#3b82f6', borderRadius: 4 },
+                    { label: 'Intel GET', data: intelGet, backgroundColor: '#93c5fd', borderRadius: 4 },
+                    { label: 'Graviton SET', data: gravitonSet, backgroundColor: '#10b981', borderRadius: 4 },
+                    { label: 'Graviton GET', data: gravitonGet, backgroundColor: '#6ee7b7', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'ops/sec' } } }
+            }
+        });
+
+        // 차트 5: 명령어별 성능 (Top 10 인스턴스 평균)
+        const top10 = [...data].sort((a, b) => b.set - a.set).slice(0, 10);
+        const commands = ['set', 'get', 'incr', 'lpush', 'lpop', 'rpush', 'rpop', 'sadd', 'hset', 'ping'];
+        const cmdLabels = ['SET', 'GET', 'INCR', 'LPUSH', 'LPOP', 'RPUSH', 'RPOP', 'SADD', 'HSET', 'PING'];
+        const cmdAvgs = commands.map(cmd => Math.round(top10.reduce((s, d) => s + d[cmd], 0) / 10));
+
+        new Chart(document.getElementById('commandsChart'), {
+            type: 'bar',
+            data: {
+                labels: cmdLabels,
+                datasets: [{
+                    label: 'Top 10 평균 ops/sec',
+                    data: cmdAvgs,
+                    backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef'],
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'ops/sec' } } }
+            }
+        });
+
+        // 차트 6: 버블 차트
+        new Chart(document.getElementById('bubbleChart'), {
+            type: 'bubble',
+            data: {
+                datasets: [
+                    {
+                        label: 'Graviton',
+                        data: data.filter(d => d.arch === 'Graviton').map(d => ({x: d.price, y: d.set, r: 8, instance: d.instance})),
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        borderColor: '#10b981'
+                    },
+                    {
+                        label: 'Intel',
+                        data: data.filter(d => d.arch === 'Intel').map(d => ({x: d.price, y: d.set, r: 8, instance: d.instance})),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: '#3b82f6'
+                    },
+                    {
+                        label: 'AMD',
+                        data: data.filter(d => d.arch === 'AMD').map(d => ({x: d.price, y: d.set, r: 8, instance: d.instance})),
+                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                        borderColor: '#ef4444'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const d = ctx.raw;
+                                return d.instance + ': $' + d.x.toFixed(3) + '/hr, ' + d.y.toLocaleString() + ' ops/sec';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: '시간당 비용 ($)' }, min: 0.1, max: 0.45 },
+                    y: { title: { display: true, text: 'SET ops/sec' }, min: 0, max: 300000 }
+                }
+            }
+        });
+
+        // 차트 7: 낮은 성능 인스턴스
+        const lowPerf = [...data].sort((a, b) => a.set - b.set).slice(0, 10);
+        new Chart(document.getElementById('lowPerformanceChart'), {
+            type: 'bar',
+            data: {
+                labels: lowPerf.map(d => d.instance),
+                datasets: [{
+                    label: 'SET ops/sec',
+                    data: lowPerf.map(d => d.set),
+                    backgroundColor: lowPerf.map(d => colorMap[d.arch]),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'SET ops/sec' } } }
+            }
+        });
+
+        // 전체 결과 테이블 렌더링
+        function renderTable(tableData) {
+            const tbody = document.getElementById('fullResultsBody');
+            tbody.innerHTML = tableData.map((d, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td><strong>${d.instance}</strong></td>
+                    <td><span class="badge ${archBadge[d.arch]}">${d.arch}</span></td>
+                    <td>${d.gen}세대</td>
+                    <td>${d.set.toLocaleString()}</td>
+                    <td>${d.get.toLocaleString()}</td>
+                    <td>${d.incr.toLocaleString()}</td>
+                    <td>${d.lpush.toLocaleString()}</td>
+                    <td>$${d.price.toFixed(3)}</td>
+                    <td>${d.value.toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 초기 렌더링 (SET 순 정렬)
+        renderTable([...data].sort((a, b) => b.set - a.set));
+
+        // 필터링
+        function filterTable() {
+            const search = document.getElementById('tableSearch').value.toLowerCase();
+            const arch = document.getElementById('archFilter').value;
+            const gen = document.getElementById('genFilter').value;
+            const family = document.getElementById('familyFilter').value;
+
+            let filtered = data.filter(d => {
+                if (search && !d.instance.toLowerCase().includes(search)) return false;
+                if (arch && d.arch !== arch) return false;
+                if (gen && d.gen !== parseInt(gen)) return false;
+                if (family && d.family !== family) return false;
+                return true;
+            });
+
+            renderTable([...filtered].sort((a, b) => b.set - a.set));
+        }
+
+        document.getElementById('tableSearch').addEventListener('input', filterTable);
+        document.getElementById('archFilter').addEventListener('change', filterTable);
+        document.getElementById('genFilter').addEventListener('change', filterTable);
+        document.getElementById('familyFilter').addEventListener('change', filterTable);
+
+        // 정렬
+        let sortDir = {};
+        document.querySelectorAll('#fullResultsTable th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const field = th.dataset.sort;
+                sortDir[field] = !sortDir[field];
+                const dir = sortDir[field] ? 1 : -1;
+
+                let sorted = [...data].sort((a, b) => {
+                    if (field === 'instance') return a.instance.localeCompare(b.instance) * dir;
+                    if (field === 'arch') return a.arch.localeCompare(b.arch) * dir;
+                    return (a[field] - b[field]) * dir;
+                });
+
+                // 필터 적용
+                const search = document.getElementById('tableSearch').value.toLowerCase();
+                const arch = document.getElementById('archFilter').value;
+                const gen = document.getElementById('genFilter').value;
+                const family = document.getElementById('familyFilter').value;
+
+                sorted = sorted.filter(d => {
+                    if (search && !d.instance.toLowerCase().includes(search)) return false;
+                    if (arch && d.arch !== arch) return false;
+                    if (gen && d.gen !== parseInt(gen)) return false;
+                    if (family && d.family !== family) return false;
+                    return true;
+                });
+
+                renderTable(sorted);
+            });
+        });
+    </script>
+</body>
+</html>

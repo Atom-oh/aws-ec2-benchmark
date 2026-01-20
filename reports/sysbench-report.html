@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sysbench 종합 벤치마크 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --graviton: #10b981;
+            --intel: #3b82f6;
+            --amd: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+
+        header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+            color: white;
+            padding: 3rem 2rem;
+            margin-bottom: 2rem;
+            border-radius: 1rem;
+        }
+
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { opacity: 0.9; font-size: 1.1rem; }
+        .header-meta { margin-top: 1rem; opacity: 0.8; font-size: 0.9rem; }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .summary-card h3 { color: var(--muted); font-size: 0.875rem; margin-bottom: 0.5rem; }
+        .summary-card .value { font-size: 1.75rem; font-weight: 700; }
+        .summary-card .detail { color: var(--muted); font-size: 0.875rem; margin-top: 0.25rem; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-graviton { background: #d1fae5; color: #065f46; }
+        .badge-intel { background: #dbeafe; color: #1e40af; }
+        .badge-amd { background: #fee2e2; color: #991b1b; }
+
+        .toc {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .toc h2 { margin-bottom: 1rem; }
+        .toc ul { list-style: none; columns: 2; }
+        .toc li { margin-bottom: 0.5rem; }
+        .toc a { color: var(--intel); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+
+        .section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+        }
+
+        .chart-container {
+            background: #fafafa;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            height: 450px;
+        }
+
+        .chart-container.tall { height: 600px; }
+        .chart-container.extra-tall { height: 900px; }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .insights {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            border-radius: 0 0.5rem 0.5rem 0;
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .insights h4 { color: #92400e; margin-bottom: 0.5rem; }
+        .insights ul { margin-left: 1.25rem; }
+        .insights li { margin-bottom: 0.25rem; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        th[data-sort] { cursor: pointer; }
+        th[data-sort]:hover { background: #e2e8f0; }
+
+        tr:hover { background: #f8fafc; }
+
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-group { display: flex; gap: 0.5rem; align-items: center; }
+        .filter-group label { font-weight: 500; color: var(--muted); }
+
+        select, input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .legend-custom {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .toc ul { columns: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sysbench 종합 벤치마크 리포트</h1>
+            <p>CPU + Memory 성능 분석 | 51개 EC2 인스턴스 타입 비교</p>
+            <div class="header-meta">
+                생성일: 2026-01-20 11:08 |
+                리전: ap-northeast-2 (서울) |
+                인스턴스 크기: xlarge (4 vCPU)
+            </div>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3>최고 CPU 성능 (Multi-thread)</h3>
+                <div class="value">c8g.xlarge</div>
+                <div class="detail">4,947 events/sec</div>
+                <span class="badge badge-graviton">GRAVITON</span>
+            </div>
+            <div class="summary-card">
+                <h3>최고 CPU 성능 (Single-thread)</h3>
+                <div class="value">c8i.xlarge</div>
+                <div class="detail">1,293 events/sec</div>
+                <span class="badge badge-intel">INTEL</span>
+            </div>
+            <div class="summary-card">
+                <h3>최고 메모리 대역폭</h3>
+                <div class="value">c8g.xlarge</div>
+                <div class="detail">102,390 MiB/sec</div>
+                <span class="badge badge-graviton">GRAVITON</span>
+            </div>
+            <div class="summary-card">
+                <h3>최고 가성비 (CPU)</h3>
+                <div class="value">c7g.xlarge</div>
+                <div class="detail">27,577 events/$/hr</div>
+                <span class="badge badge-graviton">GRAVITON</span>
+            </div>
+        </div>
+
+        <!-- 목차 -->
+        <div class="toc">
+            <h2>목차</h2>
+            <ul>
+                <li><a href="#methodology">테스트 방법론</a></li>
+                <li><a href="#cpu-overview">CPU 성능 개요</a></li>
+                <li><a href="#memory-overview">메모리 성능 개요</a></li>
+                <li><a href="#generation">세대별 아키텍처 성능 비교</a></li>
+                <li><a href="#price-performance">가격 대비 성능</a></li>
+                <li><a href="#full-results">전체 결과</a></li>
+                <li><a href="#conclusion">결론</a></li>
+            </ul>
+        </div>
+
+        <!-- 테스트 방법론 -->
+        <section class="section" id="methodology">
+            <h2>테스트 방법론</h2>
+
+            <!-- 테스트 환경 -->
+            <div style="background: var(--bg); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="margin-top: 0;">테스트 환경</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0; width: 200px;"><strong>도구</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">sysbench 1.0.20 (LuaJIT 2.1.0-beta3)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>OS</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Ubuntu 22.04 (Docker image)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>플랫폼</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Amazon EKS (Kubernetes 1.34)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 프로비저닝</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Karpenter 1.5.0 (노드 자동 스케일링)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 격리</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">podAntiAffinity로 벤치마크당 단일 노드 보장</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>인스턴스 크기</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">xlarge (4 vCPU) - 51개 인스턴스 타입</td></tr>
+                    <tr><td style="padding: 0.5rem;"><strong>리전</strong></td><td style="padding: 0.5rem;">ap-northeast-2 (서울)</td></tr>
+                </table>
+            </div>
+
+            <div class="chart-grid">
+                <div>
+                    <h3>CPU 벤치마크</h3>
+                    <p>소수 계산을 통한 정수 연산 성능 측정</p>
+                    <ul>
+                        <li><strong>Multi-thread</strong>: 4 threads, 60초, 3회 반복 후 평균</li>
+                        <li><strong>Single-thread</strong>: 1 thread, 30초</li>
+                        <li><strong>Prime limit</strong>: 20,000</li>
+                        <li><strong>측정 단위</strong>: events/sec (높을수록 좋음)</li>
+                    </ul>
+                    <div style="background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.85rem; margin-top: 1rem; overflow-x: auto;">
+                        <div style="color: #94a3b8;"># Multi-thread (3회 반복)</div>
+                        sysbench cpu --threads=4 --time=60 --cpu-max-prime=20000 run<br><br>
+                        <div style="color: #94a3b8;"># Single-thread</div>
+                        sysbench cpu --threads=1 --time=30 --cpu-max-prime=20000 run
+                    </div>
+                </div>
+                <div>
+                    <h3>메모리 벤치마크</h3>
+                    <p>다양한 메모리 접근 패턴 성능 측정 (5회 반복)</p>
+                    <ul>
+                        <li><strong>Sequential Write/Read (1K)</strong>: 순차 접근, 캐시 효율성</li>
+                        <li><strong>Random Write/Read (1K)</strong>: 무작위 접근, 실제 워크로드</li>
+                        <li><strong>Large Block (1M)</strong>: 실제 메모리 대역폭</li>
+                        <li><strong>측정 단위</strong>: MiB/sec (높을수록 좋음)</li>
+                    </ul>
+                    <div style="background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.85rem; margin-top: 1rem; overflow-x: auto;">
+                        <div style="color: #94a3b8;"># Sequential Write (1K block)</div>
+                        sysbench memory --threads=4 --time=60 \<br>
+                        &nbsp;&nbsp;--memory-block-size=1K --memory-total-size=100G \<br>
+                        &nbsp;&nbsp;--memory-oper=write --memory-access-mode=seq run<br><br>
+                        <div style="color: #94a3b8;"># Large Block (1M block)</div>
+                        sysbench memory --threads=4 --time=60 \<br>
+                        &nbsp;&nbsp;--memory-block-size=1M --memory-total-size=100G \<br>
+                        &nbsp;&nbsp;--memory-oper=write --memory-access-mode=seq run
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>왜 Large Block (1M)이 중요한가?</h4>
+                <ul>
+                    <li>1K 블록 테스트는 CPU 캐시와 메모리 컨트롤러 효율성을 측정</li>
+                    <li><strong>Large Block (1M)</strong>은 실제 메모리 대역폭을 측정 - 대용량 데이터 처리 성능 지표</li>
+                    <li>데이터 분석, ML 워크로드에서는 Large Block 성능이 더 중요</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- CPU 성능 개요 -->
+        <section class="section" id="cpu-overview">
+            <h2>CPU 성능 개요</h2>
+            <div class="chart-grid">
+                <div class="chart-container tall">
+                    <div class="chart-title">CPU Multi-thread 성능 Top 25</div>
+                    <canvas id="cpuMtChart"></canvas>
+                </div>
+                <div class="chart-container tall">
+                    <div class="chart-title">CPU Single-thread 성능 Top 25</div>
+                    <canvas id="cpuStChart"></canvas>
+                </div>
+            </div>
+            <div class="legend-custom">
+                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+            </div>
+        </section>
+
+        <!-- 메모리 성능 개요 -->
+        <section class="section" id="memory-overview">
+            <h2>메모리 성능 개요 (5가지 메트릭)</h2>
+
+            <!-- Row 1: Large Block -->
+            <div class="chart-container extra-tall" style="margin-bottom: 2rem;">
+                <div class="chart-title">Large Block (1M) 메모리 대역폭 Top 25 - 실제 메모리 대역폭</div>
+                <canvas id="memLargeBlockChart"></canvas>
+            </div>
+
+            <!-- Row 2: Sequential -->
+            <div class="chart-grid">
+                <div class="chart-container tall">
+                    <div class="chart-title">Sequential Write (1K) Top 25</div>
+                    <canvas id="memSeqWriteOverviewChart"></canvas>
+                </div>
+                <div class="chart-container tall">
+                    <div class="chart-title">Sequential Read (1K) Top 25</div>
+                    <canvas id="memSeqReadChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 3: Random -->
+            <div class="chart-grid" style="margin-top: 2rem;">
+                <div class="chart-container tall">
+                    <div class="chart-title">Random Write (1K) Top 25</div>
+                    <canvas id="memRndWriteOverviewChart"></canvas>
+                </div>
+                <div class="chart-container tall">
+                    <div class="chart-title">Random Read (1K) Top 25</div>
+                    <canvas id="memRndReadOverviewChart"></canvas>
+                </div>
+            </div>
+
+            <div class="legend-custom" style="margin-top: 1.5rem;">
+                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+            </div>
+
+            <div class="insights">
+                <h4>메모리 메트릭 해석</h4>
+                <ul>
+                    <li><strong>Large Block (1M)</strong>: 실제 메모리 대역폭 측정 - 대용량 데이터 처리에 가장 중요</li>
+                    <li><strong>Sequential (1K)</strong>: CPU 캐시 및 메모리 컨트롤러 효율성 측정</li>
+                    <li><strong>Random (1K)</strong>: 무작위 접근 패턴 - 실제 애플리케이션 워크로드에 가까움</li>
+                    <li>AMD 인스턴스는 1K 테스트에서 높은 점수를 보이나, Large Block에서는 Graviton/Intel 대비 낮음</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 세대별 아키텍처별 성능 비교 -->
+        <section class="section" id="generation">
+            <h2>세대별 아키텍처 성능 비교</h2>
+            <p style="color: var(--muted); margin-bottom: 1rem;">5세대: Intel + AMD | 6~8세대: Intel + Graviton</p>
+            <div class="chart-grid">
+                <div class="chart-container tall">
+                    <div class="chart-title">세대별 CPU Multi-thread 평균 (아키텍처 구분)</div>
+                    <canvas id="genArchCpuChart"></canvas>
+                </div>
+                <div class="chart-container tall">
+                    <div class="chart-title">세대별 메모리 Large Block 평균 (아키텍처 구분)</div>
+                    <canvas id="genArchMemChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 세대별 성능 추이 라인 차트 -->
+            <div class="chart-container" style="height: 400px; margin-top: 2rem;">
+                <div class="chart-title">CPU 성능 추이: 패밀리별 Graviton vs Intel (AMD 제외)</div>
+                <canvas id="genTrendChart"></canvas>
+            </div>
+            <div class="legend-custom" style="margin-top: 1rem;">
+                <div class="legend-item"><span style="display:inline-block;width:30px;border-bottom:2px solid #3b82f6;margin-right:5px;"></span>Intel (실선)</div>
+                <div class="legend-item"><span style="display:inline-block;width:30px;border-bottom:2px dashed #10b981;margin-right:5px;"></span>Graviton (점선)</div>
+            </div>
+
+            <div class="insights">
+                <h4>세대별 성능 추이 인사이트</h4>
+                <ul>
+                    <li><strong>Graviton</strong>: 6세대부터 시작, 매 세대 10-15% 성능 향상</li>
+                    <li><strong>Intel</strong>: 5세대 → 6세대에서 큰 폭 향상 (Ice Lake), 이후 점진적 개선</li>
+                    <li><strong>8세대</strong>: Graviton4가 Intel 대비 약 80% 높은 CPU 성능</li>
+                    <li>C/M/R 패밀리 간 동일 아키텍처에서는 성능 차이 거의 없음</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 가격 대비 성능 -->
+        <section class="section" id="price-performance">
+            <h2>가격 대비 성능</h2>
+            <div class="chart-grid">
+                <div class="chart-container tall">
+                    <div class="chart-title">CPU 가성비 (events per $/hr) Top 20</div>
+                    <canvas id="cpuEfficiencyChart"></canvas>
+                </div>
+                <div class="chart-container tall">
+                    <div class="chart-title">메모리 가성비 (MiB/sec per $/hr) Top 20</div>
+                    <canvas id="memEfficiencyChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 500px; margin-top: 2rem;">
+                <div class="chart-title">가격 vs CPU 성능 (버블 크기 = 메모리 대역폭)</div>
+                <canvas id="pricePerformanceChart"></canvas>
+            </div>
+            <div class="legend-custom">
+                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+            </div>
+        </section>
+
+
+        <!-- 전체 결과 테이블 -->
+        <section class="section" id="full-results">
+            <h2>전체 결과</h2>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>검색:</label>
+                    <input type="text" id="searchInput" placeholder="인스턴스명...">
+                </div>
+                <div class="filter-group">
+                    <label>아키텍처:</label>
+                    <select id="archFilter">
+                        <option value="">전체</option>
+                        <option value="graviton">Graviton</option>
+                        <option value="intel">Intel</option>
+                        <option value="amd">AMD</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>세대:</label>
+                    <select id="genFilter">
+                        <option value="">전체</option>
+                        <option value="8">8세대</option>
+                        <option value="7">7세대</option>
+                        <option value="6">6세대</option>
+                        <option value="5">5세대</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>패밀리:</label>
+                    <select id="familyFilter">
+                        <option value="">전체</option>
+                        <option value="c">C (Compute)</option>
+                        <option value="m">M (General)</option>
+                        <option value="r">R (Memory)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th data-sort="name">인스턴스</th>
+                            <th>아키텍처</th>
+                            <th data-sort="gen">세대</th>
+                            <th data-sort="cpu_mt">CPU MT</th>
+                            <th data-sort="cpu_st">CPU ST</th>
+                            <th data-sort="mem_seq_write">Seq Write</th>
+                            <th data-sort="mem_seq_read">Seq Read</th>
+                            <th data-sort="mem_rnd_write">Rnd Write</th>
+                            <th data-sort="mem_rnd_read">Rnd Read</th>
+                            <th data-sort="mem_large_block">Large Block</th>
+                            <th data-sort="price">$/hr</th>
+                            <th data-sort="cpu_efficiency">CPU 효율</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 결론 -->
+        <section class="section" id="conclusion">
+            <h2>결론 및 권장사항</h2>
+            <div class="chart-grid">
+                <div>
+                    <h3>CPU 집약적 워크로드</h3>
+                    <ul>
+                        <li><strong>최고 성능</strong>: c8g.xlarge (Graviton4) - 8세대 최신</li>
+                        <li><strong>최고 가성비</strong>: c7g.xlarge (Graviton3) - 가격 대비 우수</li>
+                        <li>Intel 8세대 (c8i)도 좋은 성능, AMD는 추천하지 않음</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>메모리 집약적 워크로드</h3>
+                    <ul>
+                        <li><strong>최고 대역폭</strong>: Graviton4 계열 (r8g, m8g, c8g)</li>
+                        <li><strong>가성비</strong>: c8g.xlarge - 낮은 가격에 높은 메모리 대역폭</li>
+                        <li>데이터 분석/ML: Graviton4 강력 추천</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>핵심 권장사항</h4>
+                <ul>
+                    <li><strong>범용 워크로드</strong>: m8g.xlarge 또는 m7g.xlarge 추천</li>
+                    <li><strong>비용 최적화</strong>: c7g.xlarge (Graviton3) - 우수한 가성비</li>
+                    <li><strong>최고 성능</strong>: c8g.xlarge 또는 r8g.xlarge (Graviton4)</li>
+                    <li><strong>레거시 x86 필요 시</strong>: c8i.xlarge 또는 m8i.xlarge</li>
+                </ul>
+            </div>
+        </section>
+
+        <footer>
+            <p>Generated by EKS EC2 Benchmark Suite | 2026-01-20</p>
+        </footer>
+    </div>
+
+    <script>
+        // 데이터
+        const data = [{"name": "c5.xlarge", "arch": "intel", "gen": 5, "family": "c", "price": 0.192, "cpu_mt": 1467.0, "cpu_st": 478.26, "mem_seq_write": 9476.44, "mem_seq_read": 18314.13, "mem_rnd_write": 1002.59, "mem_rnd_read": 5081.33, "mem_large_block": 37328.06, "cpu_efficiency": 7640.6, "mem_efficiency": 194417.0}, {"name": "c5a.xlarge", "arch": "amd", "gen": 5, "family": "c", "price": 0.172, "cpu_mt": 1293.39, "cpu_st": 617.89, "mem_seq_write": 13040.82, "mem_seq_read": 19601.05, "mem_rnd_write": 2065.66, "mem_rnd_read": 6056.11, "mem_large_block": 40972.6, "cpu_efficiency": 7519.7, "mem_efficiency": 238212.8}, {"name": "c5d.xlarge", "arch": "intel", "gen": 5, "family": "c", "price": 0.22, "cpu_mt": 1366.94, "cpu_st": 452.33, "mem_seq_write": 9882.36, "mem_seq_read": 16419.19, "mem_rnd_write": 1088.78, "mem_rnd_read": 4871.9, "mem_large_block": 33576.88, "cpu_efficiency": 6213.4, "mem_efficiency": 152622.2}, {"name": "c5n.xlarge", "arch": "intel", "gen": 5, "family": "c", "price": 0.244, "cpu_mt": 1372.76, "cpu_st": 452.08, "mem_seq_write": 9787.85, "mem_seq_read": 19110.96, "mem_rnd_write": 999.28, "mem_rnd_read": 4920.75, "mem_large_block": 35421.7, "cpu_efficiency": 5626.1, "mem_efficiency": 145170.9}, {"name": "c6g.xlarge", "arch": "graviton", "gen": 6, "family": "c", "price": 0.154, "cpu_mt": 4195.64, "cpu_st": 1072.89, "mem_seq_write": 5918.05, "mem_seq_read": 12815.88, "mem_rnd_write": 2897.4, "mem_rnd_read": 5372.35, "mem_large_block": 50038.85, "cpu_efficiency": 27244.4, "mem_efficiency": 324927.6}, {"name": "c6gd.xlarge", "arch": "graviton", "gen": 6, "family": "c", "price": 0.176, "cpu_mt": 4191.18, "cpu_st": 1073.78, "mem_seq_write": 6219.88, "mem_seq_read": 12059.53, "mem_rnd_write": 3049.93, "mem_rnd_read": 5415.47, "mem_large_block": 49623.38, "cpu_efficiency": 23813.5, "mem_efficiency": 281951.0}, {"name": "c6gn.xlarge", "arch": "graviton", "gen": 6, "family": "c", "price": 0.195, "cpu_mt": 4225.45, "cpu_st": 1073.32, "mem_seq_write": 6435.66, "mem_seq_read": 12994.41, "mem_rnd_write": 3104.69, "mem_rnd_read": 5421.08, "mem_large_block": 49234.6, "cpu_efficiency": 21669.0, "mem_efficiency": 252485.1}, {"name": "c6i.xlarge", "arch": "intel", "gen": 6, "family": "c", "price": 0.192, "cpu_mt": 2394.22, "cpu_st": 1147.35, "mem_seq_write": 9622.17, "mem_seq_read": 18801.97, "mem_rnd_write": 1043.67, "mem_rnd_read": 5129.12, "mem_large_block": 36569.27, "cpu_efficiency": 12469.9, "mem_efficiency": 190464.9}, {"name": "c6id.xlarge", "arch": "intel", "gen": 6, "family": "c", "price": 0.231, "cpu_mt": 2394.6, "cpu_st": 1148.4, "mem_seq_write": 7826.72, "mem_seq_read": 17314.55, "mem_rnd_write": 1021.74, "mem_rnd_read": 5144.39, "mem_large_block": 37463.55, "cpu_efficiency": 10366.2, "mem_efficiency": 162179.9}, {"name": "c6in.xlarge", "arch": "intel", "gen": 6, "family": "c", "price": 0.256, "cpu_mt": 2397.06, "cpu_st": 1147.78, "mem_seq_write": 9468.85, "mem_seq_read": 19031.36, "mem_rnd_write": 1048.28, "mem_rnd_read": 5147.63, "mem_large_block": 36553.04, "cpu_efficiency": 9363.5, "mem_efficiency": 142785.3}, {"name": "c7g.xlarge", "arch": "graviton", "gen": 7, "family": "c", "price": 0.163, "cpu_mt": 4495.0, "cpu_st": 1145.36, "mem_seq_write": 8230.23, "mem_seq_read": 14460.04, "mem_rnd_write": 4847.08, "mem_rnd_read": 6397.47, "mem_large_block": 80296.98, "cpu_efficiency": 27576.7, "mem_efficiency": 492619.5}, {"name": "c7gd.xlarge", "arch": "graviton", "gen": 7, "family": "c", "price": 0.208, "cpu_mt": 4505.07, "cpu_st": 1145.43, "mem_seq_write": 8520.76, "mem_seq_read": 14732.45, "mem_rnd_write": 4754.73, "mem_rnd_read": 6412.55, "mem_large_block": 80698.34, "cpu_efficiency": 21659.0, "mem_efficiency": 387972.8}, {"name": "c7i-flex.xlarge", "arch": "intel", "gen": 7, "family": "c", "price": 0.192, "cpu_mt": 2471.67, "cpu_st": 1188.07, "mem_seq_write": 7839.19, "mem_seq_read": 19530.73, "mem_rnd_write": 845.75, "mem_rnd_read": 7286.36, "mem_large_block": 46148.23, "cpu_efficiency": 12873.3, "mem_efficiency": 240355.4}, {"name": "c7i.xlarge", "arch": "intel", "gen": 7, "family": "c", "price": 0.202, "cpu_mt": 2402.67, "cpu_st": 1166.26, "mem_seq_write": 6857.23, "mem_seq_read": 20976.51, "mem_rnd_write": 831.92, "mem_rnd_read": 7430.64, "mem_large_block": 41799.83, "cpu_efficiency": 11894.4, "mem_efficiency": 206929.9}, {"name": "c8g.xlarge", "arch": "graviton", "gen": 8, "family": "c", "price": 0.18, "cpu_mt": 4946.98, "cpu_st": 1249.99, "mem_seq_write": 9780.78, "mem_seq_read": 18429.41, "mem_rnd_write": 5183.31, "mem_rnd_read": 6945.32, "mem_large_block": 102390.48, "cpu_efficiency": 27483.2, "mem_efficiency": 568836.0}, {"name": "c8i-flex.xlarge", "arch": "intel", "gen": 8, "family": "c", "price": 0.201, "cpu_mt": 2601.79, "cpu_st": 1278.11, "mem_seq_write": 7171.48, "mem_seq_read": 19413.68, "mem_rnd_write": 1059.43, "mem_rnd_read": 7358.91, "mem_large_block": 52572.45, "cpu_efficiency": 12944.2, "mem_efficiency": 261554.5}, {"name": "c8i.xlarge", "arch": "intel", "gen": 8, "family": "c", "price": 0.212, "cpu_mt": 2701.85, "cpu_st": 1293.46, "mem_seq_write": 5736.89, "mem_seq_read": 20539.93, "mem_rnd_write": 975.11, "mem_rnd_read": 7717.36, "mem_large_block": 55262.93, "cpu_efficiency": 12744.6, "mem_efficiency": 260674.2}, {"name": "m5.xlarge", "arch": "intel", "gen": 5, "family": "m", "price": 0.236, "cpu_mt": 1247.84, "cpu_st": 414.52, "mem_seq_write": 8774.23, "mem_seq_read": 15375.14, "mem_rnd_write": 974.58, "mem_rnd_read": 4588.96, "mem_large_block": 32691.99, "cpu_efficiency": 5287.5, "mem_efficiency": 138525.4}, {"name": "m5a.xlarge", "arch": "amd", "gen": 5, "family": "m", "price": 0.212, "cpu_mt": 997.44, "cpu_st": 485.59, "mem_seq_write": 7451.71, "mem_seq_read": 14721.6, "mem_rnd_write": 1548.48, "mem_rnd_read": 4080.49, "mem_large_block": 27463.68, "cpu_efficiency": 4704.9, "mem_efficiency": 129545.7}, {"name": "m5ad.xlarge", "arch": "amd", "gen": 5, "family": "m", "price": 0.254, "cpu_mt": 995.14, "cpu_st": 485.74, "mem_seq_write": 7653.44, "mem_seq_read": 14136.4, "mem_rnd_write": 1539.4, "mem_rnd_read": 4096.42, "mem_large_block": 27190.71, "cpu_efficiency": 3917.9, "mem_efficiency": 107050.0}, {"name": "m5d.xlarge", "arch": "intel", "gen": 5, "family": "m", "price": 0.278, "cpu_mt": 1260.25, "cpu_st": 419.8, "mem_seq_write": 7818.8, "mem_seq_read": 15406.89, "mem_rnd_write": 972.29, "mem_rnd_read": 4627.5, "mem_large_block": 33049.91, "cpu_efficiency": 4533.3, "mem_efficiency": 118884.6}, {"name": "m5zn.xlarge", "arch": "intel", "gen": 5, "family": "m", "price": 0.406, "cpu_mt": 1843.31, "cpu_st": 599.24, "mem_seq_write": 7006.43, "mem_seq_read": 20608.84, "mem_rnd_write": 1131.53, "mem_rnd_read": 6042.75, "mem_large_block": 35355.92, "cpu_efficiency": 4540.2, "mem_efficiency": 87083.5}, {"name": "m6g.xlarge", "arch": "graviton", "gen": 6, "family": "m", "price": 0.188, "cpu_mt": 4169.03, "cpu_st": 1073.78, "mem_seq_write": 5998.69, "mem_seq_read": 11171.83, "mem_rnd_write": 3103.83, "mem_rnd_read": 5414.42, "mem_large_block": 48920.67, "cpu_efficiency": 22175.7, "mem_efficiency": 260216.3}, {"name": "m6gd.xlarge", "arch": "graviton", "gen": 6, "family": "m", "price": 0.222, "cpu_mt": 4202.24, "cpu_st": 1073.61, "mem_seq_write": 5807.92, "mem_seq_read": 12291.96, "mem_rnd_write": 3012.53, "mem_rnd_read": 5383.66, "mem_large_block": 49664.47, "cpu_efficiency": 18929.0, "mem_efficiency": 223713.8}, {"name": "m6i.xlarge", "arch": "intel", "gen": 6, "family": "m", "price": 0.236, "cpu_mt": 2394.14, "cpu_st": 1148.23, "mem_seq_write": 9168.74, "mem_seq_read": 17724.6, "mem_rnd_write": 1017.04, "mem_rnd_read": 5143.77, "mem_large_block": 36252.92, "cpu_efficiency": 10144.7, "mem_efficiency": 153614.1}, {"name": "m6id.xlarge", "arch": "intel", "gen": 6, "family": "m", "price": 0.292, "cpu_mt": 2393.75, "cpu_st": 1148.45, "mem_seq_write": 8904.12, "mem_seq_read": 17157.46, "mem_rnd_write": 1013.58, "mem_rnd_read": 5155.97, "mem_large_block": 36288.27, "cpu_efficiency": 8197.8, "mem_efficiency": 124274.9}, {"name": "m6idn.xlarge", "arch": "intel", "gen": 6, "family": "m", "price": 0.386, "cpu_mt": 2391.61, "cpu_st": 1148.66, "mem_seq_write": 9551.98, "mem_seq_read": 19018.95, "mem_rnd_write": 1041.06, "mem_rnd_read": 5169.55, "mem_large_block": 36497.87, "cpu_efficiency": 6195.9, "mem_efficiency": 94554.1}, {"name": "m6in.xlarge", "arch": "intel", "gen": 6, "family": "m", "price": 0.337, "cpu_mt": 2396.3, "cpu_st": 1147.23, "mem_seq_write": 9044.57, "mem_seq_read": 16623.54, "mem_rnd_write": 1037.08, "mem_rnd_read": 5003.49, "mem_large_block": 34667.82, "cpu_efficiency": 7110.7, "mem_efficiency": 102871.9}, {"name": "m7g.xlarge", "arch": "graviton", "gen": 7, "family": "m", "price": 0.201, "cpu_mt": 4469.86, "cpu_st": 1145.58, "mem_seq_write": 7932.34, "mem_seq_read": 13103.57, "mem_rnd_write": 4473.05, "mem_rnd_read": 6406.0, "mem_large_block": 80732.97, "cpu_efficiency": 22238.1, "mem_efficiency": 401656.6}, {"name": "m7gd.xlarge", "arch": "graviton", "gen": 7, "family": "m", "price": 0.263, "cpu_mt": 4483.43, "cpu_st": 1145.8, "mem_seq_write": 8150.2, "mem_seq_read": 12955.83, "mem_rnd_write": 4403.38, "mem_rnd_read": 6375.33, "mem_large_block": 80754.4, "cpu_efficiency": 17047.3, "mem_efficiency": 307051.0}, {"name": "m7i-flex.xlarge", "arch": "intel", "gen": 7, "family": "m", "price": 0.235, "cpu_mt": 2585.79, "cpu_st": 1249.95, "mem_seq_write": 7906.19, "mem_seq_read": 17683.05, "mem_rnd_write": 919.24, "mem_rnd_read": 6831.87, "mem_large_block": 45298.17, "cpu_efficiency": 11003.4, "mem_efficiency": 192758.2}, {"name": "m7i.xlarge", "arch": "intel", "gen": 7, "family": "m", "price": 0.248, "cpu_mt": 2467.17, "cpu_st": 1207.46, "mem_seq_write": 7533.56, "mem_seq_read": 18068.56, "mem_rnd_write": 832.73, "mem_rnd_read": 6860.81, "mem_large_block": 42183.32, "cpu_efficiency": 9948.3, "mem_efficiency": 170094.0}, {"name": "m8g.xlarge", "arch": "graviton", "gen": 8, "family": "m", "price": 0.221, "cpu_mt": 4910.53, "cpu_st": 1249.71, "mem_seq_write": 9242.14, "mem_seq_read": 17422.19, "mem_rnd_write": 4938.53, "mem_rnd_read": 6903.31, "mem_large_block": 100317.39, "cpu_efficiency": 22219.6, "mem_efficiency": 453924.8}, {"name": "m8i.xlarge", "arch": "intel", "gen": 8, "family": "m", "price": 0.26, "cpu_mt": 2693.77, "cpu_st": 1289.94, "mem_seq_write": 6900.4, "mem_seq_read": 18058.63, "mem_rnd_write": 954.73, "mem_rnd_read": 7840.69, "mem_large_block": 55874.87, "cpu_efficiency": 10360.7, "mem_efficiency": 214903.3}, {"name": "r5.xlarge", "arch": "intel", "gen": 5, "family": "r", "price": 0.304, "cpu_mt": 1279.36, "cpu_st": 415.04, "mem_seq_write": 8834.71, "mem_seq_read": 14695.0, "mem_rnd_write": 962.08, "mem_rnd_read": 4337.16, "mem_large_block": 31237.21, "cpu_efficiency": 4208.4, "mem_efficiency": 102754.0}, {"name": "r5a.xlarge", "arch": "amd", "gen": 5, "family": "r", "price": 0.272, "cpu_mt": 997.87, "cpu_st": 485.35, "mem_seq_write": 7407.92, "mem_seq_read": 14157.35, "mem_rnd_write": 1536.91, "mem_rnd_read": 4135.11, "mem_large_block": 28130.8, "cpu_efficiency": 3668.6, "mem_efficiency": 103422.1}, {"name": "r5ad.xlarge", "arch": "amd", "gen": 5, "family": "r", "price": 0.316, "cpu_mt": 996.38, "cpu_st": 485.81, "mem_seq_write": 7272.18, "mem_seq_read": 13708.2, "mem_rnd_write": 1549.29, "mem_rnd_read": 4143.7, "mem_large_block": 28129.9, "cpu_efficiency": 3153.1, "mem_efficiency": 89018.7}, {"name": "r5b.xlarge", "arch": "intel", "gen": 5, "family": "r", "price": 0.356, "cpu_mt": 1278.74, "cpu_st": 423.76, "mem_seq_write": 8719.76, "mem_seq_read": 15291.35, "mem_rnd_write": 983.29, "mem_rnd_read": 4235.92, "mem_large_block": 29928.73, "cpu_efficiency": 3592.0, "mem_efficiency": 84069.5}, {"name": "r5d.xlarge", "arch": "intel", "gen": 5, "family": "r", "price": 0.346, "cpu_mt": 1285.23, "cpu_st": 417.4, "mem_seq_write": 7429.56, "mem_seq_read": 16340.38, "mem_rnd_write": 941.9, "mem_rnd_read": 4556.36, "mem_large_block": 32096.68, "cpu_efficiency": 3714.5, "mem_efficiency": 92765.0}, {"name": "r5dn.xlarge", "arch": "intel", "gen": 5, "family": "r", "price": 0.398, "cpu_mt": 1293.39, "cpu_st": 425.36, "mem_seq_write": 9254.63, "mem_seq_read": 15828.02, "mem_rnd_write": 987.06, "mem_rnd_read": 4636.72, "mem_large_block": 32748.26, "cpu_efficiency": 3249.7, "mem_efficiency": 82282.1}, {"name": "r5n.xlarge", "arch": "intel", "gen": 5, "family": "r", "price": 0.356, "cpu_mt": 1260.22, "cpu_st": 417.31, "mem_seq_write": 9671.17, "mem_seq_read": 16957.82, "mem_rnd_write": 953.47, "mem_rnd_read": 4514.26, "mem_large_block": 32131.49, "cpu_efficiency": 3539.9, "mem_efficiency": 90257.0}, {"name": "r6g.xlarge", "arch": "graviton", "gen": 6, "family": "r", "price": 0.244, "cpu_mt": 4172.43, "cpu_st": 1073.6, "mem_seq_write": 5498.19, "mem_seq_read": 11440.39, "mem_rnd_write": 3085.33, "mem_rnd_read": 5382.74, "mem_large_block": 49609.5, "cpu_efficiency": 17100.1, "mem_efficiency": 203317.6}, {"name": "r6gd.xlarge", "arch": "graviton", "gen": 6, "family": "r", "price": 0.277, "cpu_mt": 4178.85, "cpu_st": 1074.06, "mem_seq_write": 5555.07, "mem_seq_read": 11939.87, "mem_rnd_write": 3126.63, "mem_rnd_read": 5417.58, "mem_large_block": 49756.08, "cpu_efficiency": 15086.1, "mem_efficiency": 179624.8}, {"name": "r6i.xlarge", "arch": "intel", "gen": 6, "family": "r", "price": 0.304, "cpu_mt": 2391.08, "cpu_st": 1148.06, "mem_seq_write": 8901.41, "mem_seq_read": 16502.42, "mem_rnd_write": 1034.18, "mem_rnd_read": 5148.59, "mem_large_block": 36123.25, "cpu_efficiency": 7865.4, "mem_efficiency": 118826.5}, {"name": "r6id.xlarge", "arch": "intel", "gen": 6, "family": "r", "price": 0.363, "cpu_mt": 2393.36, "cpu_st": 1145.87, "mem_seq_write": 9631.46, "mem_seq_read": 18319.44, "mem_rnd_write": 1041.44, "mem_rnd_read": 5162.4, "mem_large_block": 36026.02, "cpu_efficiency": 6593.3, "mem_efficiency": 99245.2}, {"name": "r7g.xlarge", "arch": "graviton", "gen": 7, "family": "r", "price": 0.258, "cpu_mt": 4481.68, "cpu_st": 1145.44, "mem_seq_write": 7802.96, "mem_seq_read": 13623.07, "mem_rnd_write": 4644.45, "mem_rnd_read": 6389.98, "mem_large_block": 80996.57, "cpu_efficiency": 17370.9, "mem_efficiency": 313940.2}, {"name": "r7gd.xlarge", "arch": "graviton", "gen": 7, "family": "r", "price": 0.327, "cpu_mt": 4534.0, "cpu_st": 1145.72, "mem_seq_write": 8326.84, "mem_seq_read": 12934.76, "mem_rnd_write": 4890.49, "mem_rnd_read": 6426.18, "mem_large_block": 80291.15, "cpu_efficiency": 13865.4, "mem_efficiency": 245538.7}, {"name": "r7i.xlarge", "arch": "intel", "gen": 7, "family": "r", "price": 0.319, "cpu_mt": 2561.04, "cpu_st": 1236.52, "mem_seq_write": 8120.15, "mem_seq_read": 20861.1, "mem_rnd_write": 831.32, "mem_rnd_read": 7231.76, "mem_large_block": 43505.6, "cpu_efficiency": 8028.3, "mem_efficiency": 136381.2}, {"name": "r8g.xlarge", "arch": "graviton", "gen": 8, "family": "r", "price": 0.284, "cpu_mt": 4907.8, "cpu_st": 1250.02, "mem_seq_write": 10236.06, "mem_seq_read": 17932.35, "mem_rnd_write": 5075.29, "mem_rnd_read": 6946.69, "mem_large_block": 98689.58, "cpu_efficiency": 17281.0, "mem_efficiency": 347498.5}, {"name": "r8i-flex.xlarge", "arch": "intel", "gen": 8, "family": "r", "price": 0.318, "cpu_mt": 2698.18, "cpu_st": 1289.92, "mem_seq_write": 7874.81, "mem_seq_read": 20303.63, "mem_rnd_write": 939.99, "mem_rnd_read": 7772.03, "mem_large_block": 56468.75, "cpu_efficiency": 8484.8, "mem_efficiency": 177574.7}, {"name": "r8i.xlarge", "arch": "intel", "gen": 8, "family": "r", "price": 0.335, "cpu_mt": 2692.58, "cpu_st": 1291.31, "mem_seq_write": 6484.64, "mem_seq_read": 20835.21, "mem_rnd_write": 907.79, "mem_rnd_read": 7804.27, "mem_large_block": 55814.41, "cpu_efficiency": 8037.6, "mem_efficiency": 166610.2}];
+
+        // 색상 함수
+        function getColor(arch, alpha = 0.7) {
+            const colors = {
+                'graviton': `rgba(16, 185, 129, ${alpha})`,
+                'intel': `rgba(59, 130, 246, ${alpha})`,
+                'amd': `rgba(239, 68, 68, ${alpha})`
+            };
+            return colors[arch] || colors['intel'];
+        }
+
+        // 공통 차트 옵션
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            }
+        };
+
+        // CPU Multi-thread Top 25
+        const cpuMtTop = [...data].filter(d => d.cpu_mt > 0).sort((a, b) => b.cpu_mt - a.cpu_mt).slice(0, 25);
+        new Chart(document.getElementById('cpuMtChart'), {
+            type: 'bar',
+            data: {
+                labels: cpuMtTop.map(d => d.name),
+                datasets: [{
+                    data: cpuMtTop.map(d => d.cpu_mt),
+                    backgroundColor: cpuMtTop.map(d => getColor(d.arch)),
+                    borderColor: cpuMtTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'events/sec' } }
+                }
+            }
+        });
+
+        // CPU Single-thread Top 25
+        const cpuStTop = [...data].filter(d => d.cpu_st > 0).sort((a, b) => b.cpu_st - a.cpu_st).slice(0, 25);
+        new Chart(document.getElementById('cpuStChart'), {
+            type: 'bar',
+            data: {
+                labels: cpuStTop.map(d => d.name),
+                datasets: [{
+                    data: cpuStTop.map(d => d.cpu_st),
+                    backgroundColor: cpuStTop.map(d => getColor(d.arch)),
+                    borderColor: cpuStTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'events/sec' } }
+                }
+            }
+        });
+
+        // Memory Large Block Top 25
+        const memLbTop = [...data].filter(d => d.mem_large_block > 0).sort((a, b) => b.mem_large_block - a.mem_large_block).slice(0, 25);
+        new Chart(document.getElementById('memLargeBlockChart'), {
+            type: 'bar',
+            data: {
+                labels: memLbTop.map(d => d.name),
+                datasets: [{
+                    data: memLbTop.map(d => d.mem_large_block),
+                    backgroundColor: memLbTop.map(d => getColor(d.arch)),
+                    borderColor: memLbTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'MiB/sec' } }
+                }
+            }
+        });
+
+        // Memory Seq Read Top 25
+        const memSrTop = [...data].filter(d => d.mem_seq_read > 0).sort((a, b) => b.mem_seq_read - a.mem_seq_read).slice(0, 25);
+        new Chart(document.getElementById('memSeqReadChart'), {
+            type: 'bar',
+            data: {
+                labels: memSrTop.map(d => d.name),
+                datasets: [{
+                    data: memSrTop.map(d => d.mem_seq_read),
+                    backgroundColor: memSrTop.map(d => getColor(d.arch)),
+                    borderColor: memSrTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'MiB/sec' } }
+                }
+            }
+        });
+
+        // Memory Seq Write Overview Top 25
+        const memSwOverviewTop = [...data].filter(d => d.mem_seq_write > 0).sort((a, b) => b.mem_seq_write - a.mem_seq_write).slice(0, 25);
+        new Chart(document.getElementById('memSeqWriteOverviewChart'), {
+            type: 'bar',
+            data: {
+                labels: memSwOverviewTop.map(d => d.name),
+                datasets: [{
+                    data: memSwOverviewTop.map(d => d.mem_seq_write),
+                    backgroundColor: memSwOverviewTop.map(d => getColor(d.arch)),
+                    borderColor: memSwOverviewTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'MiB/sec' } }
+                }
+            }
+        });
+
+        // Memory Random Write Overview Top 25
+        const memRwOverviewTop = [...data].filter(d => d.mem_rnd_write > 0).sort((a, b) => b.mem_rnd_write - a.mem_rnd_write).slice(0, 25);
+        new Chart(document.getElementById('memRndWriteOverviewChart'), {
+            type: 'bar',
+            data: {
+                labels: memRwOverviewTop.map(d => d.name),
+                datasets: [{
+                    data: memRwOverviewTop.map(d => d.mem_rnd_write),
+                    backgroundColor: memRwOverviewTop.map(d => getColor(d.arch)),
+                    borderColor: memRwOverviewTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'MiB/sec' } }
+                }
+            }
+        });
+
+        // Memory Random Read Overview Top 25
+        const memRrOverviewTop = [...data].filter(d => d.mem_rnd_read > 0).sort((a, b) => b.mem_rnd_read - a.mem_rnd_read).slice(0, 25);
+        new Chart(document.getElementById('memRndReadOverviewChart'), {
+            type: 'bar',
+            data: {
+                labels: memRrOverviewTop.map(d => d.name),
+                datasets: [{
+                    data: memRrOverviewTop.map(d => d.mem_rnd_read),
+                    backgroundColor: memRrOverviewTop.map(d => getColor(d.arch)),
+                    borderColor: memRrOverviewTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'MiB/sec' } }
+                }
+            }
+        });
+
+        // 세대별 아키텍처별 데이터 수집
+        const genArchData = {};
+        const genArchMemData = {};
+        ['5', '6', '7', '8'].forEach(g => {
+            genArchData[g] = {'intel': [], 'amd': [], 'graviton': []};
+            genArchMemData[g] = {'intel': [], 'amd': [], 'graviton': []};
+        });
+        data.forEach(d => {
+            const gen = String(d.gen);
+            if (genArchData[gen]) {
+                if (d.cpu_mt > 0) genArchData[gen][d.arch].push(d.cpu_mt);
+                if (d.mem_large_block > 0) genArchMemData[gen][d.arch].push(d.mem_large_block);
+            }
+        });
+
+        // 평균 계산 함수
+        const avg = arr => arr.length > 0 ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
+
+        // 세대별 아키텍처별 CPU Chart (Grouped Bar)
+        new Chart(document.getElementById('genArchCpuChart'), {
+            type: 'bar',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: [
+                    {
+                        label: 'Intel',
+                        data: ['5', '6', '7', '8'].map(g => avg(genArchData[g].intel)),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'AMD',
+                        data: ['5', '6', '7', '8'].map(g => avg(genArchData[g].amd)),
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Graviton',
+                        data: ['5', '6', '7', '8'].map(g => avg(genArchData[g].graviton)),
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const count = genArchData[['5','6','7','8'][ctx.dataIndex]][ctx.dataset.label.toLowerCase()].length;
+                                return `${ctx.dataset.label}: ${ctx.raw.toFixed(0)} events/sec (${count}개)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { title: { display: true, text: 'events/sec' }, beginAtZero: true }
+                }
+            }
+        });
+
+        // 세대별 아키텍처별 Memory Chart (Grouped Bar)
+        new Chart(document.getElementById('genArchMemChart'), {
+            type: 'bar',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: [
+                    {
+                        label: 'Intel',
+                        data: ['5', '6', '7', '8'].map(g => avg(genArchMemData[g].intel)),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'AMD',
+                        data: ['5', '6', '7', '8'].map(g => avg(genArchMemData[g].amd)),
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Graviton',
+                        data: ['5', '6', '7', '8'].map(g => avg(genArchMemData[g].graviton)),
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const count = genArchMemData[['5','6','7','8'][ctx.dataIndex]][ctx.dataset.label.toLowerCase()].length;
+                                return `${ctx.dataset.label}: ${ctx.raw.toFixed(0)} MiB/s (${count}개)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { title: { display: true, text: 'MiB/sec' }, beginAtZero: true }
+                }
+            }
+        });
+
+        // 세대별 성능 추이 라인 차트 (패밀리별 Graviton vs Intel)
+        const trendData = {};
+        ['C', 'M', 'R'].forEach(f => {
+            ['intel', 'graviton'].forEach(a => {
+                const key = f + '_' + a;
+                trendData[key] = {};
+                [5, 6, 7, 8].forEach(g => trendData[key][g] = []);
+            });
+        });
+        data.forEach(d => {
+            if (d.arch === 'amd' || d.cpu_mt <= 0) return;
+            const key = d.family.toUpperCase() + '_' + d.arch;
+            if (trendData[key] && trendData[key][d.gen]) {
+                trendData[key][d.gen].push(d.cpu_mt);
+            }
+        });
+        const trendAvg = (key, gen) => {
+            const vals = trendData[key]?.[gen] || [];
+            return vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null;
+        };
+
+        new Chart(document.getElementById('genTrendChart'), {
+            type: 'line',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: [
+                    { label: 'C Intel', data: [5,6,7,8].map(g => trendAvg('C_intel', g)), borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.1, spanGaps: true, borderWidth: 2.5 },
+                    { label: 'C Graviton', data: [5,6,7,8].map(g => trendAvg('C_graviton', g)), borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.1, spanGaps: true, borderWidth: 2.5, borderDash: [6, 3] },
+                    { label: 'M Intel', data: [5,6,7,8].map(g => trendAvg('M_intel', g)), borderColor: '#60a5fa', backgroundColor: '#60a5fa', tension: 0.1, spanGaps: true, borderWidth: 2 },
+                    { label: 'M Graviton', data: [5,6,7,8].map(g => trendAvg('M_graviton', g)), borderColor: '#34d399', backgroundColor: '#34d399', tension: 0.1, spanGaps: true, borderWidth: 2, borderDash: [6, 3] },
+                    { label: 'R Intel', data: [5,6,7,8].map(g => trendAvg('R_intel', g)), borderColor: '#93c5fd', backgroundColor: '#93c5fd', tension: 0.1, spanGaps: true, borderWidth: 1.5 },
+                    { label: 'R Graviton', data: [5,6,7,8].map(g => trendAvg('R_graviton', g)), borderColor: '#6ee7b7', backgroundColor: '#6ee7b7', tension: 0.1, spanGaps: true, borderWidth: 1.5, borderDash: [6, 3] }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${ctx.raw ? ctx.raw.toLocaleString() : 'N/A'} events/sec`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: { display: true, text: 'events/sec' }
+                    }
+                }
+            }
+        });
+
+        // CPU 가성비 Top 20
+        const cpuEffTop = [...data].filter(d => d.cpu_efficiency > 0).sort((a, b) => b.cpu_efficiency - a.cpu_efficiency).slice(0, 20);
+        new Chart(document.getElementById('cpuEfficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: cpuEffTop.map(d => d.name),
+                datasets: [{
+                    data: cpuEffTop.map(d => d.cpu_efficiency),
+                    backgroundColor: cpuEffTop.map(d => getColor(d.arch)),
+                    borderColor: cpuEffTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'events per $/hr' } }
+                }
+            }
+        });
+
+        // Memory 가성비 Top 20
+        const memEffTop = [...data].filter(d => d.mem_efficiency > 0).sort((a, b) => b.mem_efficiency - a.mem_efficiency).slice(0, 20);
+        new Chart(document.getElementById('memEfficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: memEffTop.map(d => d.name),
+                datasets: [{
+                    data: memEffTop.map(d => d.mem_efficiency),
+                    backgroundColor: memEffTop.map(d => getColor(d.arch)),
+                    borderColor: memEffTop.map(d => getColor(d.arch, 1)),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { title: { display: true, text: 'MiB/sec per $/hr' } }
+                }
+            }
+        });
+
+        // 가격 vs 성능 버블 차트
+        const priceData = data.filter(d => d.price > 0 && d.cpu_mt > 0);
+        new Chart(document.getElementById('pricePerformanceChart'), {
+            type: 'bubble',
+            data: {
+                datasets: [
+                    {
+                        label: 'Graviton',
+                        data: priceData.filter(d => d.arch === 'graviton').map(d => ({
+                            x: d.price,
+                            y: d.cpu_mt,
+                            r: Math.sqrt(d.mem_large_block) / 15,
+                            name: d.name
+                        })),
+                        backgroundColor: getColor('graviton', 0.6)
+                    },
+                    {
+                        label: 'Intel',
+                        data: priceData.filter(d => d.arch === 'intel').map(d => ({
+                            x: d.price,
+                            y: d.cpu_mt,
+                            r: Math.sqrt(d.mem_large_block) / 15,
+                            name: d.name
+                        })),
+                        backgroundColor: getColor('intel', 0.6)
+                    },
+                    {
+                        label: 'AMD',
+                        data: priceData.filter(d => d.arch === 'amd').map(d => ({
+                            x: d.price,
+                            y: d.cpu_mt,
+                            r: Math.sqrt(d.mem_large_block) / 15,
+                            name: d.name
+                        })),
+                        backgroundColor: getColor('amd', 0.6)
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.raw.name + ': $' + context.raw.x + '/hr, ' + context.raw.y.toLocaleString() + ' events/sec';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: '시간당 가격 ($)' } },
+                    y: { title: { display: true, text: 'CPU events/sec' } }
+                }
+            }
+        });
+
+        // 테이블 렌더링
+        function renderTable(filteredData) {
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = filteredData.map(d => `
+                <tr>
+                    <td><strong>${d.name}</strong></td>
+                    <td><span class="badge badge-${d.arch}">${d.arch.toUpperCase()}</span></td>
+                    <td>${d.gen}세대</td>
+                    <td>${d.cpu_mt.toLocaleString()}</td>
+                    <td>${d.cpu_st.toLocaleString()}</td>
+                    <td>${d.mem_seq_write.toLocaleString()}</td>
+                    <td>${d.mem_seq_read.toLocaleString()}</td>
+                    <td>${d.mem_rnd_write.toLocaleString()}</td>
+                    <td>${d.mem_rnd_read.toLocaleString()}</td>
+                    <td><strong>${d.mem_large_block.toLocaleString()}</strong></td>
+                    <td>$${d.price.toFixed(3)}</td>
+                    <td>${d.cpu_efficiency.toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 초기 테이블 렌더링
+        renderTable(data.sort((a, b) => b.cpu_mt - a.cpu_mt));
+
+        // 필터링
+        function applyFilters() {
+            let filtered = [...data];
+
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const arch = document.getElementById('archFilter').value;
+            const gen = document.getElementById('genFilter').value;
+            const family = document.getElementById('familyFilter').value;
+
+            if (search) filtered = filtered.filter(d => d.name.toLowerCase().includes(search));
+            if (arch) filtered = filtered.filter(d => d.arch === arch);
+            if (gen) filtered = filtered.filter(d => d.gen === parseInt(gen));
+            if (family) filtered = filtered.filter(d => d.family === family);
+
+            renderTable(filtered);
+        }
+
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('archFilter').addEventListener('change', applyFilters);
+        document.getElementById('genFilter').addEventListener('change', applyFilters);
+        document.getElementById('familyFilter').addEventListener('change', applyFilters);
+
+        // 정렬
+        let sortField = 'cpu_mt';
+        let sortDir = -1;
+
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const field = th.dataset.sort;
+                if (sortField === field) {
+                    sortDir *= -1;
+                } else {
+                    sortField = field;
+                    sortDir = -1;
+                }
+
+                const sorted = [...data].sort((a, b) => {
+                    if (typeof a[field] === 'string') {
+                        return sortDir * a[field].localeCompare(b[field]);
+                    }
+                    return sortDir * (a[field] - b[field]);
+                });
+
+                renderTable(sorted);
+            });
+        });
+    </script>
+</body>
+</html>
