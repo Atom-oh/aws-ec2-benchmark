@@ -192,10 +192,18 @@
         </div>
 
         <div class="chart-section">
-            <h2>아키텍처별 성능 비교</h2>
-            <p class="description">Graviton vs Intel vs AMD 평균 점수</p>
-            <div class="chart-container" style="height: 300px;">
+            <h2>아키텍처별 세대별 성능 비교</h2>
+            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) 멀티코어 평균 점수</p>
+            <div class="chart-container" style="height: 350px;">
                 <canvas id="archChart"></canvas>
+            </div>
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>세대별 성능 향상률</h4>
+                <ul>
+                    <li><strong>Intel</strong>: 5세대 → 8세대 약 +96% 향상 (2,571 → 4,982)</li>
+                    <li><strong>Graviton</strong>: 6세대 → 8세대 약 +80% 향상 (3,215 → 5,828)</li>
+                    <li><strong>8세대 비교</strong>: Graviton4 5,828 vs Intel 8th 4,982 (Graviton +17%)</li>
+                </ul>
             </div>
         </div>
 
@@ -829,42 +837,91 @@
             }
         });
 
-        // Architecture comparison
-        const gravAvgSingle = 1326;
-        const gravAvgMulti = 4325;
-        const intelAvgSingle = 1591;
-        const intelAvgMulti = 3549;
-        const amdAvgSingle = 852;
-        const amdAvgMulti = 1981;
+        // All instance data for generation analysis
+        const genResults = [{'instance': 'r8g.xlarge', 'gen': 8, 'multi': 5843, 'family': 'R'}, {'instance': 'm8g.xlarge', 'gen': 8, 'multi': 5837, 'family': 'M'}, {'instance': 'c8g.xlarge', 'gen': 8, 'multi': 5804, 'family': 'C'}, {'instance': 'c8i.xlarge', 'gen': 8, 'multi': 5007, 'family': 'C'}, {'instance': 'c7i-flex.xlarge', 'gen': 7, 'multi': 5006, 'family': 'C'}, {'instance': 'r8i.xlarge', 'gen': 8, 'multi': 5005, 'family': 'R'}, {'instance': 'm8i.xlarge', 'gen': 8, 'multi': 5002, 'family': 'M'}, {'instance': 'c8i-flex.xlarge', 'gen': 8, 'multi': 4960, 'family': 'C'}, {'instance': 'r8i-flex.xlarge', 'gen': 8, 'multi': 4936, 'family': 'R'}, {'instance': 'c7gd.xlarge', 'gen': 7, 'multi': 4896, 'family': 'C'}, {'instance': 'r7gd.xlarge', 'gen': 7, 'multi': 4890, 'family': 'R'}, {'instance': 'm7gd.xlarge', 'gen': 7, 'multi': 4884, 'family': 'M'}, {'instance': 'c7g.xlarge', 'gen': 7, 'multi': 4863, 'family': 'C'}, {'instance': 'r7g.xlarge', 'gen': 7, 'multi': 4859, 'family': 'R'}, {'instance': 'm7g.xlarge', 'gen': 7, 'multi': 4827, 'family': 'M'}, {'instance': 'm7i-flex.xlarge', 'gen': 7, 'multi': 4650, 'family': 'M'}, {'instance': 'c7i.xlarge', 'gen': 7, 'multi': 4543, 'family': 'C'}, {'instance': 'r7i.xlarge', 'gen': 7, 'multi': 4485, 'family': 'R'}, {'instance': 'm7i.xlarge', 'gen': 7, 'multi': 4044, 'family': 'M'}, {'instance': 'm6idn.xlarge', 'gen': 6, 'multi': 3533, 'family': 'M'}, {'instance': 'c6id.xlarge', 'gen': 6, 'multi': 3511, 'family': 'C'}, {'instance': 'm6i.xlarge', 'gen': 6, 'multi': 3489, 'family': 'M'}, {'instance': 'r6i.xlarge', 'gen': 6, 'multi': 3485, 'family': 'R'}, {'instance': 'r6id.xlarge', 'gen': 6, 'multi': 3457, 'family': 'R'}, {'instance': 'c6in.xlarge', 'gen': 6, 'multi': 3447, 'family': 'C'}, {'instance': 'm6id.xlarge', 'gen': 6, 'multi': 3447, 'family': 'M'}, {'instance': 'c6i.xlarge', 'gen': 6, 'multi': 3437, 'family': 'C'}, {'instance': 'm5zn.xlarge', 'gen': 5, 'multi': 3383, 'family': 'M'}, {'instance': 'm6in.xlarge', 'gen': 6, 'multi': 3316, 'family': 'M'}, {'instance': 'c6g.xlarge', 'gen': 6, 'multi': 3256, 'family': 'C'}, {'instance': 'c6gn.xlarge', 'gen': 6, 'multi': 3232, 'family': 'C'}, {'instance': 'm6gd.xlarge', 'gen': 6, 'multi': 3228, 'family': 'M'}, {'instance': 'c6gd.xlarge', 'gen': 6, 'multi': 3218, 'family': 'C'}, {'instance': 'r6g.xlarge', 'gen': 6, 'multi': 3200, 'family': 'R'}, {'instance': 'm6g.xlarge', 'gen': 6, 'multi': 3193, 'family': 'M'}, {'instance': 'r6gd.xlarge', 'gen': 6, 'multi': 3177, 'family': 'R'}, {'instance': 'c5a.xlarge', 'gen': 5, 'multi': 2999, 'family': 'C'}, {'instance': 'r5dn.xlarge', 'gen': 5, 'multi': 2626, 'family': 'R'}, {'instance': 'c5.xlarge', 'gen': 5, 'multi': 2549, 'family': 'C'}, {'instance': 'r5n.xlarge', 'gen': 5, 'multi': 2534, 'family': 'R'}, {'instance': 'c5d.xlarge', 'gen': 5, 'multi': 2515, 'family': 'C'}, {'instance': 'c5n.xlarge', 'gen': 5, 'multi': 2513, 'family': 'C'}, {'instance': 'r5b.xlarge', 'gen': 5, 'multi': 2464, 'family': 'R'}, {'instance': 'r5.xlarge', 'gen': 5, 'multi': 2293, 'family': 'R'}, {'instance': 'r5d.xlarge', 'gen': 5, 'multi': 2288, 'family': 'R'}, {'instance': 'm5.xlarge', 'gen': 5, 'multi': 2281, 'family': 'M'}, {'instance': 'm5d.xlarge', 'gen': 5, 'multi': 2270, 'family': 'M'}, {'instance': 'r5ad.xlarge', 'gen': 5, 'multi': 1749, 'family': 'R'}, {'instance': 'r5a.xlarge', 'gen': 5, 'multi': 1737, 'family': 'R'}, {'instance': 'm5a.xlarge', 'gen': 5, 'multi': 1723, 'family': 'M'}, {'instance': 'm5ad.xlarge', 'gen': 5, 'multi': 1697, 'family': 'M'}];
+
+        // Architecture + Generation comparison
+        // Calculate averages by arch and generation from genResults
+        const archGenData = {};
+        genResults.forEach(r => {
+            // Determine architecture
+            let arch = 'Intel';
+            if (r.instance.includes('g.') || r.instance.includes('gd.') || r.instance.includes('gn.')) arch = 'Graviton';
+            else if (r.instance.includes('5a') || r.instance.includes('5ad')) arch = 'AMD';
+
+            const key = `${arch}_${r.gen}`;
+            if (!archGenData[key]) archGenData[key] = [];
+            archGenData[key].push(r.multi);
+        });
+
+        function getArchGenAvg(arch, gen) {
+            const vals = archGenData[`${arch}_${gen}`] || [];
+            return vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null;
+        }
+
+        // Intel: 5,6,7,8  AMD: 5  Graviton: 6,7,8
+        const intel5 = getArchGenAvg('Intel', 5);  // ~2571
+        const intel6 = getArchGenAvg('Intel', 6);  // ~3461
+        const intel7 = getArchGenAvg('Intel', 7);  // ~4546
+        const intel8 = getArchGenAvg('Intel', 8);  // ~4982
+        const amd5 = getArchGenAvg('AMD', 5);      // ~1981
+        const grav6 = getArchGenAvg('Graviton', 6); // ~3215
+        const grav7 = getArchGenAvg('Graviton', 7); // ~4870
+        const grav8 = getArchGenAvg('Graviton', 8); // ~5828
 
         new Chart(document.getElementById('archChart'), {
             type: 'bar',
             data: {
-                labels: ['Graviton', 'Intel', 'AMD'],
+                labels: ['5세대', '6세대', '7세대', '8세대'],
                 datasets: [
                     {
-                        label: 'Single-Core',
-                        data: [gravAvgSingle, intelAvgSingle, amdAvgSingle],
-                        backgroundColor: ['#6ee7b7', '#93c5fd', '#fca5a5']
+                        label: 'Intel',
+                        data: [intel5, intel6, intel7, intel8],
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#2563eb',
+                        borderWidth: 1
                     },
                     {
-                        label: 'Multi-Core',
-                        data: [gravAvgMulti, intelAvgMulti, amdAvgMulti],
-                        backgroundColor: ['#10b981', '#3b82f6', '#ef4444']
+                        label: 'AMD',
+                        data: [amd5, null, null, null],
+                        backgroundColor: '#ef4444',
+                        borderColor: '#dc2626',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Graviton',
+                        data: [null, grav6, grav7, grav8],
+                        backgroundColor: '#10b981',
+                        borderColor: '#059669',
+                        borderWidth: 1
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: true } }
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.raw === null) return null;
+                                return context.dataset.label + ': ' + context.raw.toLocaleString() + ' points';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Multi-Core Score' }
+                    }
+                }
             }
         });
 
-        // Generation trend
+        // Generation trend (by family C/M/R)
         const genData = {};
-        const genResults = [{'instance': 'r8g.xlarge', 'gen': 8, 'multi': 5843, 'family': 'R'}, {'instance': 'm8g.xlarge', 'gen': 8, 'multi': 5837, 'family': 'M'}, {'instance': 'c8g.xlarge', 'gen': 8, 'multi': 5804, 'family': 'C'}, {'instance': 'c8i.xlarge', 'gen': 8, 'multi': 5007, 'family': 'C'}, {'instance': 'c7i-flex.xlarge', 'gen': 7, 'multi': 5006, 'family': 'C'}, {'instance': 'r8i.xlarge', 'gen': 8, 'multi': 5005, 'family': 'R'}, {'instance': 'm8i.xlarge', 'gen': 8, 'multi': 5002, 'family': 'M'}, {'instance': 'c8i-flex.xlarge', 'gen': 8, 'multi': 4960, 'family': 'C'}, {'instance': 'r8i-flex.xlarge', 'gen': 8, 'multi': 4936, 'family': 'R'}, {'instance': 'c7gd.xlarge', 'gen': 7, 'multi': 4896, 'family': 'C'}, {'instance': 'r7gd.xlarge', 'gen': 7, 'multi': 4890, 'family': 'R'}, {'instance': 'm7gd.xlarge', 'gen': 7, 'multi': 4884, 'family': 'M'}, {'instance': 'c7g.xlarge', 'gen': 7, 'multi': 4863, 'family': 'C'}, {'instance': 'r7g.xlarge', 'gen': 7, 'multi': 4859, 'family': 'R'}, {'instance': 'm7g.xlarge', 'gen': 7, 'multi': 4827, 'family': 'M'}, {'instance': 'm7i-flex.xlarge', 'gen': 7, 'multi': 4650, 'family': 'M'}, {'instance': 'c7i.xlarge', 'gen': 7, 'multi': 4543, 'family': 'C'}, {'instance': 'r7i.xlarge', 'gen': 7, 'multi': 4485, 'family': 'R'}, {'instance': 'm7i.xlarge', 'gen': 7, 'multi': 4044, 'family': 'M'}, {'instance': 'm6idn.xlarge', 'gen': 6, 'multi': 3533, 'family': 'M'}, {'instance': 'c6id.xlarge', 'gen': 6, 'multi': 3511, 'family': 'C'}, {'instance': 'm6i.xlarge', 'gen': 6, 'multi': 3489, 'family': 'M'}, {'instance': 'r6i.xlarge', 'gen': 6, 'multi': 3485, 'family': 'R'}, {'instance': 'r6id.xlarge', 'gen': 6, 'multi': 3457, 'family': 'R'}, {'instance': 'c6in.xlarge', 'gen': 6, 'multi': 3447, 'family': 'C'}, {'instance': 'm6id.xlarge', 'gen': 6, 'multi': 3447, 'family': 'M'}, {'instance': 'c6i.xlarge', 'gen': 6, 'multi': 3437, 'family': 'C'}, {'instance': 'm5zn.xlarge', 'gen': 5, 'multi': 3383, 'family': 'M'}, {'instance': 'm6in.xlarge', 'gen': 6, 'multi': 3316, 'family': 'M'}, {'instance': 'c6g.xlarge', 'gen': 6, 'multi': 3256, 'family': 'C'}, {'instance': 'c6gn.xlarge', 'gen': 6, 'multi': 3232, 'family': 'C'}, {'instance': 'm6gd.xlarge', 'gen': 6, 'multi': 3228, 'family': 'M'}, {'instance': 'c6gd.xlarge', 'gen': 6, 'multi': 3218, 'family': 'C'}, {'instance': 'r6g.xlarge', 'gen': 6, 'multi': 3200, 'family': 'R'}, {'instance': 'm6g.xlarge', 'gen': 6, 'multi': 3193, 'family': 'M'}, {'instance': 'r6gd.xlarge', 'gen': 6, 'multi': 3177, 'family': 'R'}, {'instance': 'c5a.xlarge', 'gen': 5, 'multi': 2999, 'family': 'C'}, {'instance': 'r5dn.xlarge', 'gen': 5, 'multi': 2626, 'family': 'R'}, {'instance': 'c5.xlarge', 'gen': 5, 'multi': 2549, 'family': 'C'}, {'instance': 'r5n.xlarge', 'gen': 5, 'multi': 2534, 'family': 'R'}, {'instance': 'c5d.xlarge', 'gen': 5, 'multi': 2515, 'family': 'C'}, {'instance': 'c5n.xlarge', 'gen': 5, 'multi': 2513, 'family': 'C'}, {'instance': 'r5b.xlarge', 'gen': 5, 'multi': 2464, 'family': 'R'}, {'instance': 'r5.xlarge', 'gen': 5, 'multi': 2293, 'family': 'R'}, {'instance': 'r5d.xlarge', 'gen': 5, 'multi': 2288, 'family': 'R'}, {'instance': 'm5.xlarge', 'gen': 5, 'multi': 2281, 'family': 'M'}, {'instance': 'm5d.xlarge', 'gen': 5, 'multi': 2270, 'family': 'M'}, {'instance': 'r5ad.xlarge', 'gen': 5, 'multi': 1749, 'family': 'R'}, {'instance': 'r5a.xlarge', 'gen': 5, 'multi': 1737, 'family': 'R'}, {'instance': 'm5a.xlarge', 'gen': 5, 'multi': 1723, 'family': 'M'}, {'instance': 'm5ad.xlarge', 'gen': 5, 'multi': 1697, 'family': 'M'}];
         genResults.forEach(r => {
             const key = r.family + r.gen;
             if (!genData[r.family]) genData[r.family] = {};
