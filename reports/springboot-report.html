@@ -125,7 +125,7 @@
                 <div>
                     <h4 style="margin-bottom: 0.75rem;">테스트 환경</h4>
                     <table>
-                        <tr><td style="width: 150px;"><strong>애플리케이션</strong></td><td>Spring PetClinic 4.0.0</td></tr>
+                        <tr><td style="width: 150px;"><strong>애플리케이션</strong></td><td>Spring PetClinic 4.0.0 (Cold Start 측정용)</td></tr>
                         <tr><td><strong>Spring Boot</strong></td><td>4.0.1</td></tr>
                         <tr><td><strong>Java</strong></td><td>OpenJDK 21.0.9</td></tr>
                         <tr><td><strong>JVM 옵션</strong></td><td>-XX:MaxRAMPercentage=60.0 -XX:+UseG1GC</td></tr>
@@ -154,7 +154,7 @@
                 <h4>측정 메트릭</h4>
                 <ul>
                     <li><strong>Requests/sec (wrk)</strong>: 초당 처리 HTTP 요청 수 - 높을수록 좋음</li>
-                    <li><strong>Cold Start (초)</strong>: JVM + Spring Boot 초기화 시간 - 낮을수록 좋음</li>
+                    <li><strong>Cold Start (초)</strong>: JVM + Spring Boot + PetClinic 앱 초기화 시간 - 낮을수록 좋음</li>
                 </ul>
             </div>
         </div>
@@ -181,6 +181,11 @@
         <!-- Cold Start 개요 -->
         <div class="section" id="coldstart-overview">
             <h2>3. Cold Start 성능 개요</h2>
+
+            <div style="background: var(--bg); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                <strong>측정 대상:</strong> Spring PetClinic (실제 프로덕션급 샘플 앱) 시작 시간<br>
+                <span style="color: var(--muted); font-size: 0.9rem;">JVM 부팅 → Spring Context 초기화 → JPA/Hibernate 설정 → 웹 서버 시작까지 전체 시간</span>
+            </div>
 
             <div class="chart-container tall">
                 <div class="chart-title">Top 20 인스턴스 - Cold Start (5회 평균, 낮을수록 좋음)</div>
