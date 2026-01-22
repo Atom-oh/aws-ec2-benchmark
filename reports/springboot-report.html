@@ -84,41 +84,6 @@
         .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
         .tab-btn { padding: 0.5rem 1rem; border: 1px solid var(--border); background: var(--card); border-radius: 0.5rem; cursor: pointer; }
         .tab-btn.active { background: var(--intel); color: white; border-color: var(--intel); }
-
-        /* TOC Section */
-        .toc-section { background: var(--card); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .toc-section h2 { font-size: 1.25rem; margin-bottom: 1rem; color: var(--text); }
-        .toc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; }
-        .toc-grid a { display: block; padding: 0.75rem 1rem; background: var(--bg); border-radius: 0.5rem; text-decoration: none; color: var(--text); font-size: 0.9rem; transition: all 0.2s; border-left: 3px solid transparent; }
-        .toc-grid a:hover { background: #e2e8f0; border-left-color: var(--intel); }
-
-        /* Button Group for filters */
-        .btn-group { display: flex; border-radius: 0.5rem; overflow: hidden; border: 1px solid var(--border); }
-        .btn-group button { padding: 0.5rem 1rem; border: none; background: var(--bg); cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
-        .btn-group button:hover { background: #e2e8f0; }
-        .btn-group button.active { background: var(--intel); color: white; }
-        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #10b981; }
-        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #3b82f6; }
-        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
-
-        /* Chart controls */
-        .chart-controls { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
-        .chart-controls label { font-weight: 500; color: var(--muted); font-size: 0.875rem; }
-
-        /* Conclusion Grid */
-        .conclusion-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
-        .conclusion-card { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 1rem; padding: 1.5rem; border-left: 4px solid #10b981; }
-        .conclusion-card h4 { color: #065f46; margin-bottom: 0.5rem; font-size: 1rem; }
-        .conclusion-card .value { font-size: 1.25rem; font-weight: 700; color: #047857; margin-bottom: 0.25rem; }
-        .conclusion-card .detail { font-size: 0.875rem; color: #064e3b; }
-        .conclusion-card.intel { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left-color: #3b82f6; }
-        .conclusion-card.intel h4 { color: #1e40af; }
-        .conclusion-card.intel .value { color: #1d4ed8; }
-        .conclusion-card.intel .detail { color: #1e3a5f; }
-        .conclusion-card.warn { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left-color: #f59e0b; }
-        .conclusion-card.warn h4 { color: #92400e; }
-        .conclusion-card.warn .value { color: #b45309; }
-        .conclusion-card.warn .detail { color: #78350f; }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -176,22 +141,10 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="../index.html" class="navbar-brand">🏠 EC2 Benchmark</a>
-            <div class="navbar-links">
-                <a href="geekbench-report.html">Geekbench</a>
-                <a href="passmark-report.html">PassMark</a>
-                <a href="sysbench-report.html">Sysbench</a>
-                <a href="stress-ng-report.html">stress-ng</a>
-                <a href="iperf3-report.html">iperf3</a>
-                <a href="redis-report.html">Redis</a>
-                <a href="nginx-report.html">Nginx</a>
-                <a href="springboot-report.html" class="active">SpringBoot</a>
-                <a href="elasticsearch-report.html">Elasticsearch</a>
-            </div>
-        </div>
-    </nav>
+<nav class="navbar">
+    <div class="navbar-container">
+        <a href="index.html" class="navbar-brand">EC2 Benchmark</a>
+        <div class="navbar-links"><a href="geekbench-report.html">Geekbench</a><a href="passmark-report.html">PassMark</a><a href="sysbench-report.html">Sysbench</a><a href="stress-ng-report.html">stress-ng</a><a href="iperf3-report.html">iperf3</a><a href="redis-report.html">Redis</a><a href="nginx-report.html">Nginx</a><a href="springboot-report.html" class="active">SpringBoot</a><a href="elasticsearch-report.html">Elasticsearch</a></div>    </div></nav>
     <div class="container">
         <div class="header">
             <h1>Spring Boot 벤치마크 리포트</h1>
@@ -221,8 +174,7 @@
             <div class="summary-card warning">
                 <h3>📊 Time-Series 핵심 발견</h3>
                 <div class="value">7세대 Flex &gt; 8세대 (+10%)</div>
-                <div class="detail">c7i-flex: 92.5K &gt; c8i-flex: 84.4K (5회 평균)</div>
-                <div class="detail" style="font-size: 0.75rem; color: #b45309; margin-top: 0.25rem;">📁 results/springboot-flex/ | 600초×5회 측정</div>
+                <div class="detail">c7i-flex: 92.5K &gt; c8i-flex: 84.4K &gt; c8i: 80.5K (same-AZ)</div>
             </div>
             <div class="summary-card" style="border-left-color: #8b5cf6;">
                 <h3>🔍 Flex 비교 결론</h3>
@@ -231,22 +183,16 @@
             </div>
         </div>
 
-        <!-- 목차 -->
-        <div class="toc-section" id="toc">
-            <h2>목차</h2>
-            <div class="toc-grid">
-                <a href="#methodology">1. 테스트 방법론</a>
-                <a href="#wrk-scenarios">2. wrk 시나리오별 결과</a>
-                <a href="#generation">3. 세대별 아키텍처 비교</a>
-                <a href="#latency">4. Latency 분석</a>
-                <a href="#flex-analysis">5. Flex 성능 분석</a>
-                <a href="#flex-timeseries" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); font-weight: 600;">5.1 Time-Series (NEW)</a>
-                <a href="#coldstart">6. Cold Start 분석</a>
-                <a href="#price-performance">7. 가격 대비 성능</a>
-                <a href="#full-results">8. 전체 결과</a>
-                <a href="#conclusion">9. 결론 및 권장사항</a>
-            </div>
-        </div>
+        <nav class="nav">
+            <a href="#methodology">테스트 방법론</a>
+            <a href="#wrk-scenarios">wrk 시나리오별 결과</a>
+            <a href="#generation">세대별 아키텍처 비교</a>
+            <a href="#latency">Latency 분석</a>
+            <a href="#flex-analysis">Flex 성능 분석</a>
+            <a href="#flex-timeseries" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); font-weight: 600;">Flex Time-Series (NEW)</a>
+            <a href="#coldstart">Cold Start 분석</a>
+            <a href="#full-results">전체 결과</a>
+        </nav>
 
         <!-- 테스트 방법론 -->
         <div class="section" id="methodology">
@@ -491,21 +437,10 @@
             <div class="insights" style="margin-top: 1.5rem;">
                 <h4>분석 및 결론</h4>
                 <ul>
-                    <li><strong>7세대 Flex 고성능 (+10%)</strong>: c7i-flex가 c8i-flex보다 평균 9.6% 높은 throughput (92.5K vs 84.4K req/sec).
-                        <span style="color: #78350f;">원인: Burst Credit 정책 차이, 낮은 오버커밋 비율</span></li>
-                    <li><strong>8세대 Flex Cold Start 우수</strong>: JVM 초기화에서는 8세대가 확실히 빠름 (Emerald Rapids의 빠른 single-thread)</li>
-                    <li><strong>워크로드별 선택 가이드</strong>:
-                        <ul style="margin-top: 0.25rem; font-size: 0.9rem;">
-                            <li>최대 Throughput 필요: <code>c7i-flex</code> (피크 107K)</li>
-                            <li>SLA 안정성 중시: <code>c8i Standard</code> (CV 6.3%)</li>
-                            <li>Cold Start 중요: <code>c8i-flex</code> 또는 <code>c8g</code></li>
-                        </ul>
-                    </li>
+                    <li><strong>7세대 Flex 고성능 원인 추정</strong>: AWS의 물리 호스트 할당 정책, 특정 CPU bin 선택 등</li>
+                    <li><strong>8세대 Flex Cold Start 우수</strong>: JVM 초기화에서는 8세대가 확실히 빠름</li>
+                    <li><strong>워크로드별 선택</strong>: 지속적 고부하는 7세대 Flex, Cold Start 중요하면 8세대</li>
                 </ul>
-                <p style="font-size: 0.85rem; color: #92400e; margin-top: 0.75rem;">
-                    <strong>👉 심층 분석:</strong> <a href="#flex-timeseries" style="color: #b45309;">Section 5.1</a>에서
-                    CPU 아키텍처, Burst Credit 정책, 오버커밋 영향에 대한 상세 기술 분석 확인
-                </p>
             </div>
         </div>
 
@@ -523,27 +458,11 @@
                 <span style="color: var(--muted); font-size: 0.9rem;">데이터 소스: <code>results/springboot-flex/timeseries-all.csv</code> (5 runs × 60 points per run)</span>
             </div>
 
-            <!-- Metric and Run Selector -->
-            <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 1rem;">
-                <div class="tab-buttons">
-                    <button class="tab-btn active" onclick="switchTimeseriesMetric('throughput', this)">Throughput (req/sec)</button>
-                    <button class="tab-btn" onclick="switchTimeseriesMetric('latency', this)">Latency Avg (ms)</button>
-                    <button class="tab-btn" onclick="switchTimeseriesMetric('p99', this)">Latency P99 (ms)</button>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <label style="font-weight: 500; color: var(--muted); font-size: 0.875rem;">Run 선택:</label>
-                    <select id="runSelector" onchange="switchTimeseriesRun(this.value)" style="padding: 0.4rem 0.75rem; border: 1px solid var(--border); border-radius: 0.5rem; background: var(--card); font-size: 0.875rem;">
-                        <option value="1">Run 1</option>
-                        <option value="2" selected>Run 2 (대표)</option>
-                        <option value="3">Run 3</option>
-                        <option value="4">Run 4</option>
-                        <option value="5">Run 5</option>
-                        <option value="avg">5회 평균</option>
-                    </select>
-                    <span style="font-size: 0.75rem; color: var(--muted);">
-                        * 데이터: <code>results/springboot-flex/</code>
-                    </span>
-                </div>
+            <!-- Metric Selector Tabs -->
+            <div class="tab-buttons" style="margin-bottom: 1rem;">
+                <button class="tab-btn active" onclick="switchTimeseriesMetric('throughput', this)">Throughput (req/sec)</button>
+                <button class="tab-btn" onclick="switchTimeseriesMetric('latency', this)">Latency Avg (ms)</button>
+                <button class="tab-btn" onclick="switchTimeseriesMetric('p99', this)">Latency P99 (ms)</button>
             </div>
 
             <div class="chart-container extra-tall">
@@ -719,129 +638,6 @@
                         <strong>c8g Graviton4:</strong> Lowest throughput (64K) but most stable (CV 3.8%)<br><br>
                         <strong>권장:</strong> Burst-tolerant workloads는 c7i-flex, 안정성 중시는 c8i 또는 c8g 선택
                     </p>
-                </div>
-            </div>
-
-            <!-- 심층 기술 분석: 왜 7세대 Flex가 8세대보다 빠른가? -->
-            <div style="background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%); border: 2px solid #8b5cf6; border-radius: 0.75rem; padding: 2rem; margin: 2rem 0;">
-                <h3 style="color: #5b21b6; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 1.5rem;">🔬</span>
-                    심층 기술 분석: 왜 7세대 Flex가 8세대보다 빠른가?
-                </h3>
-                <p style="color: #6b21a8; font-size: 0.9rem; margin-bottom: 1.5rem;">
-                    <strong>결론부터:</strong> 이것은 측정 오류가 아닙니다. c7i-flex가 c8i-flex보다 실제로 더 높은 throughput을 보이는 것은
-                    AWS의 Flex 인스턴스 특성과 CPU burst 정책의 세대별 차이에 기인합니다.
-                </p>
-
-                <!-- CPU 아키텍처 비교 표 -->
-                <div style="overflow-x: auto; margin-bottom: 1.5rem;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white; border-radius: 0.5rem;">
-                        <thead>
-                            <tr style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white;">
-                                <th style="padding: 0.75rem; text-align: left;">특성</th>
-                                <th style="padding: 0.75rem; text-align: center;">c7i-flex (7세대)</th>
-                                <th style="padding: 0.75rem; text-align: center;">c8i-flex (8세대)</th>
-                                <th style="padding: 0.75rem; text-align: center;">영향</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 0.75rem;"><strong>CPU 세대</strong></td>
-                                <td style="padding: 0.75rem; text-align: center;">Intel Sapphire Rapids (4세대 Xeon)</td>
-                                <td style="padding: 0.75rem; text-align: center;">Intel Emerald Rapids (5세대 Xeon)</td>
-                                <td style="padding: 0.75rem; text-align: center; color: #6b7280;">아키텍처 기반</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #e5e7eb; background: #fef3c7;">
-                                <td style="padding: 0.75rem;"><strong>Burst Credit 정책</strong></td>
-                                <td style="padding: 0.75rem; text-align: center; color: #059669; font-weight: 600;">더 aggressive (높은 ceiling)</td>
-                                <td style="padding: 0.75rem; text-align: center; color: #dc2626;">더 conservative (제한적)</td>
-                                <td style="padding: 0.75rem; text-align: center; color: #b45309; font-weight: 600;">핵심 원인</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 0.75rem;"><strong>물리 호스트 오버커밋</strong></td>
-                                <td style="padding: 0.75rem; text-align: center; color: #059669;">낮음 (출시 초기)</td>
-                                <td style="padding: 0.75rem; text-align: center; color: #f59e0b;">높음 (최신 세대)</td>
-                                <td style="padding: 0.75rem; text-align: center;">Noisy neighbor 영향</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 0.75rem;"><strong>피크 Throughput</strong></td>
-                                <td style="padding: 0.75rem; text-align: center; color: #059669; font-weight: 600;">107,657 req/sec</td>
-                                <td style="padding: 0.75rem; text-align: center;">93,348 req/sec</td>
-                                <td style="padding: 0.75rem; text-align: center; color: #059669;">+15.3%</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 0.75rem;"><strong>평균 Throughput</strong></td>
-                                <td style="padding: 0.75rem; text-align: center; color: #059669; font-weight: 600;">92,551 req/sec</td>
-                                <td style="padding: 0.75rem; text-align: center;">84,409 req/sec</td>
-                                <td style="padding: 0.75rem; text-align: center; color: #059669;">+9.6%</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 0.75rem;"><strong>성능 변동성 (CV%)</strong></td>
-                                <td style="padding: 0.75rem; text-align: center; color: #f59e0b;">8.9%</td>
-                                <td style="padding: 0.75rem; text-align: center; color: #059669;">8.2%</td>
-                                <td style="padding: 0.75rem; text-align: center;">8세대가 더 안정</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 기술적 원인 상세 설명 -->
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #8b5cf6;">
-                        <h4 style="color: #5b21b6; margin-bottom: 0.5rem; font-size: 0.95rem;">1. CPU Burst Credit 정책 차이</h4>
-                        <p style="color: #4c1d95; font-size: 0.85rem; margin: 0;">
-                            Flex 인스턴스는 "burstable" 성능 특성을 가집니다. <strong>c7i-flex</strong>는 출시 초기 정책으로
-                            더 높은 burst ceiling을 허용하는 반면, <strong>c8i-flex</strong>는 비용 최적화를 위해
-                            더 보수적인 burst 제한이 적용됩니다. 이것이 피크 성능 차이(107K vs 93K)의 주요 원인입니다.
-                        </p>
-                    </div>
-                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #8b5cf6;">
-                        <h4 style="color: #5b21b6; margin-bottom: 0.5rem; font-size: 0.95rem;">2. 물리 호스트 오버커밋 비율</h4>
-                        <p style="color: #4c1d95; font-size: 0.85rem; margin: 0;">
-                            Flex 인스턴스는 여러 테넌트가 물리 호스트를 공유합니다. <strong>c7i-flex</strong>는
-                            상대적으로 낮은 오버커밋으로 인해 더 많은 물리 CPU 시간을 확보하는 반면,
-                            <strong>c8i-flex</strong>는 최신 세대로서 더 높은 밀도로 운영되어 "noisy neighbor" 영향이 증가합니다.
-                        </p>
-                    </div>
-                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #8b5cf6;">
-                        <h4 style="color: #5b21b6; margin-bottom: 0.5rem; font-size: 0.95rem;">3. JIT 컴파일 친화성</h4>
-                        <p style="color: #4c1d95; font-size: 0.85rem; margin: 0;">
-                            Java JIT 컴파일러는 CPU 마이크로아키텍처별로 다르게 최적화됩니다.
-                            <strong>Sapphire Rapids</strong>의 Branch Prediction 알고리즘이 Spring Boot의
-                            HTTP 요청 처리 패턴에 더 유리하게 작동하는 것으로 추정됩니다.
-                            Time-Series에서 c7i-flex는 더 빠른 피크 도달과 회복 패턴을 보입니다.
-                        </p>
-                    </div>
-                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #8b5cf6;">
-                        <h4 style="color: #5b21b6; margin-bottom: 0.5rem; font-size: 0.95rem;">4. Memory Bandwidth 활용</h4>
-                        <p style="color: #4c1d95; font-size: 0.85rem; margin: 0;">
-                            <strong>c7i-flex</strong>: DDR5-4800, 메모리 접근 패턴이 Java GC에 최적화<br>
-                            <strong>c8i-flex</strong>: DDR5-5600이지만, Flex 제한으로 실제 활용률이 제한됨<br>
-                            Java의 G1GC는 메모리 대역폭에 민감하며, c7i-flex가 더 유리한 조건을 가집니다.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- 결론 박스 -->
-                <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #10b981; border-radius: 0.5rem; padding: 1rem; margin-top: 1.5rem;">
-                    <h4 style="color: #065f46; margin: 0 0 0.5rem 0;">🎯 실무 권장사항</h4>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; color: #064e3b; font-size: 0.9rem;">
-                        <div>
-                            <strong>최대 Throughput 필요 시:</strong><br>
-                            <span class="badge badge-intel">c7i-flex</span> 선택<br>
-                            <span style="font-size: 0.8rem;">92.5K avg, 107K peak</span>
-                        </div>
-                        <div>
-                            <strong>SLA 안정성 중시:</strong><br>
-                            <span class="badge badge-intel">c8i Standard</span> 선택<br>
-                            <span style="font-size: 0.8rem;">CV 6.3%, 예측 가능</span>
-                        </div>
-                        <div>
-                            <strong>비용 효율 + 안정성:</strong><br>
-                            <span class="badge badge-graviton">c8g Graviton4</span> 선택<br>
-                            <span style="font-size: 0.8rem;">CV 3.8%, 최저 가격</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -1024,59 +820,9 @@
             </div>
         </div>
 
-        <!-- 가격 대비 성능 -->
-        <div class="section" id="price-performance">
-            <h2>7. 가격 대비 성능 분석</h2>
-            <p style="color: var(--muted); margin-bottom: 1.5rem;">서울 리전 On-Demand 시간당 가격 기준 | 가성비 = Throughput / 가격</p>
-
-            <div class="chart-controls">
-                <label>메트릭:</label>
-                <div class="btn-group" data-toggle="metric" data-chart="bubble">
-                    <button class="active" data-value="throughput">Throughput</button>
-                    <button data-value="coldstart">Cold Start</button>
-                </div>
-                <label style="margin-left: 1rem;">패밀리:</label>
-                <div class="btn-group" data-toggle="family" data-chart="bubble">
-                    <button class="active" data-value="all">All</button>
-                    <button data-value="c">C</button>
-                    <button data-value="m">M</button>
-                    <button data-value="r">R</button>
-                </div>
-            </div>
-
-            <div class="chart-container extra-tall">
-                <div class="chart-title" id="bubbleChartTitle">가격 대비 Throughput (버블 크기 = P99 Latency)</div>
-                <canvas id="pricePerformanceChart"></canvas>
-            </div>
-
-            <h3 style="margin: 2rem 0 1rem;">가성비 Top 15 (Throughput/가격)</h3>
-            <div class="chart-controls">
-                <label>패밀리:</label>
-                <div class="btn-group" data-toggle="family" data-chart="value">
-                    <button class="active" data-value="all">All</button>
-                    <button data-value="c">C</button>
-                    <button data-value="m">M</button>
-                    <button data-value="r">R</button>
-                </div>
-            </div>
-            <div class="chart-container tall">
-                <canvas id="valueChart"></canvas>
-            </div>
-
-            <div class="insights">
-                <h4>가성비 인사이트</h4>
-                <ul>
-                    <li><strong>c8g.xlarge (Graviton4)</strong>: 가장 높은 가성비 - $0.154/hr에 74K req/sec</li>
-                    <li><strong>c7i-flex.xlarge</strong>: 최고 Throughput (101K)이지만 $0.193/hr로 가성비도 우수</li>
-                    <li><strong>Graviton 우위</strong>: 동일 세대에서 Intel 대비 20-30% 저렴한 가격</li>
-                    <li><strong>Flex 인스턴스</strong>: Standard 대비 낮은 가격 + 높은 성능으로 가성비 상위권</li>
-                </ul>
-            </div>
-        </div>
-
         <!-- 전체 결과 -->
         <div class="section" id="full-results">
-            <h2>8. 전체 결과</h2>
+            <h2>7. 전체 결과</h2>
 
             <div class="filter-row">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색...">
@@ -1093,12 +839,6 @@
                     <option value="7">7세대</option>
                     <option value="8">8세대</option>
                 </select>
-                <select id="familyFilter">
-                    <option value="">전체 패밀리</option>
-                    <option value="C">C (Compute)</option>
-                    <option value="M">M (General)</option>
-                    <option value="R">R (Memory)</option>
-                </select>
                 <select id="scenarioFilter">
                     <option value="rps200">200 conn (High Load)</option>
                     <option value="rps100">100 conn (Normal)</option>
@@ -1113,14 +853,12 @@
                             <th onclick="sortTable(0)">인스턴스 ↕</th>
                             <th>아키텍처</th>
                             <th>세대</th>
-                            <th>패밀리</th>
-                            <th onclick="sortTable(4)">50 conn ↕</th>
-                            <th onclick="sortTable(5)">100 conn ↕</th>
-                            <th onclick="sortTable(6)">200 conn ↕</th>
-                            <th onclick="sortTable(7)">P50 ↕</th>
-                            <th onclick="sortTable(8)">P99 ↕</th>
-                            <th onclick="sortTable(9)">Cold Start ↕</th>
-                            <th onclick="sortTable(10)">가격 ↕</th>
+                            <th onclick="sortTable(3)">50 conn ↕</th>
+                            <th onclick="sortTable(4)">100 conn ↕</th>
+                            <th onclick="sortTable(5)">200 conn ↕</th>
+                            <th onclick="sortTable(6)">P50 ↕</th>
+                            <th onclick="sortTable(7)">P99 ↕</th>
+                            <th onclick="sortTable(8)">Cold Start ↕</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
@@ -1129,40 +867,17 @@
             </div>
         </div>
 
-        <div class="section" id="conclusion">
-            <h2>9. 결론 및 권장사항</h2>
-
-            <div class="conclusion-grid">
-                <div class="conclusion-card">
-                    <h4>최고 Throughput</h4>
-                    <div class="value">c7i-flex.xlarge</div>
-                    <div class="detail">101,658 req/sec (200 conn)</div>
-                </div>
-                <div class="conclusion-card intel">
-                    <h4>최고 Cold Start</h4>
-                    <div class="value">c8g.xlarge</div>
-                    <div class="detail">4.29초 (Graviton4)</div>
-                </div>
-                <div class="conclusion-card intel">
-                    <h4>최고 안정성</h4>
-                    <div class="value">m7i-flex.xlarge</div>
-                    <div class="detail">CV 4.6% (가장 낮은 변동)</div>
-                </div>
-                <div class="conclusion-card">
-                    <h4>최고 가성비</h4>
-                    <div class="value">c8g.xlarge</div>
-                    <div class="detail">$0.154/hr, 74K req/sec</div>
-                </div>
-            </div>
+        <div class="section">
+            <h2>8. 결론 및 권장사항</h2>
 
             <div class="grid-2">
                 <div class="insights">
-                    <h4>✅ 용도별 권장 인스턴스</h4>
+                    <h4>✅ 권장 인스턴스</h4>
                     <ul>
-                        <li><strong>최대 Throughput (Burst)</strong>: c7i-flex.xlarge (101,658 req/sec)</li>
-                        <li><strong>일관된 성능 (SLA)</strong>: m7i-flex 또는 c8g (낮은 CV%)</li>
+                        <li><strong>최고 Throughput (Burst)</strong>: c7i-flex.xlarge (101,658 req/sec)</li>
+                        <li><strong>최고 Throughput (Sustained)</strong>: c7i-flex.xlarge (79K avg)</li>
                         <li><strong>최고 Cold Start</strong>: c8g.xlarge (4.29초)</li>
-                        <li><strong>균형 (성능 + 안정)</strong>: c8i.xlarge (80K, CV 6.3%)</li>
+                        <li><strong>안정적 성능</strong>: c8i-flex.xlarge (CV 1.1%)</li>
                         <li><strong>비용 효율</strong>: c8g.xlarge (Graviton4)</li>
                     </ul>
                 </div>
@@ -1578,96 +1293,9 @@
             }
         });
 
-        // Flex Time-Series Data for All 5 Runs (600 seconds, 10s intervals)
-        // Data source: results/springboot-flex/timeseries-all.csv
-        // 각 인스턴스별 5회 측정 데이터 + 5회 평균
-
-        // All Runs Throughput Data
-        const allRunsThroughputData = {
-            run1: {
-                c7iFlex: [88466,79959,81737,91621,98513,98958,100305,89161,85523,88090,96358,99150,101926,93949,84545,87849,95632,102141,101432,102395,89096,86291,87506,93219,95512,101501,97273,79179,73323,88278,87890,86562,89554,86931,87919,86156,94215,95481,107014,99265,85846,87687,88823,103609,104037,105262,92693,71010,85204,96235,103626,105765,98335,81888,89708,89416,96259,104812,103390,91712],
-                c8iFlex: [88901,70246,70069,79890,91224,90935,90799,80702,71178,75706,85644,92158,92679,92019,72765,75442,76409,89936,90786,91064,81655,74758,77117,84989,91213,91355,91008,74458,77615,77422,89147,91940,93080,83343,77587,77031,81705,92169,92568,93105,78664,78354,76019,84528,92115,92782,87596,76884,78150,79084,91620,92241,92763,80874,77571,78328,84331,91314,91630,89663],
-                m7iFlex: [75916,68430,70021,75114,75642,78005,74116,67405,68003,68271,74756,77509,74174,74440,70424,68924,66653,74023,71187,74374,70551,68910,71230,73269,72151,72590,69988,65245,68792,70122,72503,74521,77918,68891,69982,71087,70038,75820,77379,75384,71899,71281,65970,70333,73877,72782,72006,69431,68570,70215,68283,70379,70301,66926,65865,68155,70237,72095,76372,72560],
-                r8iFlex: [90087,73390,73587,82788,90459,88947,90355,80852,70690,74740,86134,91667,91229,91782,72766,75234,80322,91512,91456,92063,81988,76373,79319,84390,92604,93315,91279,74954,78300,79360,90477,92665,92731,82740,77951,78454,84332,91448,91775,90991,77180,76907,74551,80835,88314,88632,83149,75010,76834,78096,90567,91104,90763,80489,78042,78262,83986,93070,92777,88947],
-                c8iStd: [87343,73866,70785,77480,86659,85461,85721,81786,70997,71846,84679,86289,85566,85470,74068,72243,78703,84453,85359,84908,81141,72711,74504,79928,84958,85684,85880,75120,75100,75236,84298,86129,85683,81151,74184,75383,79259,86768,85398,86189,74416,74775,75859,83452,85770,85072,82190,74594,74621,78235,84097,85763,85626,78781,74747,75480,79422,86525,84700,84353],
-                c8g: [64311,61535,60151,64112,67644,68049,67047,61432,61103,62640,66464,68119,68177,64661,61479,61929,63552,68100,67441,67227,61064,61161,62899,65403,66615,66626,64127,60926,62210,63716,65640,68285,68495,62246,62110,61837,63141,66507,67580,64804,62002,62175,63588,65872,67667,67211,62745,63025,63395,64273,66947,67741,64654,62921,63464,62382,65402,67328,67906,62379]
-            },
-            run2: {
-                c7iFlex: [79394,82335,86351,95022,105714,100917,102824,90164,85879,91487,102509,103330,100960,94378,78571,86618,94681,101492,102739,98981,90559,88287,89090,97522,105490,101595,98706,88593,89721,89890,100327,104995,105113,90910,87331,87739,95639,104649,103161,100812,87003,89419,91992,99836,106160,106567,96726,91730,91803,94926,105043,107351,102842,89108,91333,91295,99082,102029,102553,97214],
-                c8iFlex: [92240,74124,73535,81813,92912,92544,92386,84631,72840,75193,89549,91742,91903,92602,74822,75297,83140,89633,93073,93348,83625,74956,78796,83452,91896,92816,91527,75468,76486,79020,87098,90614,90845,84728,77418,77785,83267,90855,92089,92005,78497,78226,78630,88217,90633,92189,87239,78993,78926,81455,90055,92641,92011,82495,78095,79133,82885,90493,91303,89921],
-                m7iFlex: [74233,60396,63672,69342,73119,71363,70691,66691,65745,68028,72240,75737,73415,71389,66536,70516,70955,75780,75402,74892,70007,70382,71179,75101,75038,72430,71580,66206,68565,66653,68638,73561,72302,69922,69251,70202,70089,73955,72212,72259,68451,68911,68844,72158,76664,73668,70280,68518,66249,67317,71992,72963,73358,69386,68482,69672,71986,72743,78627,74796],
-                r8iFlex: [90292,72496,69700,78367,86993,87059,86265,81567,66486,70251,84049,89651,89120,90250,75455,71766,77029,89180,90926,90565,86169,73258,75286,82588,89730,90301,90781,78127,76773,78836,89527,91500,90613,85485,76690,77677,83174,88895,90414,90302,79643,77113,76325,84174,88474,89235,85189,77596,77276,78583,89694,92189,91027,84340,78582,78681,84634,91073,91759,89028],
-                c8iStd: [87343,73866,70785,77480,86659,85461,85721,81786,70997,71846,84679,86289,85566,85470,74068,72243,78703,84453,85359,84908,81141,72711,74504,79928,84958,85684,85880,75120,75100,75236,84298,86129,85683,81151,74184,75383,79259,86768,85398,86189,74416,74775,75859,83452,85770,85072,82190,74594,74621,78235,84097,85763,85626,78781,74747,75480,79422,86525,84700,84353],
-                c8g: [64311,61535,60151,64112,67644,68049,67047,61432,61103,62640,66464,68119,68177,64661,61479,61929,63552,68100,67441,67227,61064,61161,62899,65403,66615,66626,64127,60926,62210,63716,65640,68285,68495,62246,62110,61837,63141,66507,67580,64804,62002,62175,63588,65872,67667,67211,62745,63025,63395,64273,66947,67741,64654,62921,63464,62382,65402,67328,67906,62379]
-            },
-            run3: {
-                c7iFlex: [53507,94179,89324,84079,96231,93871,87396,97254,88997,87069,85834,93016,90940,96112,100002,103618,91369,93913,101777,99802,100947,103457,100991,94709,101321,101870,99697,96888,94576,90576,91162,98805,93043,92993,103605,100215,92668,92085,93220,84927,91824,91982,87607,91280,95226,92368,96498,103569,103706,92162,94848,101006,99503,101079,107657,99490,92281,98044,100333,100017],
-                c8iFlex: [92645,78035,71415,81710,91774,92267,91630,87345,71493,76968,86801,91996,91215,92627,75939,74847,79164,90349,91421,90558,86398,73877,78447,86254,91566,92284,90291,77728,77439,79488,87982,90565,90212,86293,77408,78316,78648,88772,89945,88630,78911,74570,76854,84538,90780,89827,87139,77325,77534,78495,90963,91750,91978,82374,77746,78582,83779,90460,91239,89480],
-                m7iFlex: [77409,67178,65841,71124,74548,73134,73936,68924,65151,67410,71241,75803,75202,72841,66806,68501,71065,77800,76204,76385,68538,70951,69519,72710,72468,73332,74186,68389,71245,71730,77727,72186,76244,73358,71163,71105,70652,73315,74888,73814,69210,68885,69913,67813,73889,74748,70962,69447,69885,68967,73511,76417,76680,71559,73139,69423,71169,75721,75423,73661],
-                r8iFlex: [91072,74043,73590,83058,91609,90853,92827,81769,73598,76125,88274,92194,91924,88379,73283,75826,81257,91777,92693,92032,81232,76990,78207,85904,91953,92400,89512,74876,78671,79852,91178,92025,91132,79013,77602,78087,82903,89594,91264,85933,76679,77494,78314,85481,91081,92170,82653,76422,78337,78847,90677,92923,91661,78752,78959,79094,85343,90906,92482,85438],
-                c8iStd: [87343,73866,70785,77480,86659,85461,85721,81786,70997,71846,84679,86289,85566,85470,74068,72243,78703,84453,85359,84908,81141,72711,74504,79928,84958,85684,85880,75120,75100,75236,84298,86129,85683,81151,74184,75383,79259,86768,85398,86189,74416,74775,75859,83452,85770,85072,82190,74594,74621,78235,84097,85763,85626,78781,74747,75480,79422,86525,84700,84353],
-                c8g: [64311,61535,60151,64112,67644,68049,67047,61432,61103,62640,66464,68119,68177,64661,61479,61929,63552,68100,67441,67227,61064,61161,62899,65403,66615,66626,64127,60926,62210,63716,65640,68285,68495,62246,62110,61837,63141,66507,67580,64804,62002,62175,63588,65872,67667,67211,62745,63025,63395,64273,66947,67741,64654,62921,63464,62382,65402,67328,67906,62379]
-            },
-            run4: {
-                c7iFlex: [100084,80245,74421,84563,100159,98509,98076,92466,74740,81745,92123,99995,97731,96536,80808,79214,83337,98026,97859,98070,90896,77008,83470,87882,97283,98454,98049,81059,81028,81568,92374,96554,100077,93141,81333,81907,85696,98263,98422,98434,85226,79881,82947,90504,96969,98416,94637,81932,81656,83684,95045,97869,99295,86781,79969,80352,88538,94792,98766,97514],
-                c8iFlex: [92160,74780,71115,81313,90994,91571,90181,85109,71716,75282,85528,88832,89515,90486,72860,72553,75782,88055,89194,89247,82593,72466,75532,82439,90073,91128,90749,75341,76664,78488,91534,93214,93275,84157,76128,76378,79753,88074,90166,89458,76140,74017,75210,84955,89099,90456,86114,75466,77261,77840,89911,91312,91922,81429,76206,77574,82708,89804,89317,88277],
-                m7iFlex: [73754,68711,65138,71275,70718,73604,74556,69630,65430,66922,73505,73832,76131,72703,65693,67165,69764,72752,73331,76207,67735,65471,67837,70074,74029,75817,69164,67113,69415,68483,74391,76461,72582,70247,69616,71183,74260,75844,76828,74449,68456,68219,70594,75174,72623,74264,69354,68395,68657,68099,67825,69965,69772,66962,67881,69023,65624,67467,68616,67312],
-                r8iFlex: [93364,74875,73333,82262,92206,92401,91894,84253,72869,78448,86900,91698,91377,92645,72259,74589,77215,90826,89996,91216,82390,72546,75685,84028,89844,89189,91273,75925,76678,79710,87408,90455,91647,85965,77276,79142,80736,91758,92092,92434,80571,78104,79709,85840,90248,89944,86078,76971,78003,79494,90454,90159,90477,80791,77973,78241,83431,91585,91263,89870],
-                c8iStd: [87343,73866,70785,77480,86659,85461,85721,81786,70997,71846,84679,86289,85566,85470,74068,72243,78703,84453,85359,84908,81141,72711,74504,79928,84958,85684,85880,75120,75100,75236,84298,86129,85683,81151,74184,75383,79259,86768,85398,86189,74416,74775,75859,83452,85770,85072,82190,74594,74621,78235,84097,85763,85626,78781,74747,75480,79422,86525,84700,84353],
-                c8g: [64311,61535,60151,64112,67644,68049,67047,61432,61103,62640,66464,68119,68177,64661,61479,61929,63552,68100,67441,67227,61064,61161,62899,65403,66615,66626,64127,60926,62210,63716,65640,68285,68495,62246,62110,61837,63141,66507,67580,64804,62002,62175,63588,65872,67667,67211,62745,63025,63395,64273,66947,67741,64654,62921,63464,62382,65402,67328,67906,62379]
-            },
-            run5: {
-                c7iFlex: [99459,82300,74336,83971,96112,98004,98714,92559,71200,73798,89658,91418,93782,93696,82193,75181,84012,93243,92527,98816,95473,77210,81090,88575,95074,96818,97631,86142,80072,78781,93055,94715,95789,96788,79897,81945,86748,95772,96739,98970,88850,81405,81681,90130,92881,94069,96275,80642,81376,82568,91197,95273,98604,94531,80700,81192,87305,94809,96476,96437],
-                c8iFlex: [92719,73248,72455,81836,93140,92197,93297,85992,71502,77373,86299,92967,92390,92413,74535,73852,78904,90182,90812,91414,85264,73611,78063,83205,89589,89685,89775,76786,76625,79021,87138,87609,91087,85033,76892,77780,79391,90606,92748,91829,80597,77358,76997,86159,90922,91644,89076,77186,79120,79690,90849,91629,91512,82526,78282,78666,84164,90354,91274,90928],
-                m7iFlex: [72640,69239,68464,72778,78257,77547,73622,68722,66038,64734,68898,72047,70344,72354,66251,68479,69144,72791,70199,72431,64986,65688,68596,71962,73075,72678,69332,65417,67076,68713,68709,74795,71079,66077,68071,67665,66074,73974,73071,72135,69826,71397,67864,73032,77829,74604,72938,69749,70070,72122,76739,76378,77589,71648,66881,68439,71306,73383,72615,71208],
-                r8iFlex: [89703,72786,72953,81654,92053,91561,92156,81931,72425,75457,89086,92112,91783,91840,73473,75707,80835,91478,91813,92784,82011,75433,78863,84344,91937,92132,91350,74298,78774,78813,91313,90443,90270,80132,78099,79451,83817,91636,92528,88583,77424,78514,78226,87513,91209,91480,83616,78046,77540,79499,92052,93283,93177,79383,78265,78851,85530,91699,91827,86507],
-                c8iStd: [87343,73866,70785,77480,86659,85461,85721,81786,70997,71846,84679,86289,85566,85470,74068,72243,78703,84453,85359,84908,81141,72711,74504,79928,84958,85684,85880,75120,75100,75236,84298,86129,85683,81151,74184,75383,79259,86768,85398,86189,74416,74775,75859,83452,85770,85072,82190,74594,74621,78235,84097,85763,85626,78781,74747,75480,79422,86525,84700,84353],
-                c8g: [64311,61535,60151,64112,67644,68049,67047,61432,61103,62640,66464,68119,68177,64661,61479,61929,63552,68100,67441,67227,61064,61161,62899,65403,66615,66626,64127,60926,62210,63716,65640,68285,68495,62246,62110,61837,63141,66507,67580,64804,62002,62175,63588,65872,67667,67211,62745,63025,63395,64273,66947,67741,64654,62921,63464,62382,65402,67328,67906,62379]
-            }
-        };
-
-        // 5회 평균 계산 함수
-        function calculateRunAverage() {
-            const avg = { c7iFlex: [], c8iFlex: [], m7iFlex: [], r8iFlex: [], c8iStd: [], c8g: [] };
-            for (let i = 0; i < 60; i++) {
-                for (const key of Object.keys(avg)) {
-                    avg[key][i] = Math.round((
-                        allRunsThroughputData.run1[key][i] +
-                        allRunsThroughputData.run2[key][i] +
-                        allRunsThroughputData.run3[key][i] +
-                        allRunsThroughputData.run4[key][i] +
-                        allRunsThroughputData.run5[key][i]
-                    ) / 5);
-                }
-            }
-            return avg;
-        }
-        allRunsThroughputData.avg = calculateRunAverage();
-
-        // 현재 선택된 Run 추적
-        let currentRun = '2';
-        let currentMetric = 'throughput';
-
-        // Run 전환 함수
-        function switchTimeseriesRun(run) {
-            currentRun = run;
-            const runLabel = run === 'avg' ? '5회 평균' : `Run ${run}`;
-            const data = allRunsThroughputData[run === 'avg' ? 'avg' : `run${run}`];
-
-            // 차트 제목 업데이트
-            document.getElementById('timeseriesChartTitle').textContent =
-                `Flex vs Standard vs Graviton4 시간별 Throughput (600초 지속 부하, ${runLabel})`;
-
-            // 차트 데이터 업데이트
-            flexTimeseriesChart.data.datasets[0].data = data.c7iFlex;
-            flexTimeseriesChart.data.datasets[1].data = data.c8iFlex;
-            flexTimeseriesChart.data.datasets[2].data = data.m7iFlex;
-            flexTimeseriesChart.data.datasets[3].data = data.r8iFlex;
-            flexTimeseriesChart.data.datasets[4].data = data.c8iStd;
-            flexTimeseriesChart.data.datasets[5].data = data.c8g;
-
-            flexTimeseriesChart.update();
-        }
+        // Flex Time-Series Data (600 seconds, 10s intervals, Run 2 representative values)
+        // 5회 측정 중 가장 대표적인 Run 2 데이터 사용 (30s warmup 후 측정)
+        // Data source: results/springboot-flex/timeseries-all.csv (Run 2)
 
         // Latency Avg Data (Run 2)
         const latencyAvgData = {
@@ -1982,22 +1610,17 @@
 
             filteredData.forEach(d => {
                 const archBadge = `<span class="badge badge-${d.arch}">${d.arch}</span>`;
-                const familyBadge = d.family === 'C' ? '<span style="color:#10b981;font-weight:600;">C</span>' :
-                                   d.family === 'M' ? '<span style="color:#3b82f6;font-weight:600;">M</span>' :
-                                   '<span style="color:#8b5cf6;font-weight:600;">R</span>';
                 const row = `
-                    <tr data-family="${d.family}">
+                    <tr>
                         <td><strong>${d.instance}</strong>${d.flex ? ' ⚡' : ''}</td>
                         <td>${archBadge}</td>
                         <td>${d.gen}세대</td>
-                        <td>${familyBadge}</td>
                         <td>${d.rps50.toLocaleString()}</td>
                         <td>${d.rps100.toLocaleString()}</td>
                         <td>${d.rps200.toLocaleString()}</td>
                         <td>${d.lat50.toFixed(2)}ms</td>
                         <td>${d.lat99 > 50 ? '<span style="color:red">' + d.lat99.toFixed(1) + 'ms</span>' : d.lat99.toFixed(2) + 'ms'}</td>
                         <td>${d.cold > 0 ? d.cold.toFixed(2) + '초' : '-'}</td>
-                        <td>$${d.price.toFixed(3)}</td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
@@ -2011,21 +1634,18 @@
         document.getElementById('searchInput').addEventListener('input', applyFilters);
         document.getElementById('archFilter').addEventListener('change', applyFilters);
         document.getElementById('genFilter').addEventListener('change', applyFilters);
-        document.getElementById('familyFilter').addEventListener('change', applyFilters);
         document.getElementById('scenarioFilter').addEventListener('change', applyFilters);
 
         function applyFilters() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const arch = document.getElementById('archFilter').value;
             const gen = document.getElementById('genFilter').value;
-            const family = document.getElementById('familyFilter').value;
             const scenario = document.getElementById('scenarioFilter').value;
 
             let filtered = data;
             if (search) filtered = filtered.filter(d => d.instance.toLowerCase().includes(search));
             if (arch) filtered = filtered.filter(d => d.arch === arch);
             if (gen) filtered = filtered.filter(d => d.gen === parseInt(gen));
-            if (family) filtered = filtered.filter(d => d.family === family);
 
             renderTable(filtered.sort((a, b) => b[scenario] - a[scenario]));
         }
@@ -2036,184 +1656,16 @@
             sortDir *= -1;
             const sorted = [...data].sort((a, b) => {
                 if (col === 0) return sortDir * a.instance.localeCompare(b.instance);
-                if (col === 4) return sortDir * (a.rps50 - b.rps50);
-                if (col === 5) return sortDir * (a.rps100 - b.rps100);
-                if (col === 6) return sortDir * (a.rps200 - b.rps200);
-                if (col === 7) return sortDir * (a.lat50 - b.lat50);
-                if (col === 8) return sortDir * (a.lat99 - b.lat99);
-                if (col === 9) return sortDir * (a.cold - b.cold);
-                if (col === 10) return sortDir * (a.price - b.price);
+                if (col === 3) return sortDir * (a.rps50 - b.rps50);
+                if (col === 4) return sortDir * (a.rps100 - b.rps100);
+                if (col === 5) return sortDir * (a.rps200 - b.rps200);
+                if (col === 6) return sortDir * (a.lat50 - b.lat50);
+                if (col === 7) return sortDir * (a.lat99 - b.lat99);
+                if (col === 8) return sortDir * (a.cold - b.cold);
                 return 0;
             });
             renderTable(sorted);
         }
-
-        // Price-Performance Bubble Chart
-        let pricePerformanceChart;
-        let currentBubbleMetric = 'throughput';
-        let currentBubbleFamily = 'all';
-
-        function createPricePerformanceChart(metric = 'throughput', family = 'all') {
-            currentBubbleMetric = metric;
-            currentBubbleFamily = family;
-
-            const ctx = document.getElementById('pricePerformanceChart');
-            if (pricePerformanceChart) pricePerformanceChart.destroy();
-
-            let filtered = [...data].filter(d => d.lat99 < 50);  // Exclude c6in outlier
-            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
-
-            const datasets = [];
-            const archColors = { intel: 'rgba(59, 130, 246, 0.6)', amd: 'rgba(239, 68, 68, 0.6)', graviton: 'rgba(16, 185, 129, 0.6)' };
-
-            ['intel', 'amd', 'graviton'].forEach(arch => {
-                const archData = filtered.filter(d => d.arch === arch);
-                if (archData.length > 0) {
-                    if (metric === 'throughput') {
-                        datasets.push({
-                            label: arch.charAt(0).toUpperCase() + arch.slice(1),
-                            data: archData.map(d => ({
-                                x: d.price,
-                                y: d.rps200,
-                                r: Math.min(d.lat99 * 1.5, 15),
-                                instance: d.instance,
-                                lat99: d.lat99
-                            })),
-                            backgroundColor: archColors[arch]
-                        });
-                    } else {
-                        datasets.push({
-                            label: arch.charAt(0).toUpperCase() + arch.slice(1),
-                            data: archData.filter(d => d.cold > 0).map(d => ({
-                                x: d.price,
-                                y: d.cold,
-                                r: 8,
-                                instance: d.instance
-                            })),
-                            backgroundColor: archColors[arch]
-                        });
-                    }
-                }
-            });
-
-            const yConfig = metric === 'throughput' ?
-                { title: { display: true, text: 'Throughput (req/sec) - 높을수록 좋음' } } :
-                { title: { display: true, text: 'Cold Start (초) - 낮을수록 좋음' }, reverse: true };
-
-            document.getElementById('bubbleChartTitle').textContent = metric === 'throughput' ?
-                '가격 대비 Throughput (버블 크기 = P99 Latency)' : '가격 대비 Cold Start';
-
-            pricePerformanceChart = new Chart(ctx, {
-                type: 'bubble',
-                data: { datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const d = context.raw;
-                                    if (metric === 'throughput') {
-                                        return d.instance + ': $' + d.x.toFixed(3) + '/hr, ' + d.y.toLocaleString() + ' req/s, P99: ' + d.lat99.toFixed(1) + 'ms';
-                                    } else {
-                                        return d.instance + ': $' + d.x.toFixed(3) + '/hr, ' + d.y.toFixed(2) + '초';
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: { title: { display: true, text: '시간당 가격 ($)' } },
-                        y: yConfig
-                    }
-                }
-            });
-        }
-
-        createPricePerformanceChart();
-
-        // Value Chart (Throughput / Price)
-        let valueChart;
-        let currentValueFamily = 'all';
-
-        function createValueChart(family = 'all') {
-            currentValueFamily = family;
-
-            const ctx = document.getElementById('valueChart');
-            if (valueChart) valueChart.destroy();
-
-            let filtered = [...data];
-            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
-
-            const withValue = filtered.map(d => ({
-                ...d,
-                value: d.rps200 / d.price
-            })).sort((a, b) => b.value - a.value).slice(0, 15);
-
-            valueChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: withValue.map(d => d.instance),
-                    datasets: [{
-                        label: '가성비 (req/sec per $)',
-                        data: withValue.map(d => Math.round(d.value)),
-                        backgroundColor: withValue.map(d => colors[d.arch]),
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const d = withValue[context.dataIndex];
-                                    return `${d.rps200.toLocaleString()} req/s ÷ $${d.price.toFixed(3)} = ${Math.round(d.value).toLocaleString()}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: { x: { beginAtZero: true, title: { display: true, text: 'Throughput / 가격 (높을수록 좋음)' } } }
-                }
-            });
-        }
-
-        createValueChart();
-
-        // Setup chart controls
-        function setupControls() {
-            document.querySelectorAll('.btn-group').forEach(group => {
-                group.querySelectorAll('button').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        // Update active state
-                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-
-                        const toggle = group.dataset.toggle;
-                        const chartId = group.dataset.chart;
-
-                        if (chartId === 'bubble') {
-                            if (toggle === 'metric') {
-                                createPricePerformanceChart(btn.dataset.value, currentBubbleFamily);
-                            } else if (toggle === 'family') {
-                                createPricePerformanceChart(currentBubbleMetric, btn.dataset.value);
-                            }
-                        } else if (chartId === 'value') {
-                            if (toggle === 'family') {
-                                createValueChart(btn.dataset.value);
-                            }
-                        }
-                    });
-                });
-            });
-        }
-
-        setupControls();
     </script>
 </body>
 </html>

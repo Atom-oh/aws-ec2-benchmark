@@ -229,6 +229,92 @@
         .info-icon.env {
             background: rgba(245, 158, 11, 0.2);
         }
+
+        /* Summary Section */
+        .summary-section {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 40px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .summary-section h3 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .summary-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .summary-card-title {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-card-value {
+            color: #10b981;
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .summary-card-detail {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .summary-card.intel .summary-card-value { color: #3b82f6; }
+        .summary-card.graviton .summary-card-value { color: #10b981; }
+
+        .key-insights {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .key-insights h4 {
+            color: #f59e0b;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .insights-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .insight-item {
+            color: #d1d5db;
+            font-size: 0.9rem;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .insight-item::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #10b981;
+        }
     </style>
 </head>
 <body>
@@ -243,20 +329,56 @@
             </div>
         </header>
 
+        <!-- Benchmark Summary -->
+        <div class="summary-section">
+            <h3>📈 종합 벤치마크 결과</h3>
+            <div class="summary-grid">
+                <div class="summary-card graviton">
+                    <div class="summary-card-title">CPU 최고 성능 (Multi-core)</div>
+                    <div class="summary-card-value">Graviton4 (c8g)</div>
+                    <div class="summary-card-detail">Geekbench 5,804 / Sysbench 4,947 events/sec</div>
+                </div>
+                <div class="summary-card intel">
+                    <div class="summary-card-title">CPU 최고 성능 (Single-core)</div>
+                    <div class="summary-card-value">Intel 8세대 (c8i)</div>
+                    <div class="summary-card-detail">Geekbench Single 2,199 / 고클럭 워크로드 최적</div>
+                </div>
+                <div class="summary-card graviton">
+                    <div class="summary-card-title">최고 가성비</div>
+                    <div class="summary-card-value">c7i-flex / c8g</div>
+                    <div class="summary-card-detail">Intel flex: 저렴한 가격 / Graviton: 높은 성능</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">네트워크 최고 성능</div>
+                    <div class="summary-card-value">c6in.xlarge</div>
+                    <div class="summary-card-detail">TCP 24.2 Gbps / 네트워크 최적화 인스턴스</div>
+                </div>
+            </div>
+            <div class="key-insights">
+                <h4>💡 핵심 인사이트</h4>
+                <div class="insights-list">
+                    <div class="insight-item">Graviton4는 멀티코어에서 Intel 8세대 대비 16% 빠르고 20% 저렴</div>
+                    <div class="insight-item">Intel 8세대는 싱글코어 성능 최강 (레거시 앱, 고클럭 필요 워크로드)</div>
+                    <div class="insight-item">flex 인스턴스는 일반 대비 25% 저렴하면서 90% 이상 성능 유지</div>
+                    <div class="insight-item">Cold Start가 중요한 서버리스는 Intel 8세대, 처리량은 Graviton 권장</div>
+                </div>
+            </div>
+        </div>
+
         <div class="cards">
             <!-- System Benchmarks -->
             <a href="reports/geekbench-report.html" class="card">
                 <div class="card-icon">🏆</div>
                 <h2>Geekbench 6</h2>
-                <p>업계 표준 CPU 벤치마크. 싱글코어/멀티코어 성능을 측정합니다.</p>
+                <p>업계 표준 크로스 플랫폼 벤치마크. 실제 워크로드(이미지 처리, 머신러닝, 암호화)를 시뮬레이션하여 싱글/멀티코어 성능을 측정합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
-                        <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">c8i (Single)</span>
+                        <span class="stat-label">최고 싱글</span>
+                        <span class="stat-value">c8i</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">Score</span>
+                        <span class="stat-label">최고 멀티</span>
+                        <span class="stat-value">c8g</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -265,7 +387,7 @@
             <a href="reports/passmark-report.html" class="card">
                 <div class="card-icon">📊</div>
                 <h2>PassMark</h2>
-                <p>종합 CPU 성능 측정. 정수/부동소수점 연산 성능을 분석합니다.</p>
+                <p>종합 CPU 성능 측정 도구. 정수/부동소수점 연산, 압축, 물리 시뮬레이션 등 다양한 테스트로 실제 컴퓨팅 성능을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
@@ -282,7 +404,7 @@
             <a href="reports/sysbench-report.html" class="card">
                 <div class="card-icon">⚙️</div>
                 <h2>Sysbench</h2>
-                <p>CPU/메모리 벤치마크. 이벤트 처리 속도를 측정합니다.</p>
+                <p>오픈소스 멀티스레드 벤치마크. CPU 소수 계산과 메모리 순차/랜덤 접근 성능을 측정하여 데이터베이스 워크로드 적합성을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
@@ -299,7 +421,7 @@
             <a href="reports/stress-ng-report.html" class="card">
                 <div class="card-icon">🔥</div>
                 <h2>stress-ng</h2>
-                <p>종합 시스템 스트레스 테스트. CPU, 메모리, 캐시 성능을 분석합니다.</p>
+                <p>300+ 스트레스 테스트 지원. CPU 연산(정수, 부동소수점), 메모리 대역폭, L1/L2/L3 캐시 성능을 종합적으로 측정합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
@@ -316,7 +438,7 @@
             <a href="reports/iperf3-report.html" class="card">
                 <div class="card-icon">🌐</div>
                 <h2>iperf3 Network</h2>
-                <p>네트워크 대역폭 측정. TCP 처리량을 분석합니다.</p>
+                <p>네트워크 대역폭 측정 표준 도구. 동일 VPC 내 TCP 처리량과 지연시간을 측정하여 네트워크 집약적 워크로드 성능을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
@@ -334,7 +456,7 @@
             <a href="reports/redis-report.html" class="card">
                 <div class="card-icon">⚡</div>
                 <h2>Redis</h2>
-                <p>인메모리 캐시 성능 측정. 10개 명령어의 초당 처리량을 분석합니다.</p>
+                <p>인메모리 데이터베이스 벤치마크. SET/GET 등 주요 명령어의 초당 처리량을 측정하여 캐싱, 세션 저장소 성능을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
@@ -351,7 +473,7 @@
             <a href="reports/nginx-report.html" class="card">
                 <div class="card-icon">🚀</div>
                 <h2>Nginx</h2>
-                <p>HTTP 요청 처리 성능 측정. wrk를 사용한 처리량과 지연 시간을 분석합니다.</p>
+                <p>웹 서버/리버스 프록시 성능 측정. wrk 부하 테스트로 초당 요청 처리량과 지연 시간을 측정하여 웹 서비스 성능을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
@@ -368,10 +490,10 @@
             <a href="reports/springboot-report.html" class="card">
                 <div class="card-icon">☕</div>
                 <h2>Spring Boot</h2>
-                <p>Java 애플리케이션 성능 측정. HTTP 처리량과 JVM Cold Start를 분석합니다.</p>
+                <p>Java/JVM 워크로드 성능 측정. PetClinic 앱의 Cold Start 시간과 HTTP 처리량을 분석하여 서버리스/컨테이너 환경 적합성을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
-                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-label">최고 처리량</span>
                         <span class="stat-value">m7i-flex</span>
                     </div>
                     <div class="stat">
@@ -385,7 +507,7 @@
             <a href="reports/elasticsearch-report.html" class="card">
                 <div class="card-icon">🔍</div>
                 <h2>Elasticsearch</h2>
-                <p>Cold Start 성능 측정. 노드 시작부터 첫 HTTP 응답까지의 시간을 분석합니다.</p>
+                <p>분산 검색 엔진 Cold Start 성능 측정. 노드 시작 시간을 분석하여 클러스터 스케일링, 장애 복구 시나리오에서의 성능을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
@@ -393,7 +515,7 @@
                     </div>
                     <div class="stat">
                         <span class="stat-label">메트릭</span>
-                        <span class="stat-value">Cold Start (ms)</span>
+                        <span class="stat-value">Cold Start (s)</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>

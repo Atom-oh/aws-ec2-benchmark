@@ -308,43 +308,6 @@
             font-size: 0.875rem;
         }
 
-        /* Chart Controls */
-        .chart-controls {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .chart-controls label {
-            font-size: 0.875rem;
-            color: var(--muted);
-        }
-        .btn-group {
-            display: flex;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-        }
-        .btn-group button {
-            padding: 0.5rem 1rem;
-            border: none;
-            background: #f8fafc;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-        .btn-group button:hover {
-            background: #e2e8f0;
-        }
-        .btn-group button.active {
-            background: #3b82f6;
-            color: white;
-        }
-        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #10b981; }
-        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #3b82f6; }
-        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
-
         @media (max-width: 768px) {
             .container { padding: 1rem; }
             header h1 { font-size: 1.75rem; }
@@ -603,15 +566,6 @@
             <div class="chart-section">
                 <h2>3. TCP 병렬 대역폭 Top 20</h2>
                 <p class="description">8개 병렬 TCP 스트림 대역폭 (Gbps) - 높을수록 좋음</p>
-                <div class="chart-controls">
-                    <label>패밀리:</label>
-                    <div class="btn-group" data-toggle="family" data-chart="parallel">
-                        <button class="active" data-value="all">All</button>
-                        <button data-value="c">C</button>
-                        <button data-value="m">M</button>
-                        <button data-value="r">R</button>
-                    </div>
-                </div>
                 <div class="chart-container tall">
                     <canvas id="parallelChart"></canvas>
                 </div>
@@ -666,15 +620,6 @@
             <div class="chart-section">
                 <h2>4. 가격 대비 성능 분석</h2>
                 <p class="description">X축: 시간당 비용 ($/hr), Y축: TCP 병렬 대역폭 (Gbps) - 좌상단이 가성비 우수</p>
-                <div class="chart-controls">
-                    <label>패밀리:</label>
-                    <div class="btn-group" data-toggle="family" data-chart="bubble">
-                        <button class="active" data-value="all">All</button>
-                        <button data-value="c">C</button>
-                        <button data-value="m">M</button>
-                        <button data-value="r">R</button>
-                    </div>
-                </div>
                 <div class="chart-container tall">
                     <canvas id="pricePerformanceChart"></canvas>
                 </div>
@@ -683,15 +628,6 @@
             <div class="chart-section">
                 <h2>가성비 Top 15 (TCP 병렬 대역폭 / 시간당 비용)</h2>
                 <p class="description">단위 비용당 네트워크 대역폭 (Gbps / $/hr)</p>
-                <div class="chart-controls">
-                    <label>패밀리:</label>
-                    <div class="btn-group" data-toggle="family" data-chart="efficiency">
-                        <button class="active" data-value="all">All</button>
-                        <button data-value="c">C</button>
-                        <button data-value="m">M</button>
-                        <button data-value="r">R</button>
-                    </div>
-                </div>
                 <div class="chart-container tall">
                     <canvas id="efficiencyChart"></canvas>
                 </div>
@@ -989,48 +925,37 @@
         };
 
         // TCP Parallel Chart (Top 20)
-        let parallelChart;
-        function createParallelChart(family = 'all') {
-            let filtered = [...data];
-            if (family !== 'all') {
-                filtered = filtered.filter(d => d.family === family.toUpperCase());
-            }
-            const parallelTop20 = filtered.sort((a, b) => b.parallel - a.parallel).slice(0, 20);
-
-            if (parallelChart) parallelChart.destroy();
-
-            parallelChart = new Chart(document.getElementById('parallelChart'), {
-                type: 'bar',
-                data: {
-                    labels: parallelTop20.map(d => d.instance),
-                    datasets: [{
-                        label: 'TCP Parallel (Gbps)',
-                        data: parallelTop20.map(d => d.parallel),
-                        backgroundColor: parallelTop20.map(d => colors[d.arch])
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: (ctx) => {
-                                    const d = parallelTop20[ctx.dataIndex];
-                                    return `아키텍처: ${archLabels[d.arch]}\n세대: ${d.gen}세대\n가격: $${d.price}/hr`;
-                                }
+        const parallelTop20 = data.slice(0, 20);
+        new Chart(document.getElementById('parallelChart'), {
+            type: 'bar',
+            data: {
+                labels: parallelTop20.map(d => d.instance),
+                datasets: [{
+                    label: 'TCP Parallel (Gbps)',
+                    data: parallelTop20.map(d => d.parallel),
+                    backgroundColor: parallelTop20.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (ctx) => {
+                                const d = parallelTop20[ctx.dataIndex];
+                                return `아키텍처: ${archLabels[d.arch]}\n세대: ${d.gen}세대\n가격: $${d.price}/hr`;
                             }
                         }
-                    },
-                    scales: {
-                        x: { title: { display: true, text: 'Gbps' } }
                     }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Gbps' } }
                 }
-            });
-        }
-        createParallelChart();
+            }
+        });
 
         // TCP Single Chart
         const singleData = [...data].sort((a, b) => b.single - a.single).slice(0, 20);
@@ -1158,118 +1083,98 @@
         });
 
         // Price vs Performance bubble chart
-        let pricePerformanceChart;
-        function createPricePerformanceChart(family = 'all') {
-            let filtered = data.filter(d => d.price > 0);
-            if (family !== 'all') {
-                filtered = filtered.filter(d => d.family === family.toUpperCase());
-            }
+        const bubbleData = data.filter(d => d.price > 0).map(d => ({
+            x: d.price,
+            y: d.parallel,
+            r: 8,
+            instance: d.instance,
+            arch: d.arch,
+            efficiency: d.efficiency
+        }));
 
-            const bubbleData = filtered.map(d => ({
-                x: d.price,
-                y: d.parallel,
-                r: 8,
-                instance: d.instance,
-                arch: d.arch,
-                efficiency: d.efficiency
-            }));
-
-            if (pricePerformanceChart) pricePerformanceChart.destroy();
-
-            pricePerformanceChart = new Chart(document.getElementById('pricePerformanceChart'), {
-                type: 'bubble',
-                data: {
-                    datasets: [
-                        {
-                            label: 'Graviton',
-                            data: bubbleData.filter(d => d.arch === 'graviton'),
-                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
-                            borderColor: colors.graviton
-                        },
-                        {
-                            label: 'Intel',
-                            data: bubbleData.filter(d => d.arch === 'intel'),
-                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                            borderColor: colors.intel
-                        },
-                        {
-                            label: 'AMD',
-                            data: bubbleData.filter(d => d.arch === 'amd'),
-                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                            borderColor: colors.amd
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => {
-                                    const d = ctx.raw;
-                                    return [
-                                        d.instance,
-                                        `가격: $${d.x.toFixed(4)}/hr`,
-                                        `TCP Parallel: ${d.y.toFixed(2)} Gbps`,
-                                        `가성비: ${d.efficiency} Gbps/$`
-                                    ];
-                                }
+        new Chart(document.getElementById('pricePerformanceChart'), {
+            type: 'bubble',
+            data: {
+                datasets: [
+                    {
+                        label: 'Graviton',
+                        data: bubbleData.filter(d => d.arch === 'graviton'),
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        borderColor: colors.graviton
+                    },
+                    {
+                        label: 'Intel',
+                        data: bubbleData.filter(d => d.arch === 'intel'),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: colors.intel
+                    },
+                    {
+                        label: 'AMD',
+                        data: bubbleData.filter(d => d.arch === 'amd'),
+                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                        borderColor: colors.amd
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const d = ctx.raw;
+                                return [
+                                    d.instance,
+                                    `가격: $${d.x.toFixed(4)}/hr`,
+                                    `TCP Parallel: ${d.y.toFixed(2)} Gbps`,
+                                    `가성비: ${d.efficiency} Gbps/$`
+                                ];
                             }
                         }
-                    },
-                    scales: {
-                        x: { title: { display: true, text: '시간당 비용 ($/hr)' } },
-                        y: { title: { display: true, text: 'TCP Parallel (Gbps)' }, beginAtZero: true }
                     }
+                },
+                scales: {
+                    x: { title: { display: true, text: '시간당 비용 ($/hr)' } },
+                    y: { title: { display: true, text: 'TCP Parallel (Gbps)' }, beginAtZero: true }
                 }
-            });
-        }
-        createPricePerformanceChart();
+            }
+        });
 
         // Efficiency chart
-        let efficiencyChart;
-        function createEfficiencyChart(family = 'all') {
-            let filtered = [...data].filter(d => d.price > 0);
-            if (family !== 'all') {
-                filtered = filtered.filter(d => d.family === family.toUpperCase());
-            }
-            const efficiencyData = filtered
-                .sort((a, b) => parseFloat(b.efficiency) - parseFloat(a.efficiency))
-                .slice(0, 15);
+        const efficiencyData = [...data]
+            .filter(d => d.price > 0)
+            .sort((a, b) => parseFloat(b.efficiency) - parseFloat(a.efficiency))
+            .slice(0, 15);
 
-            if (efficiencyChart) efficiencyChart.destroy();
-
-            efficiencyChart = new Chart(document.getElementById('efficiencyChart'), {
-                type: 'bar',
-                data: {
-                    labels: efficiencyData.map(d => d.instance),
-                    datasets: [{
-                        label: '가성비 (Gbps / $/hr)',
-                        data: efficiencyData.map(d => d.efficiency),
-                        backgroundColor: efficiencyData.map(d => colors[d.arch])
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: (ctx) => {
-                                    const d = efficiencyData[ctx.dataIndex];
-                                    return `TCP Parallel: ${d.parallel} Gbps\n가격: $${d.price}/hr`;
-                                }
+        new Chart(document.getElementById('efficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: efficiencyData.map(d => d.instance),
+                datasets: [{
+                    label: '가성비 (Gbps / $/hr)',
+                    data: efficiencyData.map(d => d.efficiency),
+                    backgroundColor: efficiencyData.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (ctx) => {
+                                const d = efficiencyData[ctx.dataIndex];
+                                return `TCP Parallel: ${d.parallel} Gbps\n가격: $${d.price}/hr`;
                             }
                         }
-                    },
-                    scales: { x: { title: { display: true, text: 'Gbps / $/hr' } } }
-                }
-            });
-        }
-        createEfficiencyChart();
+                    }
+                },
+                scales: { x: { title: { display: true, text: 'Gbps / $/hr' } } }
+            }
+        });
 
         // Data table with filters
         const tbody = document.getElementById('dataTable').querySelector('tbody');
@@ -1346,30 +1251,6 @@
 
         // Initial render
         renderTable(data);
-
-        // Chart controls (family filter) setup
-        function setupControls() {
-            document.querySelectorAll('.btn-group[data-toggle="family"]').forEach(group => {
-                group.querySelectorAll('button').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-
-                        const chartId = group.dataset.chart;
-                        const family = btn.dataset.value;
-
-                        if (chartId === 'parallel') {
-                            createParallelChart(family);
-                        } else if (chartId === 'bubble') {
-                            createPricePerformanceChart(family);
-                        } else if (chartId === 'efficiency') {
-                            createEfficiencyChart(family);
-                        }
-                    });
-                });
-            });
-        }
-        setupControls();
     </script>
 </body>
 </html>

@@ -348,45 +348,6 @@
             header h1 { font-size: 1.5rem; }
             .chart-container { height: 300px; }
         }
-
-        /* Chart Controls - btn-group style */
-        .chart-controls {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .chart-controls label {
-            font-size: 0.875rem;
-            color: var(--muted);
-            font-weight: 500;
-        }
-        .btn-group {
-            display: flex;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-        }
-        .btn-group button {
-            padding: 0.5rem 1rem;
-            border: none;
-            background: #f8fafc;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-        .btn-group button:hover {
-            background: #e2e8f0;
-        }
-        .btn-group button.active {
-            background: #ef4444;
-            color: white;
-        }
-        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #10b981; }
-        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #3b82f6; }
-        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
-
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -444,22 +405,10 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="../index.html" class="navbar-brand">🏠 EC2 Benchmark</a>
-            <div class="navbar-links">
-                <a href="geekbench-report.html">Geekbench</a>
-                <a href="passmark-report.html">PassMark</a>
-                <a href="sysbench-report.html">Sysbench</a>
-                <a href="stress-ng-report.html">stress-ng</a>
-                <a href="iperf3-report.html">iperf3</a>
-                <a href="redis-report.html" class="active">Redis</a>
-                <a href="nginx-report.html">Nginx</a>
-                <a href="springboot-report.html">SpringBoot</a>
-                <a href="elasticsearch-report.html">Elasticsearch</a>
-            </div>
-        </div>
-    </nav>
+<nav class="navbar">
+    <div class="navbar-container">
+        <a href="index.html" class="navbar-brand">EC2 Benchmark</a>
+        <div class="navbar-links"><a href="geekbench-report.html">Geekbench</a><a href="passmark-report.html">PassMark</a><a href="sysbench-report.html">Sysbench</a><a href="stress-ng-report.html">stress-ng</a><a href="iperf3-report.html">iperf3</a><a href="redis-report.html" class="active">Redis</a><a href="nginx-report.html">Nginx</a><a href="springboot-report.html">SpringBoot</a><a href="elasticsearch-report.html">Elasticsearch</a></div>    </div></nav>
     <div class="container">
         <header>
             <h1>Redis 100M 벤치마크</h1>
@@ -794,15 +743,6 @@
         <div class="chart-section">
             <h2>가격 대비 성능 분석</h2>
             <p class="description">X축: 시간당 비용($), Y축: SET ops/sec | 우측 상단이 최적</p>
-            <div class="chart-controls">
-                <label>패밀리:</label>
-                <div class="btn-group" data-toggle="family" data-chart="bubble">
-                    <button class="active" data-value="all">All</button>
-                    <button data-value="C">C</button>
-                    <button data-value="M">M</button>
-                    <button data-value="R">R</button>
-                </div>
-            </div>
             <div class="chart-container tall">
                 <canvas id="pricePerformanceChart"></canvas>
             </div>
@@ -817,15 +757,6 @@
         <div class="chart-section">
             <h2>가성비 Top 15 (효율성 점수)</h2>
             <p class="description">효율성 = ops_per_sec / ($/hr x 1000) | 높을수록 좋음</p>
-            <div class="chart-controls">
-                <label>패밀리:</label>
-                <div class="btn-group" data-toggle="family" data-chart="efficiency">
-                    <button class="active" data-value="all">All</button>
-                    <button data-value="C">C</button>
-                    <button data-value="M">M</button>
-                    <button data-value="R">R</button>
-                </div>
-            </div>
             <div class="chart-container">
                 <canvas id="costEfficiencyChart"></canvas>
             </div>
@@ -1474,94 +1405,73 @@
         });
 
         // 차트 9: 가격 대비 성능
-        let pricePerformanceChart;
-        function createPricePerformanceChart(family = 'all') {
-            let filtered = [...allInstances];
-            if (family !== 'all') {
-                filtered = filtered.filter(i => i.family === family);
-            }
+        const bubbleData = allInstances.map(i => ({
+            x: i.price,
+            y: i.opsSec,
+            r: 8,
+            label: i.name,
+            arch: i.arch
+        }));
 
-            const bubbleData = filtered.map(i => ({
-                x: i.price,
-                y: i.opsSec,
-                r: 8,
-                label: i.name,
-                arch: i.arch
-            }));
-
-            if (pricePerformanceChart) pricePerformanceChart.destroy();
-
-            pricePerformanceChart = new Chart(document.getElementById('pricePerformanceChart'), {
-                type: 'bubble',
-                data: {
-                    datasets: [
-                        { label: 'Graviton', data: bubbleData.filter(d => d.arch === 'Graviton'), backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: '#10b981' },
-                        { label: 'Intel', data: bubbleData.filter(d => d.arch === 'Intel'), backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: '#3b82f6' },
-                        { label: 'AMD', data: bubbleData.filter(d => d.arch === 'AMD'), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: '#ef4444' }
-                    ]
+        new Chart(document.getElementById('pricePerformanceChart'), {
+            type: 'bubble',
+            data: {
+                datasets: [
+                    { label: 'Graviton', data: bubbleData.filter(d => d.arch === 'Graviton'), backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: '#10b981' },
+                    { label: 'Intel', data: bubbleData.filter(d => d.arch === 'Intel'), backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: '#3b82f6' },
+                    { label: 'AMD', data: bubbleData.filter(d => d.arch === 'AMD'), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: '#ef4444' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (ctx) => [`${ctx.raw.label}`, `$${ctx.raw.x.toFixed(3)}/hr`, `${Math.round(ctx.raw.y).toLocaleString()} ops/s`] } }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: (ctx) => [`${ctx.raw.label}`, `$${ctx.raw.x.toFixed(3)}/hr`, `${Math.round(ctx.raw.y).toLocaleString()} ops/s`] } }
-                    },
-                    scales: {
-                        x: { title: { display: true, text: '시간당 비용 ($)' }, min: 0.1, max: 0.45 },
-                        y: { title: { display: true, text: 'SET ops/sec' }, min: 50000, max: 260000 }
-                    },
-                    onClick: (evt, elements) => {
-                        if (elements.length > 0) {
-                            const datasetIndex = elements[0].datasetIndex;
-                            const index = elements[0].index;
-                            const datasets = ['Graviton', 'Intel', 'AMD'];
-                            const archFilter = datasets[datasetIndex];
-                            const clickedData = bubbleData.filter(d => d.arch === archFilter);
-                            showDetailModal(clickedData[index].label);
-                        }
+                scales: {
+                    x: { title: { display: true, text: '시간당 비용 ($)' }, min: 0.1, max: 0.45 },
+                    y: { title: { display: true, text: 'SET ops/sec' }, min: 50000, max: 260000 }
+                },
+                onClick: (evt, elements) => {
+                    if (elements.length > 0) {
+                        const datasetIndex = elements[0].datasetIndex;
+                        const index = elements[0].index;
+                        const datasets = ['Graviton', 'Intel', 'AMD'];
+                        const archFilter = datasets[datasetIndex];
+                        const filtered = bubbleData.filter(d => d.arch === archFilter);
+                        showDetailModal(filtered[index].label);
                     }
                 }
-            });
-        }
-        createPricePerformanceChart();
+            }
+        });
 
         // 차트 10: 가성비 Top 15
-        let costEfficiencyChart;
-        function createCostEfficiencyChart(family = 'all') {
-            let filtered = [...allInstances];
-            if (family !== 'all') {
-                filtered = filtered.filter(i => i.family === family);
-            }
-            const efficiency = filtered.sort((a, b) => b.efficiency - a.efficiency).slice(0, 15);
+        const efficiency = [...allInstances].sort((a, b) => b.efficiency - a.efficiency).slice(0, 15);
 
-            if (costEfficiencyChart) costEfficiencyChart.destroy();
-
-            costEfficiencyChart = new Chart(document.getElementById('costEfficiencyChart'), {
-                type: 'bar',
-                data: {
-                    labels: efficiency.map(i => i.name),
-                    datasets: [{
-                        label: '효율성 점수',
-                        data: efficiency.map(i => i.efficiency),
-                        backgroundColor: efficiency.map(i => colorMap[i.arch]),
-                        borderRadius: 6,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, title: { display: true, text: '효율성 점수' } } },
-                    onClick: (evt, elements) => {
-                        if (elements.length > 0) {
-                            showDetailModal(efficiency[elements[0].index].name);
-                        }
+        new Chart(document.getElementById('costEfficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: efficiency.map(i => i.name),
+                datasets: [{
+                    label: '효율성 점수',
+                    data: efficiency.map(i => i.efficiency),
+                    backgroundColor: efficiency.map(i => colorMap[i.arch]),
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: '효율성 점수' } } },
+                onClick: (evt, elements) => {
+                    if (elements.length > 0) {
+                        showDetailModal(efficiency[elements[0].index].name);
                     }
                 }
-            });
-        }
-        createCostEfficiencyChart();
+            }
+        });
 
         // 차트 11: 피해야 할 인스턴스
         const avoidInstances = allInstances.filter(i => ['r5ad.xlarge', 'r5a.xlarge', 'm5ad.xlarge', 'm5a.xlarge', 'c5a.xlarge'].includes(i.name));
@@ -1666,28 +1576,6 @@
                 renderTable(filtered);
             });
         });
-
-        // 차트 컨트롤 (패밀리 필터) 설정
-        function setupControls() {
-            document.querySelectorAll('.btn-group[data-toggle="family"]').forEach(group => {
-                group.querySelectorAll('button').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-
-                        const chartId = group.dataset.chart;
-                        const family = btn.dataset.value;
-
-                        if (chartId === 'bubble') {
-                            createPricePerformanceChart(family);
-                        } else if (chartId === 'efficiency') {
-                            createCostEfficiencyChart(family);
-                        }
-                    });
-                });
-            });
-        }
-        setupControls();
     </script>
 </body>
 </html>
