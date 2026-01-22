@@ -1,0 +1,140 @@
+# Spring Boot Time-Series Benchmark Job
+# Measures throughput over time with proper warmup for fair comparison
+# Conditions match springboot-benchmark.yaml (30s warmup, same wrk settings)
+# Run 5 times: timeseries1.log ~ timeseries5.log
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: springboot-timeseries-INSTANCE_SAFE-RUN_NUMBER
+  namespace: benchmark
+  labels:
+    benchmark: springboot-timeseries
+    instance-type: "${INSTANCE_TYPE}"
+    run: "RUN_NUMBER"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: springboot-timeseries
+        instance-type: "${INSTANCE_TYPE}"
+        run: "RUN_NUMBER"
+    spec:
+      restartPolicy: Never
+      # wrk runs on benchmark-client nodepool (c6in.2xlarge)
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: benchmark-client
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: springboot-server
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-springboot
+          image: public.ecr.aws/docker/library/alpine:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Spring Boot server..."
+              apk add --no-cache curl > /dev/null 2>&1
+              until curl -s http://springboot-server-INSTANCE_SAFE:8080/actuator/health | grep -q "UP"; do
+                echo "Still waiting..."
+                sleep 5
+              done
+              echo "Spring Boot server is ready!"
+      containers:
+        - name: benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/wrk:latest
+          resources:
+            requests:
+              cpu: "1500m"
+              memory: "4Gi"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              SPRINGBOOT_HOST="springboot-server-INSTANCE_SAFE"
+              INTERVAL=10        # 10 seconds per measurement
+              POINTS=60          # 60 points = 10 minutes per run
+
+              echo "===== Spring Boot Time-Series Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Run: RUN_NUMBER"
+              echo "Spring Boot Host: ${SPRINGBOOT_HOST}"
+              echo "Timestamp: $(date -Iseconds)"
+              echo ""
+              echo "Configuration:"
+              echo "  - Warmup: 30s (JIT compilation)"
+              echo "  - Data points: ${POINTS} (${INTERVAL}s intervals = 10 minutes)"
+              echo "  - wrk settings: -t2 -c100 (matches regular benchmark)"
+              echo ""
+
+              # ===== Warm-up Phase (30s) - matches springboot-benchmark.yaml =====
+              echo "--- Warm-up Phase (30s) ---"
+              wrk -t2 -c50 -d30s http://${SPRINGBOOT_HOST}:8080/ > /dev/null 2>&1
+              echo "Warm-up complete - JIT compilation done"
+              echo ""
+
+              # ===== Time-Series Measurement =====
+              echo "--- Time-Series Data ---"
+              echo "elapsed_sec,requests_per_sec,avg_latency_ms,p99_latency_ms"
+
+              for i in $(seq 1 $POINTS); do
+                ELAPSED=$((i * INTERVAL))
+
+                # Run 10-second test (matches -c100 from springboot-benchmark.yaml)
+                OUTPUT=$(wrk -t2 -c100 -d${INTERVAL}s --latency http://${SPRINGBOOT_HOST}:8080/ 2>&1)
+
+                # Parse RPS
+                RPS=$(echo "$OUTPUT" | grep "Requests/sec" | awk '{print $2}')
+
+                # Parse average latency (convert to ms)
+                LAT_RAW=$(echo "$OUTPUT" | grep -E "Latency\s+" | head -1 | awk '{print $2}' | tr -d '\n\r')
+                if echo "$LAT_RAW" | grep -q "us"; then
+                  AVG_LAT=$(echo "$LAT_RAW" | sed 's/us//' | awk '{printf "%.3f", $1/1000}')
+                elif echo "$LAT_RAW" | grep -q "ms"; then
+                  AVG_LAT=$(echo "$LAT_RAW" | sed 's/ms//' | tr -d '\n\r')
+                elif echo "$LAT_RAW" | grep -q "s"; then
+                  AVG_LAT=$(echo "$LAT_RAW" | sed 's/s//' | awk '{printf "%.3f", $1*1000}')
+                else
+                  AVG_LAT=$(echo "$LAT_RAW" | tr -d '\n\r')
+                fi
+
+                # Parse 99th percentile latency
+                P99_RAW=$(echo "$OUTPUT" | grep "99%" | awk '{print $2}' | tr -d '\n\r')
+                if echo "$P99_RAW" | grep -q "us"; then
+                  P99_LAT=$(echo "$P99_RAW" | sed 's/us//' | awk '{printf "%.3f", $1/1000}')
+                elif echo "$P99_RAW" | grep -q "ms"; then
+                  P99_LAT=$(echo "$P99_RAW" | sed 's/ms//' | tr -d '\n\r')
+                elif echo "$P99_RAW" | grep -q "s"; then
+                  P99_LAT=$(echo "$P99_RAW" | sed 's/s//' | awk '{printf "%.3f", $1*1000}')
+                else
+                  P99_LAT=$(echo "$P99_RAW" | tr -d '\n\r')
+                fi
+
+                echo "${ELAPSED},${RPS},${AVG_LAT},${P99_LAT}"
+              done
+
+              echo ""
+              echo "===== Time-Series Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

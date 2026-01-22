@@ -1,0 +1,127 @@
+# Elasticsearch Server for Rally Benchmark
+# Runs ES as a Deployment on target instance type
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: es-config
+  namespace: benchmark
+data:
+  elasticsearch.yml: |
+    cluster.name: rally-benchmark
+    node.name: benchmark-node
+    network.host: 0.0.0.0
+    http.port: 9200
+    discovery.type: single-node
+    xpack.security.enabled: false
+    xpack.security.enrollment.enabled: false
+    indices.memory.index_buffer_size: 25%
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: es-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: es-server
+    benchmark: elasticsearch
+    instance-type: "INSTANCE_TYPE"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: es-server
+      instance-type: "INSTANCE_TYPE"
+  template:
+    metadata:
+      labels:
+        app: es-server
+        benchmark: elasticsearch
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: INSTANCE_TYPE
+        kubernetes.io/arch: ARCH
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: sysctl-setup
+          image: public.ecr.aws/docker/library/busybox:latest
+          securityContext:
+            privileged: true
+          command:
+            - sh
+            - -c
+            - |
+              sysctl -w vm.max_map_count=262144
+      containers:
+        - name: elasticsearch
+          image: public.ecr.aws/elastic/elasticsearch:8.11.0
+          resources:
+            requests:
+              cpu: "3"
+              memory: "4Gi"
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+          env:
+            - name: ES_JAVA_OPTS
+              value: "-Xms3g -Xmx3g"
+            - name: EC2_INSTANCE
+              value: "INSTANCE_TYPE"
+          volumeMounts:
+            - name: es-config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+      volumes:
+        - name: es-config
+          configMap:
+            name: es-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: es-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: es-server
+    instance-type: "INSTANCE_TYPE"
+spec:
+  selector:
+    app: es-server
+    instance-type: "INSTANCE_TYPE"
+  ports:
+    - port: 9200
+      targetPort: 9200
+      name: http
+    - port: 9300
+      targetPort: 9300
+      name: transport
+  type: ClusterIP

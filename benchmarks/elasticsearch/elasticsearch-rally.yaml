@@ -1,0 +1,126 @@
+# Elasticsearch Rally Benchmark Job
+# Runs Rally against ES server on target instance type
+# Placeholders: INSTANCE_SAFE, INSTANCE_TYPE, RUN_NUMBER
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: es-rally-INSTANCE_SAFE-runRUN_NUMBER
+  namespace: benchmark
+  labels:
+    benchmark: elasticsearch-rally
+    instance-type: "INSTANCE_TYPE"
+    run-number: "RUN_NUMBER"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: elasticsearch-rally
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      restartPolicy: Never
+      # Rally client runs on dedicated benchmark-client nodepool (c6in.8xlarge)
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: es-server
+                  instance-type: "INSTANCE_TYPE"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-es
+          image: public.ecr.aws/docker/library/alpine:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Elasticsearch server..."
+              until wget -q --spider http://es-server-INSTANCE_SAFE:9200/_cluster/health 2>/dev/null; do
+                echo "Still waiting..."
+                sleep 5
+              done
+              echo "Elasticsearch server is ready!"
+      containers:
+        - name: rally
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/esrally:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              ES_HOST="es-server-INSTANCE_SAFE"
+
+              echo "===== Elasticsearch Rally Benchmark: INSTANCE_TYPE ====="
+              echo "Timestamp: $(date -Iseconds)"
+              echo "ES Host: ${ES_HOST}"
+              echo ""
+
+              # Verify ES connection
+              echo "=== ES Cluster Info ==="
+              curl -s http://${ES_HOST}:9200/
+              echo ""
+
+              echo "=== ES Cluster Health ==="
+              curl -s http://${ES_HOST}:9200/_cluster/health?pretty
+              echo ""
+
+              # Run Rally geonames track
+              echo "=== Running Rally Benchmark ==="
+              echo "Track: geonames"
+              echo ""
+
+              START_TIME=$(date +%s.%N)
+
+              esrally race \
+                --track=geonames \
+                --target-hosts=${ES_HOST}:9200 \
+                --pipeline=benchmark-only \
+                --include-tasks="index-append,force-merge,index-stats,node-stats" \
+                --report-format=markdown \
+                --report-file=/tmp/rally-report.md \
+                2>&1 || true
+
+              END_TIME=$(date +%s.%N)
+              DURATION=$(echo "$END_TIME - $START_TIME" | bc)
+
+              echo ""
+              echo "=== Rally Results ==="
+              echo "Duration: ${DURATION}s"
+              echo ""
+
+              if [ -f /tmp/rally-report.md ]; then
+                cat /tmp/rally-report.md
+              fi
+
+              # ES Stats after benchmark
+              echo ""
+              echo "=== ES Final Stats ==="
+              curl -s http://${ES_HOST}:9200/_cat/indices?v
+              echo ""
+              curl -s http://${ES_HOST}:9200/_nodes/stats/indices?pretty | head -100
+
+              echo ""
+              echo "===== Rally Benchmark Complete ====="
+          env:
+            - name: EC2_INSTANCE
+              value: "INSTANCE_TYPE"

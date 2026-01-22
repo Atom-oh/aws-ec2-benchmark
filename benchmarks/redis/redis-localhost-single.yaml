@@ -1,0 +1,140 @@
+# Redis Localhost Benchmark - Single Run
+# 개별 노드에서 1회 실행 (디바이스 편차 반영)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-local-INSTANCE_SAFE-RUN_NUM
+  namespace: benchmark
+  labels:
+    benchmark: redis-local
+    instance-type: "${INSTANCE_TYPE}"
+    run: "RUN_NUM"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: redis-local
+        instance-type: "${INSTANCE_TYPE}"
+        run: "RUN_NUM"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: redis-benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/redis:8.4-alpine
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              # Redis 설정
+              cat > /tmp/redis.conf << 'REDIS_CONF'
+              bind 127.0.0.1
+              port 6379
+              protected-mode no
+              daemonize yes
+              pidfile /tmp/redis.pid
+              logfile /tmp/redis.log
+              maxmemory 0
+              tcp-backlog 511
+              tcp-keepalive 300
+              save ""
+              appendonly no
+              io-threads 3
+              io-threads-do-reads yes
+              REDIS_CONF
+
+              echo "===== Redis Localhost Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Run: RUN_NUM"
+              echo "Date: $(date -Iseconds)"
+              echo ""
+
+              # System Info
+              echo "--- System Info ---"
+              echo "CPU: $(nproc) cores"
+              echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+              cat /proc/cpuinfo | grep "model name" | head -1 || echo "ARM processor"
+              echo ""
+
+              # Redis 서버 시작
+              echo "--- Starting Redis Server ---"
+              redis-server /tmp/redis.conf
+              sleep 2
+
+              if ! redis-cli ping | grep -q PONG; then
+                echo "ERROR: Redis server failed to start"
+                cat /tmp/redis.log
+                exit 1
+              fi
+              echo "Redis server started"
+              echo ""
+
+              # Warmup
+              echo "--- Warmup ---"
+              redis-benchmark -h 127.0.0.1 -c 50 -n 10000 --threads 3 -q > /dev/null 2>&1
+              echo "Warmup complete"
+              echo ""
+
+              # Test 1: Standard Benchmark
+              echo "--- Test 1: Standard Benchmark (50 clients, 100000 requests, 3 threads) ---"
+              redis-benchmark -h 127.0.0.1 -c 50 -n 100000 --threads 3 -q
+              echo ""
+
+              # Test 2: Pipeline Benchmark
+              echo "--- Test 2: Pipeline Benchmark (16 commands per pipeline) ---"
+              redis-benchmark -h 127.0.0.1 -c 50 -n 100000 -P 16 --threads 3 -q
+              echo ""
+
+              # Test 3: High Concurrency
+              echo "--- Test 3: High Concurrency (100 clients, 200000 requests) ---"
+              redis-benchmark -h 127.0.0.1 -c 100 -n 200000 --threads 3 -q
+              echo ""
+
+              # Test 4: Latency Distribution (SET)
+              echo "--- Test 4: Latency Distribution (SET command) ---"
+              redis-benchmark -h 127.0.0.1 -c 50 -n 100000 -t set --threads 3 --csv
+              echo ""
+
+              # Test 5: Latency Distribution (GET)
+              echo "--- Test 5: Latency Distribution (GET command) ---"
+              redis-benchmark -h 127.0.0.1 -c 50 -n 100000 -t get --threads 3 --csv
+              echo ""
+
+              # Test 6: Large Value (1KB)
+              echo "--- Test 6: Large Value Test (1KB value, 50000 requests) ---"
+              redis-benchmark -h 127.0.0.1 -c 50 -n 50000 -d 1024 -t set,get --threads 3 -q
+              echo ""
+
+              # Test 7: Large Value (4KB)
+              echo "--- Test 7: Large Value Test (4KB value, 20000 requests) ---"
+              redis-benchmark -h 127.0.0.1 -c 50 -n 20000 -d 4096 -t set,get --threads 3 -q
+              echo ""
+
+              # Redis 종료
+              redis-cli shutdown nosave 2>/dev/null || true
+
+              echo "===== Benchmark Complete ====="
+              echo "End Time: $(date -Iseconds)"
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

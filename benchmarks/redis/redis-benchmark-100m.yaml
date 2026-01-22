@@ -1,25 +1,25 @@
-# Redis Benchmark Job
-# SET/GET/INCR 등 다양한 명령의 throughput 및 latency 측정
+# Redis Benchmark Job - 100M requests
+# High volume benchmark for accurate throughput measurement
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: JOB_NAME
+  name: redis-bench-INSTANCE_SAFE-runRUN_NUMBER
   namespace: benchmark
   labels:
-    benchmark: redis-benchmark
+    benchmark: redis-benchmark-100m
     instance-type: "${INSTANCE_TYPE}"
+    run: "RUN_NUMBER"
 spec:
-  ttlSecondsAfterFinished: 600  # 10 minutes - logs collected periodically
+  ttlSecondsAfterFinished: 7200  # 2 hours - enough time for log collection
   backoffLimit: 0
   template:
     metadata:
       labels:
-        benchmark: redis-benchmark
+        benchmark: redis-benchmark-100m
         instance-type: "${INSTANCE_TYPE}"
     spec:
       restartPolicy: Never
-      # Benchmark client runs on dedicated benchmark-client nodepool (c6in.8xlarge)
       nodeSelector:
         node-type: benchmark-client
       tolerations:
@@ -42,7 +42,6 @@ spec:
                   - key: benchmark
                     operator: Exists
               topologyKey: "kubernetes.io/hostname"
-      # Redis 서버가 준비될 때까지 대기
       initContainers:
         - name: wait-for-redis
           image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/redis:8.4-alpine
@@ -55,15 +54,12 @@ spec:
                 sleep 2
               done
               echo "Redis server is ready!"
-          env:
-            - name: INSTANCE_TYPE
-              value: "${INSTANCE_TYPE}"
       containers:
         - name: benchmark
           image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/redis:8.4-alpine
           resources:
             requests:
-              cpu: "1500m"
+              cpu: "2000m"
               memory: "4Gi"
           command:
             - /bin/sh
@@ -71,46 +67,55 @@ spec:
             - |
               REDIS_HOST="redis-server-INSTANCE_SAFE"
 
-              echo "===== Redis Benchmark ====="
+              echo "===== Redis 100M Benchmark ====="
               echo "Instance Type: ${INSTANCE_TYPE}"
               echo "Redis Host: ${REDIS_HOST}"
+              echo "Run: RUN_NUMBER"
+              echo "Timestamp: $(date -Iseconds)"
               echo ""
 
-              # Redis 서버 정보
+              # Redis server info
               echo "--- Redis Server Info ---"
               redis-cli -h ${REDIS_HOST} info server | head -20
               echo ""
 
-              # 기본 벤치마크 (모든 명령) - threads=3 for io-threads=3
-              echo "--- Standard Benchmark (50 clients, 100000 requests, 3 threads) ---"
-              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 --threads 3 -q
+              # Clear any existing data
+              redis-cli -h ${REDIS_HOST} FLUSHALL
+
+              # Main benchmark - 100M requests with pipeline for high throughput
+              echo "--- 100M Requests Benchmark (Pipeline=16, Clients=50, Threads=4) ---"
+              START=$(date +%s.%N)
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000000 -P 16 --threads 4 -t set,get -q
+              END=$(date +%s.%N)
+              echo "Total time: $(echo "$END - $START" | bc) seconds"
+              echo ""
+
+              # Additional tests for comparison
+              echo "--- SET Only (10M, Pipeline=16) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 10000000 -P 16 --threads 4 -t set -q
 
               echo ""
-              echo "--- Pipeline Benchmark (16 commands per pipeline) ---"
-              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 -P 16 --threads 3 -q
+              echo "--- GET Only (10M, Pipeline=16) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 10000000 -P 16 --threads 4 -t get -q
 
               echo ""
-              echo "--- High Concurrency (100 clients) ---"
-              redis-benchmark -h ${REDIS_HOST} -c 100 -n 200000 --threads 3 -q
+              echo "--- INCR (10M, Pipeline=16) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 10000000 -P 16 --threads 4 -t incr -q
 
               echo ""
-              echo "--- Latency Distribution (SET command) ---"
-              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 -t set --threads 3 --csv
+              echo "--- No Pipeline Comparison (1M) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 1000000 --threads 4 -t set,get -q
 
               echo ""
-              echo "--- Latency Distribution (GET command) ---"
-              redis-benchmark -h ${REDIS_HOST} -c 50 -n 100000 -t get --threads 3 --csv
+              echo "--- Latency Stats (SET) ---"
+              redis-benchmark -h ${REDIS_HOST} -c 50 -n 1000000 -P 16 --threads 4 -t set --csv
 
               echo ""
-              echo "--- Large Value Test (1KB value) ---"
-              redis-benchmark -h ${REDIS_HOST} -c 50 -n 50000 -d 1024 -t set,get --threads 3 -q
+              echo "--- Memory Stats ---"
+              redis-cli -h ${REDIS_HOST} info memory | grep -E "used_memory|maxmemory|mem_fragmentation"
 
               echo ""
-              echo "--- Large Value Test (4KB value) ---"
-              redis-benchmark -h ${REDIS_HOST} -c 50 -n 20000 -d 4096 -t set,get --threads 3 -q
-
-              echo ""
-              echo "===== Redis Benchmark Complete ====="
+              echo "===== Redis 100M Benchmark Complete ====="
           env:
             - name: INSTANCE_TYPE
               value: "${INSTANCE_TYPE}"
