@@ -89,9 +89,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🍃 Spring Boot 벤치마크 리포트</h1>
-            <p>HTTP Throughput (wrk) & Cold Start 성능 비교 - 3가지 테스트 시나리오</p>
+            <h1>Spring Boot 벤치마크 리포트</h1>
+            <p>HTTP Throughput (wrk) & Cold Start 성능 비교 + Flex Time-Series 분석</p>
             <p style="opacity: 0.7; margin-top: 0.5rem;">2026년 1월 | 서울 리전 (ap-northeast-2) | 51개 인스턴스 타입</p>
+            <p style="opacity: 0.8; margin-top: 0.5rem; background: rgba(255,255,255,0.2); display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px;">
+                데이터 소스: results/springboot + results/springboot-flex
+            </p>
         </div>
 
         <div class="summary-grid">
@@ -111,9 +114,14 @@
                 <div class="detail">wrk 200 conn: 71k → 93k req/sec</div>
             </div>
             <div class="summary-card warning">
-                <h3>⚠️ 7세대 Flex 성능</h3>
-                <div class="value">재테스트 확인</div>
-                <div class="detail">c7i-flex 고성능 재현 확인됨</div>
+                <h3>📊 Time-Series 핵심 발견</h3>
+                <div class="value">7세대 Flex &gt; 8세대 (+10%)</div>
+                <div class="detail">c7i-flex: 92.5K &gt; c8i-flex: 84.4K &gt; c8i: 80.5K (same-AZ)</div>
+            </div>
+            <div class="summary-card" style="border-left-color: #8b5cf6;">
+                <h3>🔍 Flex 비교 결론</h3>
+                <div class="value">워크로드별 선택</div>
+                <div class="detail">피크 성능: 7세대 | 안정성: 8세대</div>
             </div>
         </div>
 
@@ -123,6 +131,7 @@
             <a href="#generation">세대별 아키텍처 비교</a>
             <a href="#latency">Latency 분석</a>
             <a href="#flex-analysis">Flex 성능 분석</a>
+            <a href="#flex-timeseries" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); font-weight: 600;">Flex Time-Series (NEW)</a>
             <a href="#coldstart">Cold Start 분석</a>
             <a href="#full-results">전체 결과</a>
         </nav>
@@ -208,9 +217,15 @@
                 </div>
             </div>
 
-            <h3 style="margin: 2rem 0 1rem;">시나리오별 성능 비교 (Top 10)</h3>
-            <div class="chart-container tall">
+            <h3 style="margin: 2rem 0 1rem;">시나리오별 성능 비교</h3>
+            <div class="chart-container tall" id="scenario-compare-section">
                 <div class="chart-title">인스턴스별 3가지 부하 시나리오 비교</div>
+                <div class="tab-buttons" style="margin-bottom: 1rem;">
+                    <button class="tab-btn active" onclick="switchScenarioFamily('all', this)">All (Top 10)</button>
+                    <button class="tab-btn" onclick="switchScenarioFamily('c', this)">C-Series (Compute)</button>
+                    <button class="tab-btn" onclick="switchScenarioFamily('m', this)">M-Series (General)</button>
+                    <button class="tab-btn" onclick="switchScenarioFamily('r', this)">R-Series (Memory)</button>
+                </div>
                 <canvas id="scenarioCompareChart"></canvas>
             </div>
 
@@ -220,6 +235,9 @@
                     <li><strong>c7i-flex가 모든 시나리오 1위</strong> - 50 conn: 87.5k, 100 conn: 94.6k, 200 conn: 101.7k req/sec</li>
                     <li><strong>부하 증가에 따른 성능 변화</strong>: 7세대 Flex는 부하 증가 시 성능이 더 향상되는 패턴</li>
                     <li><strong>8세대 Standard</strong>: 안정적인 성능, 부하 증가에 따른 성능 향상 폭이 큼</li>
+                    <li><strong>c5d의 역설적 패턴</strong>: 5세대 C-series 중 가장 낮은 latency(3.2ms)를 보이지만 throughput은 중하위권.
+                        50→100 conn에서 성능 상승 후 200 conn에서 급락(38k→27k). NVMe 로컬 스토리지의 I/O 인터럽트가 CPU와 경쟁하여
+                        고부하 시 스케일링 한계 발생</li>
                 </ul>
             </div>
         </div>
@@ -368,6 +386,347 @@
             </div>
         </div>
 
+        <!-- Flex 지속 부하 Time-Series 분석 (핵심 섹션) -->
+        <div class="section" id="flex-timeseries" style="border: 3px solid #f59e0b; background: linear-gradient(to bottom, #fffbeb 0%, #ffffff 100px);">
+            <h2 style="color: #92400e;">5.1 지속 부하 테스트 (Time-Series) - 핵심 분석</h2>
+
+            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">
+                <strong style="font-size: 1.1rem; color: #92400e;">왜 이 테스트가 중요한가?</strong>
+                <p style="color: #78350f; margin-top: 0.5rem;">단발성 벤치마크(wrk 30-60초)는 burst 성능을 측정합니다. 실제 프로덕션 워크로드는 12분, 1시간, 24시간 이상 지속됩니다. 이 테스트는 <strong>지속적인 부하 상황에서의 실제 성능</strong>을 측정합니다.</p>
+            </div>
+
+            <div style="background: var(--bg); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                <strong>테스트 조건:</strong> 600초(10분) 지속 부하 × 5회 반복, 30초 warmup (JIT 컴파일), 2 threads, 100 connections, 10초 간격 샘플링<br>
+                <span style="color: var(--muted); font-size: 0.9rem;">데이터 소스: <code>results/springboot-flex/timeseries-all.csv</code> (5 runs × 60 points per run)</span>
+            </div>
+
+            <!-- Metric Selector Tabs -->
+            <div class="tab-buttons" style="margin-bottom: 1rem;">
+                <button class="tab-btn active" onclick="switchTimeseriesMetric('throughput', this)">Throughput (req/sec)</button>
+                <button class="tab-btn" onclick="switchTimeseriesMetric('latency', this)">Latency Avg (ms)</button>
+                <button class="tab-btn" onclick="switchTimeseriesMetric('p99', this)">Latency P99 (ms)</button>
+            </div>
+
+            <div class="chart-container extra-tall">
+                <div class="chart-title" id="timeseriesChartTitle" style="font-size: 1.2rem; font-weight: 700;">Flex vs Standard vs Graviton4 시간별 Throughput (600초 지속 부하, Run 2)</div>
+                <canvas id="flexTimeseriesChart"></canvas>
+            </div>
+
+            <!-- 핵심 발견 요약 -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2rem 0;">
+                <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #065f46; text-transform: uppercase;">c7i-flex 평균</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #047857;">92,551</div>
+                    <div style="font-size: 0.75rem; color: #065f46;">req/sec | CV 8.9%</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #1e40af; text-transform: uppercase;">c8i-flex 평균</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1d4ed8;">84,409</div>
+                    <div style="font-size: 0.75rem; color: #1e40af;">req/sec | CV 8.2%</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #92400e; text-transform: uppercase;">c7i가 더 빠름</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #b45309;">+8.9%</div>
+                    <div style="font-size: 0.75rem; color: #92400e;">burst 성능 우수</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #3730a3; text-transform: uppercase;">r8i-flex 평균</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #4338ca;">84,270</div>
+                    <div style="font-size: 0.75rem; color: #3730a3;">req/sec | CV 8.1%</div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 2rem;">
+                <div class="chart-container">
+                    <div class="chart-title">평균 Throughput 비교</div>
+                    <canvas id="flexAvgChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">변동계수(CV%) - 낮을수록 안정적</div>
+                    <canvas id="flexStddevChart"></canvas>
+                </div>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem;">Flex vs Standard 인스턴스 상세 비교 (5회 측정 통계)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>인스턴스</th>
+                        <th>평균 Throughput</th>
+                        <th>최소값</th>
+                        <th>최대값</th>
+                        <th>표준편차</th>
+                        <th>변동계수(CV)</th>
+                        <th>패턴</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: rgba(16, 185, 129, 0.1);">
+                        <td><span class="badge badge-intel">c7i-flex.xlarge</span> <span style="color: #10b981; font-weight: 600;">7세대 Flex</span></td>
+                        <td class="highlight"><strong>92,551</strong></td>
+                        <td>53,507</td>
+                        <td>107,657</td>
+                        <td style="color: #dc2626;">8,198</td>
+                        <td style="color: #dc2626;">8.9%</td>
+                        <td><span style="background: #fef3c7; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">Burst</span></td>
+                    </tr>
+                    <tr style="background: rgba(59, 130, 246, 0.1);">
+                        <td><span class="badge badge-intel">c8i-flex.xlarge</span> <span style="color: #3b82f6; font-weight: 600;">8세대 Flex</span></td>
+                        <td>84,409</td>
+                        <td>70,069</td>
+                        <td>93,348</td>
+                        <td>6,911</td>
+                        <td>8.2%</td>
+                        <td><span style="background: #dbeafe; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">Moderate</span></td>
+                    </tr>
+                    <tr style="background: rgba(245, 158, 11, 0.1);">
+                        <td><span class="badge badge-intel">m7i-flex.xlarge</span> <span style="color: #f59e0b; font-weight: 600;">7세대 Flex</span></td>
+                        <td>71,188</td>
+                        <td>60,396</td>
+                        <td>78,627</td>
+                        <td class="highlight"><strong>3,303</strong></td>
+                        <td class="highlight"><strong>4.6%</strong></td>
+                        <td><span style="background: #d1fae5; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">Steady</span></td>
+                    </tr>
+                    <tr style="background: rgba(139, 92, 246, 0.1);">
+                        <td><span class="badge badge-intel">r8i-flex.xlarge</span> <span style="color: #8b5cf6; font-weight: 600;">8세대 Flex</span></td>
+                        <td>84,270</td>
+                        <td>66,486</td>
+                        <td>92,189</td>
+                        <td>6,811</td>
+                        <td>8.1%</td>
+                        <td><span style="background: #e0e7ff; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">Moderate</span></td>
+                    </tr>
+                    <tr style="background: rgba(59, 130, 246, 0.1); border-top: 2px solid #3b82f6;">
+                        <td><span class="badge badge-intel">c8i.xlarge</span> <span style="color: #3b82f6; font-weight: 600;">8세대 Standard</span></td>
+                        <td><strong>80,526</strong></td>
+                        <td>70,121</td>
+                        <td>87,515</td>
+                        <td class="highlight"><strong>5,098</strong></td>
+                        <td class="highlight"><strong>6.3%</strong></td>
+                        <td><span style="background: #d1fae5; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">Steady</span></td>
+                    </tr>
+                    <tr style="background: rgba(16, 185, 129, 0.1);">
+                        <td><span class="badge badge-graviton">c8g.xlarge</span> <span style="color: #059669; font-weight: 600;">Graviton4</span></td>
+                        <td><strong>64,393</strong></td>
+                        <td>59,737</td>
+                        <td>68,495</td>
+                        <td class="highlight"><strong>2,432</strong></td>
+                        <td class="highlight" style="color: #059669; font-weight: 600;">3.8%</td>
+                        <td><span style="background: #d1fae5; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">Most Stable</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4 style="color: #92400e; margin-bottom: 0.5rem;">CV% (변동계수) 해석 - Same-AZ 측정 (수정됨)</h4>
+                <ul style="margin: 0; padding-left: 1.2rem;">
+                    <li><strong style="color: #059669;">c8g Graviton4 (3.8%)</strong>: 가장 안정적 - 낮은 throughput이지만 일관된 성능</li>
+                    <li><strong>m7i-flex (4.6%)</strong>: 매우 안정적 - 예측 가능한 성능</li>
+                    <li><strong style="color: #3b82f6;">c8i Standard (6.3%)</strong>: 안정적 - Burst 없이 꾸준한 80K 유지</li>
+                    <li><strong>c8i-flex, r8i-flex (8%)</strong>: 보통 수준 - 10% 이내 등락</li>
+                    <li><strong>c7i-flex (8.8%)</strong>: Burst 패턴 - 높은 피크(107K), 넓은 변동폭</li>
+                </ul>
+            </div>
+
+            <!-- 핵심 분석: 벤치마크에서 관찰된 현상 -->
+            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; border-radius: 0.75rem; padding: 2rem; margin: 2rem 0;">
+                <h3 style="color: #991b1b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.5rem;">&#9888;</span>
+                    관찰 결과: 7세대 Flex가 8세대보다 더 높은 Throughput 기록
+                </h3>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #f59e0b;">
+                        <h4 style="color: #92400e; margin-bottom: 0.5rem;">1. 측정된 Throughput 차이</h4>
+                        <p style="color: #78350f; font-size: 0.9rem; margin: 0;">
+                            <strong>c7i-flex:</strong> 평균 92,551 req/sec, 피크 107K<br>
+                            <strong>c8i-flex:</strong> 평균 84,409 req/sec, 피크 93K<br>
+                            <strong>차이:</strong> 7세대가 약 9% 더 높은 평균 Throughput
+                        </p>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #3b82f6;">
+                        <h4 style="color: #1e40af; margin-bottom: 0.5rem;">2. 성능 변동 패턴 차이</h4>
+                        <p style="color: #1e3a5f; font-size: 0.9rem; margin: 0;">
+                            <strong>c7i-flex:</strong> CV 8.9% - 넓은 변동폭 (Burst 패턴)<br>
+                            <strong>c8i-flex:</strong> CV 8.2% - 상대적으로 안정적<br>
+                            <strong>m7i-flex:</strong> CV 4.6% - 가장 안정적인 성능
+                        </p>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #3b82f6;">
+                        <h4 style="color: #1e40af; margin-bottom: 0.5rem;">3. Standard vs Flex (Same-AZ 수정)</h4>
+                        <p style="color: #1e3a5f; font-size: 0.9rem; margin: 0;">
+                            <strong>c8i.xlarge (Standard):</strong> 80,526 req/sec, CV 6.3%<br>
+                            <strong>c8i-flex.xlarge:</strong> 84,409 req/sec, CV 8.2%<br>
+                            <strong>결론:</strong> Flex가 ~5% 높지만 Standard가 더 안정적
+                        </p>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #059669;">
+                        <h4 style="color: #065f46; margin-bottom: 0.5rem;">4. c8g Graviton4 (Same-AZ 수정)</h4>
+                        <p style="color: #064e3b; font-size: 0.9rem; margin: 0;">
+                            <strong>평균 Throughput:</strong> 64,393 req/sec<br>
+                            <strong>CV%:</strong> 3.8% - 가장 안정적인 성능<br>
+                            <strong>특징:</strong> 낮은 throughput이지만 가장 예측 가능
+                        </p>
+                    </div>
+                </div>
+
+                <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
+                    <h4 style="color: #065f46; margin: 0 0 0.5rem 0;">CPU Burst Behavior 분석 (Same-AZ 수정)</h4>
+                    <p style="color: #064e3b; font-size: 0.85rem; margin: 0;">
+                        <strong>c7i-flex:</strong> Higher burst ceiling - 피크 107K+ req/sec, 더 넓은 변동폭 (CV 8.8%)<br>
+                        <strong>c8i-flex:</strong> More conservative burst - 피크 93K, steadier at 84K (CV 8.2%)<br>
+                        <strong>c8i Standard:</strong> No burst - stable at 80K with lowest CV (6.3%)<br>
+                        <strong>c8g Graviton4:</strong> Lowest throughput (64K) but most stable (CV 3.8%)<br><br>
+                        <strong>권장:</strong> Burst-tolerant workloads는 c7i-flex, 안정성 중시는 c8i 또는 c8g 선택
+                    </p>
+                </div>
+            </div>
+
+            <!-- 데이터 기반 증거 -->
+            <div style="background: var(--bg); padding: 1.5rem; border-radius: 0.5rem; margin: 1.5rem 0;">
+                <h4 style="margin-bottom: 1rem;">데이터 기반 증거 (Same-AZ Time-Series 5회 측정, Run 2 대표값)</h4>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                    <div>
+                        <strong>c7i-flex 패턴 (평균 92,551, CV 8.8%):</strong>
+                        <ul style="margin: 0.5rem 0; font-size: 0.9rem;">
+                            <li>10초: 79,393 (warmup 직후)</li>
+                            <li>50초: <strong>105,713 (피크)</strong></li>
+                            <li>150초: <span style="color: red;">78,571 (급락 -26%)</span></li>
+                            <li>360초: 107,350 (최고점)</li>
+                            <li>패턴: 70K-107K 넓은 진폭 반복</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>c8i-flex 패턴 (평균 84,409, CV 8.2%):</strong>
+                        <ul style="margin: 0.5rem 0; font-size: 0.9rem;">
+                            <li>10초: 92,240 (높은 시작)</li>
+                            <li>90초: <span style="color: orange;">72,840 (최저점)</span></li>
+                            <li>200초: <strong>93,347 (최고점)</strong></li>
+                            <li>변동폭: ~20,000 (CV 8.2%)</li>
+                            <li>패턴: c7i보다 안정, 73K-93K</li>
+                        </ul>
+                    </div>
+                    <div style="background: #dbeafe; padding: 0.5rem; border-radius: 0.25rem;">
+                        <strong style="color: #1d4ed8;">c8i Standard 패턴 (평균 80,526, CV 6.3%):</strong>
+                        <ul style="margin: 0.5rem 0; font-size: 0.9rem;">
+                            <li>10초: 87,343 (높은 시작)</li>
+                            <li>90초: <span style="color: orange;">70,997 (최저점)</span></li>
+                            <li>390초: <strong>86,768 (최고점)</strong></li>
+                            <li>변동폭: ~16,000 (CV 6.3%)</li>
+                            <li>패턴: Flex보다 안정적, 71K-87K</li>
+                        </ul>
+                    </div>
+                    <div style="background: #d1fae5; padding: 0.5rem; border-radius: 0.25rem;">
+                        <strong style="color: #059669;">c8g Graviton4 패턴 (평균 64,393, CV 3.8%):</strong>
+                        <ul style="margin: 0.5rem 0; font-size: 0.9rem;">
+                            <li>10초: 64,311 (안정 시작)</li>
+                            <li>280초: <span style="color: orange;">60,926 (최저점)</span></li>
+                            <li>330초: <strong>68,495 (최고점)</strong></li>
+                            <li>변동폭: ~8,000 (CV 3.8%)</li>
+                            <li>패턴: 가장 안정적, 60K-68K</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="success-box">
+                <h4>용도별 권장 선택 (Same-AZ 기준)</h4>
+                <table style="width: 100%; margin-top: 0.5rem;">
+                    <tr>
+                        <td style="padding: 0.5rem;"><strong>최대 Throughput 필요</strong></td>
+                        <td style="padding: 0.5rem;"><span class="badge badge-intel">c7i-flex.xlarge</span> - 평균 92.5K req/sec, 피크 107K</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.5rem;"><strong>일관된 성능 (SLA)</strong></td>
+                        <td style="padding: 0.5rem;"><span class="badge badge-graviton">c8g.xlarge</span> - CV 3.8% 가장 안정 또는 <span class="badge badge-intel">m7i-flex</span> CV 4.6%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.5rem;"><strong>균형 (Throughput + 안정성)</strong></td>
+                        <td style="padding: 0.5rem;"><span class="badge badge-intel">c8i.xlarge</span> - 80.5K req/sec, CV 6.3%로 안정적</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.5rem;"><strong>Auto-scaling 환경</strong></td>
+                        <td style="padding: 0.5rem;"><span class="badge badge-intel">c8i-flex/r8i-flex</span> - CV 8%대로 예측 가능한 성능</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.5rem;"><strong>비용 효율 (Graviton)</strong></td>
+                        <td style="padding: 0.5rem;"><span class="badge badge-graviton">c8g.xlarge</span> - 낮은 throughput이지만 최고 안정성 + 저렴한 가격</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Standard vs Flex 비교 (신규) -->
+        <div class="section" id="standard-comparison" style="border: 2px solid #6366f1; background: linear-gradient(to bottom, #eef2ff 0%, #ffffff 100px);">
+            <h2 style="color: #4338ca;">5.2 Standard vs Flex 인스턴스 비교 (c8i, c8g)</h2>
+
+            <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border-left: 4px solid #6366f1;">
+                <strong style="font-size: 1.1rem; color: #3730a3;">Redis Time-Series와 비교를 위한 추가 테스트</strong>
+                <p style="color: #4338ca; margin-top: 0.5rem;">c8i.xlarge(Intel 8세대)와 c8g.xlarge(Graviton4)를 동일 조건(600초 × 5회)으로 테스트하여 Flex 인스턴스와 비교합니다.</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0;">
+                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #1e40af; text-transform: uppercase;">c8i.xlarge (Standard)</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1d4ed8;">80,526</div>
+                    <div style="font-size: 0.75rem; color: #1e40af;">req/sec (CV 6.3%, 안정적)</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #065f46; text-transform: uppercase;">c8g.xlarge (Graviton)</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #047857;">64,393</div>
+                    <div style="font-size: 0.75rem; color: #065f46;">req/sec (CV 3.8%, 가장 안정)</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #92400e; text-transform: uppercase;">Flex vs Standard</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #b45309;">+5%</div>
+                    <div style="font-size: 0.75rem; color: #92400e;">c8i-flex: 84K vs c8i: 80K</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 1.5rem 0 1rem;">Standard 인스턴스 상세 통계 (Same-AZ 5회 측정)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>인스턴스</th>
+                        <th>평균</th>
+                        <th>최소값</th>
+                        <th>최대값</th>
+                        <th>CV%</th>
+                        <th>특징</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: rgba(59, 130, 246, 0.1);">
+                        <td><span class="badge badge-intel">c8i.xlarge</span> Intel 8세대</td>
+                        <td><strong>80,526</strong></td>
+                        <td>70,121</td>
+                        <td>87,515</td>
+                        <td style="color: #059669; font-weight: 600;">6.3%</td>
+                        <td>Steady pattern, Burst 없이 안정적</td>
+                    </tr>
+                    <tr style="background: rgba(16, 185, 129, 0.1);">
+                        <td><span class="badge badge-graviton">c8g.xlarge</span> Graviton4</td>
+                        <td><strong>64,393</strong></td>
+                        <td>59,737</td>
+                        <td>68,495</td>
+                        <td style="color: #059669; font-weight: 700;">3.8%</td>
+                        <td>가장 안정적, 낮은 throughput</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="insights" style="margin-top: 1.5rem;">
+                <h4>핵심 인사이트 (Same-AZ 수정)</h4>
+                <ul>
+                    <li><strong>Flex vs Standard 차이 축소:</strong> Same-AZ에서 c8i-flex(84K) vs c8i(80K)는 ~5% 차이로 축소됨</li>
+                    <li><strong>c8g Graviton4:</strong> CV 3.8%로 가장 안정적 - 낮은 throughput(64K)이지만 예측 가능한 성능</li>
+                    <li><strong>c8i Standard:</strong> CV 6.3%로 Flex(8.2%)보다 안정적 - Burst 없이 꾸준한 80K 유지</li>
+                    <li><strong>권장:</strong> 최대 성능은 Flex, 안정성 중시는 Standard 또는 Graviton</li>
+                </ul>
+            </div>
+        </div>
+
         <!-- Cold Start 분석 -->
         <div class="section" id="coldstart">
             <h2>6. Cold Start 성능 분석</h2>
@@ -457,9 +816,10 @@
                 <div class="insights">
                     <h4>✅ 권장 인스턴스</h4>
                     <ul>
-                        <li><strong>최고 Throughput</strong>: c7i-flex.xlarge (101,658 req/sec)</li>
+                        <li><strong>최고 Throughput (Burst)</strong>: c7i-flex.xlarge (101,658 req/sec)</li>
+                        <li><strong>최고 Throughput (Sustained)</strong>: c7i-flex.xlarge (79K avg)</li>
                         <li><strong>최고 Cold Start</strong>: c8g.xlarge (4.29초)</li>
-                        <li><strong>균형 잡힌 선택</strong>: c8i.xlarge, m8i.xlarge</li>
+                        <li><strong>안정적 성능</strong>: c8i-flex.xlarge (CV 1.1%)</li>
                         <li><strong>비용 효율</strong>: c8g.xlarge (Graviton4)</li>
                     </ul>
                 </div>
@@ -468,15 +828,38 @@
                     <ul>
                         <li><strong>c6in P99 Latency</strong>: 184ms로 매우 높음 - 피하세요</li>
                         <li><strong>5세대 AMD</strong>: Cold Start가 11초대 - 서버리스에 부적합</li>
-                        <li><strong>Flex 선택</strong>: 워크로드 특성에 따라 7세대/8세대 선택</li>
+                        <li><strong>Flex 선택</strong>: Burst 워크로드는 7세대, SLA 필요시 8세대</li>
                     </ul>
+                </div>
+            </div>
+
+            <!-- Flex Time-Series 핵심 결론 -->
+            <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f59e0b; border-radius: 0.75rem; padding: 1.5rem; margin-top: 1.5rem;">
+                <h4 style="color: #92400e; margin-bottom: 1rem;">📊 Time-Series 핵심 결론 (5회 × 600초 측정)</h4>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <div style="background: white; padding: 1rem; border-radius: 0.5rem;">
+                        <div style="font-size: 0.8rem; color: var(--muted);">7세대 vs 8세대 (Flex)</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #10b981;">7세대가 9% 빠름</div>
+                        <div style="font-size: 0.75rem; color: var(--muted);">c7i-flex 92K vs c8i-flex 84K</div>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 0.5rem;">
+                        <div style="font-size: 0.8rem; color: var(--muted);">가장 안정적</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #3b82f6;">m7i-flex</div>
+                        <div style="font-size: 0.75rem; color: var(--muted);">CV: 4.6% (가장 낮음)</div>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 0.5rem;">
+                        <div style="font-size: 0.8rem; color: var(--muted);">Flex vs Standard</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #dc2626;">4.4배 차이</div>
+                        <div style="font-size: 0.75rem; color: var(--muted);">c8i-flex 84K vs c8i 19K</div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="footer">
-            <p>Spring Boot Benchmark Report | Generated: 2026-01-20 | Amazon EKS 1.34 + Karpenter 1.5.0</p>
+            <p>Spring Boot Benchmark Report | Updated: 2026-01-22 | Amazon EKS 1.34 + Karpenter 1.5.0</p>
             <p style="margin-top: 0.5rem;">wrk 4.2.0 | Spring Boot 4.0.1 | OpenJDK 21.0.9</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--muted);">Includes Time-Series data from results/springboot-flex/</p>
         </div>
     </div>
 
@@ -578,9 +961,9 @@
         createTop20Chart('wrkTop20Chart100', 'rps100', 'Normal Load (100 conn)');
         createTop20Chart('wrkTop20Chart50', 'rps50', 'Light Load (50 conn)');
 
-        // Scenario comparison chart (Top 10)
+        // Scenario comparison chart (Top 10) - with family filter
         const top10 = [...data].sort((a, b) => b.rps200 - a.rps200).slice(0, 10);
-        new Chart(document.getElementById('scenarioCompareChart'), {
+        let scenarioCompareChart = new Chart(document.getElementById('scenarioCompareChart'), {
             type: 'bar',
             data: {
                 labels: top10.map(d => d.instance),
@@ -597,6 +980,50 @@
                 scales: { y: { beginAtZero: true, title: { display: true, text: 'Requests/sec' } } }
             }
         });
+
+        // Family filter function for scenario comparison
+        window.switchScenarioFamily = function(family, btn) {
+            // Update active button
+            document.querySelectorAll('#scenario-compare-section .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Filter data by family
+            let filtered;
+            if (family === 'all') {
+                filtered = [...data].sort((a, b) => b.rps200 - a.rps200).slice(0, 10);
+            } else {
+                filtered = data.filter(d => d.instance.toLowerCase().startsWith(family))
+                              .sort((a, b) => b.rps200 - a.rps200);
+            }
+
+            // Color by architecture
+            const getColor = (inst, alpha) => {
+                if (inst.includes('g.') || inst.includes('gd.') || inst.includes('gn.')) return `rgba(16, 185, 129, ${alpha})`;  // Graviton green
+                if (inst.includes('a.') || inst.includes('ad.')) return `rgba(239, 68, 68, ${alpha})`;  // AMD red
+                return `rgba(59, 130, 246, ${alpha})`;  // Intel blue
+            };
+
+            // Update chart
+            scenarioCompareChart.data.labels = filtered.map(d => d.instance);
+            scenarioCompareChart.data.datasets = [
+                {
+                    label: '50 conn',
+                    data: filtered.map(d => d.rps50),
+                    backgroundColor: filtered.map(d => getColor(d.instance, 0.5))
+                },
+                {
+                    label: '100 conn',
+                    data: filtered.map(d => d.rps100),
+                    backgroundColor: filtered.map(d => getColor(d.instance, 0.75))
+                },
+                {
+                    label: '200 conn',
+                    data: filtered.map(d => d.rps200),
+                    backgroundColor: filtered.map(d => getColor(d.instance, 1))
+                }
+            ];
+            scenarioCompareChart.update();
+        };
 
         // Generation by Architecture charts
         const genLabels = ['5세대', '6세대', '7세대', '8세대'];
@@ -805,6 +1232,234 @@
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true, title: { display: true, text: '초 (낮을수록 좋음)' } } }
+            }
+        });
+
+        // Flex Time-Series Data (600 seconds, 10s intervals, Run 2 representative values)
+        // 5회 측정 중 가장 대표적인 Run 2 데이터 사용 (30s warmup 후 측정)
+        // Data source: results/springboot-flex/timeseries-all.csv (Run 2)
+
+        // Latency Avg Data (Run 2)
+        const latencyAvgData = {
+            c7iFlex: [1.41, 1.11, 1.02, 1.0, 0.93, 1.13, 0.96, 1.02, 1.03, 0.99, 0.95, 0.96, 0.98, 1.03, 1.14, 1.04, 0.99, 0.97, 0.97, 1.01, 1.01, 1.03, 1.03, 0.98, 0.93, 0.97, 0.98, 1.01, 1.01, 1.04, 0.98, 0.94, 0.94, 1.02, 1.05, 1.05, 0.99, 0.94, 0.96, 0.96, 1.04, 1.03, 1.01, 0.98, 0.94, 0.93, 0.97, 1.0, 1.0, 0.98, 0.94, 0.92, 0.99, 1.03, 1.01, 1.0, 0.97, 0.97, 0.96, 0.98],
+            c8iFlex: [1.08, 1.22, 1.22, 1.15, 1.07, 1.07, 1.07, 1.13, 1.23, 1.21, 1.09, 1.08, 1.07, 1.07, 1.2, 1.2, 1.14, 1.1, 1.07, 1.07, 1.14, 1.21, 1.18, 1.15, 1.08, 1.07, 1.1, 1.22, 1.21, 1.18, 1.12, 1.1, 1.09, 1.14, 1.19, 1.19, 1.15, 1.09, 1.08, 1.07, 1.17, 1.18, 1.18, 1.11, 1.08, 1.07, 1.11, 1.17, 1.18, 1.16, 1.09, 1.07, 1.08, 1.14, 1.19, 1.18, 1.16, 1.09, 1.08, 1.09],
+            m7iFlex: [1.31, 1.56, 1.44, 1.4, 1.38, 1.41, 1.43, 1.46, 1.39, 1.4, 1.35, 1.33, 1.37, 1.38, 1.37, 1.32, 1.34, 1.33, 1.33, 1.35, 1.35, 1.32, 1.33, 1.3, 1.34, 1.39, 1.38, 1.4, 1.38, 1.43, 1.44, 1.37, 1.39, 1.36, 1.35, 1.35, 1.37, 1.35, 1.39, 1.36, 1.37, 1.37, 1.38, 1.36, 1.3, 1.36, 1.37, 1.38, 1.44, 1.42, 1.39, 1.36, 1.35, 1.35, 1.38, 1.35, 1.34, 1.37, 1.28, 1.29],
+            r8iFlex: [1.1, 1.24, 1.3, 1.22, 1.15, 1.15, 1.17, 1.2, 1.37, 1.32, 1.18, 1.12, 1.13, 1.1, 1.24, 1.29, 1.23, 1.11, 1.09, 1.1, 1.13, 1.25, 1.23, 1.16, 1.1, 1.09, 1.09, 1.19, 1.2, 1.17, 1.09, 1.08, 1.09, 1.12, 1.2, 1.19, 1.15, 1.1, 1.09, 1.08, 1.17, 1.2, 1.22, 1.16, 1.11, 1.1, 1.13, 1.19, 1.21, 1.19, 1.09, 1.08, 1.08, 1.13, 1.18, 1.17, 1.13, 1.08, 1.08, 1.09],
+            c8iStd: [1.14, 1.24, 1.28, 1.22, 1.14, 1.15, 1.15, 1.18, 1.26, 1.26, 1.15, 1.14, 1.15, 1.15, 1.24, 1.26, 1.21, 1.16, 1.15, 1.15, 1.18, 1.25, 1.24, 1.2, 1.16, 1.15, 1.14, 1.23, 1.23, 1.23, 1.16, 1.15, 1.14, 1.18, 1.25, 1.23, 1.2, 1.14, 1.15, 1.14, 1.24, 1.23, 1.23, 1.17, 1.14, 1.15, 1.18, 1.24, 1.24, 1.21, 1.16, 1.15, 1.15, 1.2, 1.24, 1.23, 1.2, 1.14, 1.15, 1.15],
+            c8g: [1.5, 1.51, 1.53, 1.5, 1.49, 1.48, 1.49, 1.5, 1.51, 1.52, 1.49, 1.49, 1.48, 1.49, 1.51, 1.51, 1.51, 1.48, 1.51, 1.5, 1.51, 1.52, 1.51, 1.5, 1.51, 1.52, 1.5, 1.53, 1.52, 1.5, 1.51, 1.49, 1.47, 1.5, 1.53, 1.54, 1.52, 1.51, 1.49, 1.5, 1.52, 1.52, 1.5, 1.5, 1.48, 1.49, 1.51, 1.5, 1.49, 1.5, 1.5, 1.48, 1.51, 1.5, 1.5, 1.53, 1.49, 1.49, 1.48, 1.52]
+        };
+
+        // Latency P99 Data (Run 2)
+        const latencyP99Data = {
+            c7iFlex: [7.22, 3.92, 3.31, 3.08, 2.36, 8.19, 2.36, 3.19, 3.33, 3.23, 2.57, 2.4, 2.35, 2.77, 3.49, 3.19, 2.94, 2.38, 2.43, 2.53, 3.03, 3.37, 3.2, 2.77, 2.28, 2.33, 2.64, 3.28, 3.17, 3.13, 2.42, 2.28, 2.11, 3.12, 3.25, 3.21, 2.82, 2.43, 2.27, 2.59, 3.2, 3.18, 3.14, 2.75, 2.37, 2.12, 2.8, 3.17, 3.1, 3.1, 2.36, 2.26, 2.65, 3.26, 3.17, 3.19, 2.71, 2.38, 2.3, 2.71],
+            c8iFlex: [2.28, 3.27, 3.4, 3.3, 2.43, 2.45, 2.53, 2.98, 3.48, 3.38, 2.73, 2.58, 2.49, 2.42, 3.23, 3.43, 3.15, 2.98, 2.54, 2.47, 2.98, 3.4, 3.35, 3.27, 2.54, 2.39, 2.52, 3.29, 3.39, 3.15, 2.76, 2.6, 2.54, 2.88, 3.15, 3.14, 3.02, 2.68, 2.53, 2.44, 3.12, 3.24, 3.14, 2.94, 2.58, 2.5, 2.77, 3.32, 3.34, 3.22, 2.73, 2.5, 2.62, 3.02, 3.37, 3.28, 3.34, 2.56, 2.51, 2.64],
+            m7iFlex: [3.56, 4.52, 4.11, 3.9, 3.33, 3.45, 3.54, 3.9, 3.84, 3.96, 3.53, 3.41, 3.31, 3.34, 3.76, 3.77, 3.59, 3.58, 3.16, 3.31, 3.62, 3.91, 3.65, 3.41, 3.49, 3.63, 3.5, 3.91, 3.86, 3.84, 3.79, 3.62, 3.26, 3.54, 3.68, 3.77, 3.73, 3.43, 3.74, 3.34, 3.85, 3.93, 3.87, 3.7, 3.32, 3.38, 3.53, 3.85, 4.0, 3.71, 3.59, 3.18, 3.48, 3.63, 3.76, 3.77, 3.7, 3.3, 3.2, 3.34],
+            r8iFlex: [2.24, 3.43, 3.79, 3.56, 2.7, 2.6, 2.71, 3.13, 3.99, 3.88, 3.54, 2.52, 2.66, 2.54, 3.25, 3.7, 3.5, 2.62, 2.44, 2.53, 2.84, 3.52, 3.67, 3.31, 2.49, 2.49, 2.46, 3.23, 3.29, 3.13, 2.62, 2.47, 2.51, 2.81, 3.31, 3.36, 3.19, 2.71, 2.47, 2.47, 3.15, 3.28, 3.48, 3.29, 2.51, 2.55, 2.73, 3.36, 3.64, 3.55, 2.59, 2.39, 2.51, 2.89, 3.36, 3.25, 2.94, 2.43, 2.42, 2.54],
+            c8iStd: [2.3, 3.19, 3.47, 3.4, 2.38, 2.47, 2.4, 2.72, 3.3, 3.46, 2.62, 2.39, 2.45, 2.48, 3.2, 3.43, 3.23, 2.48, 2.4, 2.47, 2.8, 3.35, 3.39, 3.18, 2.46, 2.44, 2.43, 3.2, 3.25, 3.27, 2.54, 2.43, 2.42, 2.89, 3.21, 3.16, 2.97, 2.34, 2.47, 2.36, 3.25, 3.22, 3.26, 2.83, 2.39, 2.51, 2.76, 3.34, 3.39, 3.23, 2.69, 2.45, 2.53, 2.97, 3.27, 3.34, 3.19, 2.35, 2.47, 2.51],
+            c8g: [3.68, 4.05, 4.03, 3.91, 3.3, 3.27, 3.48, 3.8, 3.87, 3.96, 3.6, 3.38, 3.33, 3.59, 3.86, 3.91, 3.76, 3.34, 3.71, 3.64, 3.96, 4.17, 3.95, 3.98, 3.65, 3.76, 3.67, 3.91, 3.92, 3.88, 4.15, 3.62, 3.5, 3.86, 4.14, 4.1, 3.91, 3.61, 3.65, 3.61, 3.91, 3.9, 3.85, 3.59, 3.08, 3.34, 3.72, 3.72, 3.7, 3.74, 3.53, 3.26, 3.65, 3.72, 3.94, 4.19, 3.92, 3.38, 3.3, 3.82]
+        };
+
+        const flexTimeseriesData = {
+            labels: Array.from({length: 60}, (_, i) => (i + 1) * 10),
+            c7iFlex: [79394,82335,86351,95022,105714,100917,102824,90164,85879,91487,102509,103330,100960,94378,78571,86618,94681,101492,102739,98981,90559,88287,89090,97522,105490,101595,98706,88593,89721,89890,100327,104995,105113,90910,87331,87739,95639,104649,103161,100812,87003,89419,91992,99836,106160,106567,96726,91730,91803,94926,105043,107351,102842,89108,91333,91295,99082,102029,102553,97214],
+            c8iFlex: [92240,74124,73535,81813,92912,92544,92386,84631,72840,75193,89549,91742,91903,92602,74822,75297,83140,89633,93073,93348,83625,74956,78796,83452,91896,92816,91527,75468,76486,79020,87098,90614,90845,84728,77418,77785,83267,90855,92089,92005,78497,78226,78630,88217,90633,92189,87239,78993,78926,81455,90055,92641,92011,82495,78095,79133,82885,90493,91303,89921],
+            m7iFlex: [74233,60396,63672,69342,73119,71363,70691,66691,65745,68028,72240,75737,73415,71389,66536,70516,70955,75780,75402,74892,70007,70382,71179,75101,75038,72430,71580,66206,68565,66653,68638,73561,72302,69922,69251,70202,70089,73955,72212,72259,68451,68911,68844,72158,76664,73668,70280,68518,66249,67317,71992,72963,73358,69386,68482,69672,71986,72743,78627,74796],
+            r8iFlex: [90292,72496,69700,78367,86993,87059,86265,81567,66486,70251,84049,89651,89120,90250,75455,71766,77029,89180,90926,90565,86169,73258,75286,82588,89730,90301,90781,78127,76773,78836,89527,91500,90613,85485,76690,77677,83174,88895,90414,90302,79643,77113,76325,84174,88474,89235,85189,77596,77276,78583,89694,92189,91027,84340,78582,78681,84634,91073,91759,89028],
+            c8iStd: [87343,73866,70785,77480,86659,85461,85721,81786,70997,71846,84679,86289,85566,85470,74068,72243,78703,84453,85359,84908,81141,72711,74504,79928,84958,85684,85880,75120,75100,75236,84298,86129,85683,81151,74184,75383,79259,86768,85398,86189,74416,74775,75859,83452,85770,85072,82190,74594,74621,78235,84097,85763,85626,78781,74747,75480,79422,86525,84700,84353],
+            c8g: [64311,61535,60151,64112,67644,68049,67047,61432,61103,62640,66464,68119,68177,64661,61479,61929,63552,68100,67441,67227,61064,61161,62899,65403,66615,66626,64127,60926,62210,63716,65640,68285,68495,62246,62110,61837,63141,66507,67580,64804,62002,62175,63588,65872,67667,67211,62745,63025,63395,64273,66947,67741,64654,62921,63464,62382,65402,67328,67906,62379]
+        };
+
+        // Flex Time-Series Line Chart (with metric switching)
+        let flexTimeseriesChart = new Chart(document.getElementById('flexTimeseriesChart'), {
+            type: 'line',
+            data: {
+                labels: flexTimeseriesData.labels,
+                datasets: [
+                    {
+                        label: 'c7i-flex.xlarge (7세대 Flex)',
+                        data: flexTimeseriesData.c7iFlex,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'c8i-flex.xlarge (8세대 Flex)',
+                        data: flexTimeseriesData.c8iFlex,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'm7i-flex.xlarge (7세대 Flex)',
+                        data: flexTimeseriesData.m7iFlex,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'r8i-flex.xlarge (8세대 Flex)',
+                        data: flexTimeseriesData.r8iFlex,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'c8i (Standard)',
+                        data: flexTimeseriesData.c8iStd,
+                        borderColor: '#1e40af',
+                        backgroundColor: 'rgba(30, 64, 175, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'c8g (Graviton4)',
+                        data: flexTimeseriesData.c8g,
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) { return context[0].label + '초 경과'; },
+                            label: function(context) { return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' req/sec'; }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: '경과 시간 (초)' } },
+                    y: {
+                        title: { display: true, text: 'Requests/sec' },
+                        min: 10000,
+                        max: 110000
+                    }
+                }
+            }
+        });
+
+        // Function to switch time-series metric
+        function switchTimeseriesMetric(metric, btn) {
+            // Update active tab button
+            document.querySelectorAll('#flex-timeseries .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Define data and settings for each metric
+            const metricConfig = {
+                throughput: {
+                    title: 'Flex vs Standard vs Graviton4 시간별 Throughput (600초 지속 부하, Run 2)',
+                    data: flexTimeseriesData,
+                    yTitle: 'Requests/sec',
+                    yMin: 10000,
+                    yMax: 110000,
+                    tooltipSuffix: ' req/sec'
+                },
+                latency: {
+                    title: 'Flex vs Standard vs Graviton4 시간별 Latency Avg (600초 지속 부하, Run 2)',
+                    data: latencyAvgData,
+                    yTitle: 'Latency (ms)',
+                    yMin: 0.5,
+                    yMax: 2.0,
+                    tooltipSuffix: ' ms'
+                },
+                p99: {
+                    title: 'Flex vs Standard vs Graviton4 시간별 Latency P99 (600초 지속 부하, Run 2)',
+                    data: latencyP99Data,
+                    yTitle: 'P99 Latency (ms)',
+                    yMin: 1.5,
+                    yMax: 9.0,
+                    tooltipSuffix: ' ms'
+                }
+            };
+
+            const config = metricConfig[metric];
+
+            // Update chart title
+            document.getElementById('timeseriesChartTitle').textContent = config.title;
+
+            // Update chart data
+            flexTimeseriesChart.data.datasets[0].data = config.data.c7iFlex;
+            flexTimeseriesChart.data.datasets[1].data = config.data.c8iFlex;
+            flexTimeseriesChart.data.datasets[2].data = config.data.m7iFlex;
+            flexTimeseriesChart.data.datasets[3].data = config.data.r8iFlex;
+            flexTimeseriesChart.data.datasets[4].data = config.data.c8iStd;
+            flexTimeseriesChart.data.datasets[5].data = config.data.c8g;
+
+            // Update Y axis
+            flexTimeseriesChart.options.scales.y.title.text = config.yTitle;
+            flexTimeseriesChart.options.scales.y.min = config.yMin;
+            flexTimeseriesChart.options.scales.y.max = config.yMax;
+
+            // Update tooltip
+            flexTimeseriesChart.options.plugins.tooltip.callbacks.label = function(context) {
+                return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + config.tooltipSuffix;
+            };
+
+            flexTimeseriesChart.update();
+        }
+
+        // Flex Average Throughput Chart
+        new Chart(document.getElementById('flexAvgChart'), {
+            type: 'bar',
+            data: {
+                labels: ['c7i-flex', 'c8i-flex', 'm7i-flex', 'r8i-flex', 'c8i (Standard)', 'c8g (Graviton4)'],
+                datasets: [{
+                    label: '평균 Throughput (req/sec)',
+                    data: [92551, 84409, 71188, 84270, 80526, 64393],
+                    backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#1e40af', '#059669'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'req/sec' } } }
+            }
+        });
+
+        // Flex Standard Deviation (CV%) Chart
+        new Chart(document.getElementById('flexStddevChart'), {
+            type: 'bar',
+            data: {
+                labels: ['c7i-flex', 'c8i-flex', 'm7i-flex', 'r8i-flex', 'c8i (Standard)', 'c8g (Graviton4)'],
+                datasets: [{
+                    label: '변동계수 CV% (낮을수록 안정적)',
+                    data: [8.8, 8.2, 4.6, 8.1, 6.3, 3.8],
+                    backgroundColor: ['#fcd34d', '#93c5fd', '#c4b5fd', '#fde68a', '#1e40af', '#86efac'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'CV% (낮을수록 좋음)' } } }
             }
         });
 
