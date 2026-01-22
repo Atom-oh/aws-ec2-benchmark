@@ -298,6 +298,109 @@
             .navbar { padding: 0.5rem 1rem; }
             .navbar-links a { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
         }
+
+        /* TOC Styles */
+        .toc {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .toc h3 { margin-bottom: 1rem; color: var(--text); }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 0.5rem;
+        }
+        .toc-grid a {
+            color: var(--text);
+            text-decoration: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .toc-grid a:hover {
+            background: #f1f5f9;
+            color: var(--accent);
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .info-box {
+            background: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border-left: 4px solid var(--intel);
+        }
+        .info-box.env { border-left-color: var(--graviton); }
+        .info-box.config { border-left-color: var(--accent); }
+        .info-box h4 { color: var(--text); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .info-box ul { margin-left: 1rem; color: var(--muted); font-size: 0.85rem; }
+        .info-box li { margin: 0.25rem 0; }
+
+        /* Chart Controls */
+        .chart-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .chart-controls label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .btn-group {
+            display: flex;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-group button {
+            padding: 0.4rem 0.75rem;
+            border: none;
+            background: #f8fafc;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .btn-group button:hover { background: #e2e8f0; }
+        .btn-group button.active { background: var(--accent); color: white; }
+        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #3b82f6; }
+        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #a855f7; }
+        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #ec4899; }
+
+        /* Conclusion Grid */
+        .conclusion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .conclusion-card {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            border-left: 4px solid var(--graviton);
+        }
+        .conclusion-card.intel {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-left-color: var(--intel);
+        }
+        .conclusion-card.warn {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-left-color: var(--amd);
+        }
+        .conclusion-card h4 { margin-bottom: 0.5rem; font-size: 1rem; }
+        .conclusion-card p { color: var(--muted); font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -325,6 +428,63 @@
                 EKS 클러스터 | ap-northeast-2 | Elasticsearch 8.11.0 | 인스턴스당 5회 | 2026-01-22
             </div>
         </header>
+
+        <!-- TOC -->
+        <div class="toc">
+            <h3>목차</h3>
+            <div class="toc-grid">
+                <a href="#rally-tab">1. Rally 벤치마크</a>
+                <a href="#coldstart-tab">2. 콜드 스타트</a>
+                <a href="#combined-tab">3. 종합 분석</a>
+                <a href="#methodology">4. 테스트 방법론</a>
+                <a href="#environment">5. 테스트 환경</a>
+                <a href="#results">6. 전체 결과 테이블</a>
+                <a href="#conclusion">7. 결론</a>
+            </div>
+        </div>
+
+        <!-- 테스트 환경 -->
+        <div class="chart-section" id="environment">
+            <h2>테스트 환경</h2>
+            <div class="info-grid">
+                <div class="info-box env">
+                    <h4>인프라 구성</h4>
+                    <ul>
+                        <li>EKS 클러스터 (ap-northeast-2)</li>
+                        <li>Karpenter 노드 프로비저닝</li>
+                        <li>podAntiAffinity로 전용 노드 격리</li>
+                        <li>51개 xlarge 인스턴스 (4 vCPU)</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h4>Elasticsearch 설정</h4>
+                    <ul>
+                        <li>Elasticsearch 8.11.0</li>
+                        <li>단일 노드 모드 (discovery.type=single-node)</li>
+                        <li>보안 비활성화 (xpack.security.enabled=false)</li>
+                        <li>JVM Heap: 가용 메모리의 60%</li>
+                    </ul>
+                </div>
+                <div class="info-box config">
+                    <h4>Rally 벤치마크</h4>
+                    <ul>
+                        <li>esrally 2.9.0</li>
+                        <li>geonames 데이터셋 (1,140만 문서)</li>
+                        <li>index-append 작업</li>
+                        <li>5회 반복 (IQR 이상치 제거)</li>
+                    </ul>
+                </div>
+                <div class="info-box config">
+                    <h4>콜드 스타트 측정</h4>
+                    <ul>
+                        <li>ES 프로세스 시작 → 클러스터 green</li>
+                        <li>Sequential: 100 docs 개별 인덱싱</li>
+                        <li>Bulk: 1000 docs 일괄 인덱싱</li>
+                        <li>Search: match_all, term 쿼리</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
 
         <!-- Tab Navigation -->
         <div class="tab-nav">
@@ -401,6 +561,15 @@
                     <button class="toggle-btn" onclick="updateRallyChart('gc')">GC 시간</button>
                     <button class="toggle-btn" onclick="updateRallyChart('indexing')">인덱싱 시간</button>
                     <button class="toggle-btn" onclick="updateRallyChart('merge')">머지 시간</button>
+                </div>
+                <div class="chart-controls">
+                    <label>패밀리:</label>
+                    <div class="btn-group" data-toggle="family" data-chart="rally">
+                        <button class="active" data-value="all">All</button>
+                        <button data-value="c">C</button>
+                        <button data-value="m">M</button>
+                        <button data-value="r">R</button>
+                    </div>
                 </div>
                 <div class="chart-container tall">
                     <canvas id="rallyChart"></canvas>
@@ -487,6 +656,15 @@
                     <button class="toggle-btn" onclick="updateColdstartChart('search_match_all')">Search match_all</button>
                     <button class="toggle-btn" onclick="updateColdstartChart('search_term')">Search term</button>
                 </div>
+                <div class="chart-controls">
+                    <label>패밀리:</label>
+                    <div class="btn-group" data-toggle="family" data-chart="coldstart">
+                        <button class="active" data-value="all">All</button>
+                        <button data-value="c">C</button>
+                        <button data-value="m">M</button>
+                        <button data-value="r">R</button>
+                    </div>
+                </div>
                 <div class="chart-container tall">
                     <canvas id="coldstartChart"></canvas>
                 </div>
@@ -563,7 +741,7 @@
         </div>
 
         <!-- Common: Methodology -->
-        <div class="highlight-box">
+        <div class="highlight-box" id="methodology">
             <h4>테스트 방법론</h4>
             <ul>
                 <li><strong>Rally 벤치마크:</strong> esrally geonames 데이터셋 (1,140만 문서), 단일 노드, index-append 작업</li>
@@ -576,7 +754,7 @@
         </div>
 
         <!-- Full Data Table -->
-        <div class="chart-section">
+        <div class="chart-section" id="results">
             <h2>전체 결과 테이블</h2>
             <div class="filter-row">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
@@ -630,15 +808,35 @@
         </div>
 
         <!-- Conclusion -->
-        <div class="highlight-box">
-            <h4>권장 사항</h4>
-            <ul>
-                <li><strong>최고 성능:</strong> Graviton4 (m8g, r8g, c8g) - 처리량 1위, 콜드 스타트 최고</li>
-                <li><strong>최고 Intel:</strong> r8i-flex.xlarge - Flex 모델이 일반 모델 대비 18-25% 우수</li>
-                <li><strong>최고 가성비:</strong> c7i-flex.xlarge - 8세대 대비 저렴하면서 높은 처리량</li>
-                <li><strong>비추천:</strong> AMD 5a 시리즈 (m5a, r5a, r5ad, m5ad) - Intel 대비 33% 느림</li>
-                <li><strong>메모리 패밀리 (R):</strong> ES 워크로드에 추천 - 추가 메모리가 인덱싱 성능 향상</li>
-            </ul>
+        <div class="chart-section" id="conclusion">
+            <h2>결론 및 권장사항</h2>
+            <div class="conclusion-grid">
+                <div class="conclusion-card">
+                    <h4>최고 성능: Graviton4</h4>
+                    <p>m8g.xlarge가 Rally 1위 (76K docs/s), 콜드 스타트 1위 (10.7s). r8g, c8g도 Top 3 차지.</p>
+                </div>
+                <div class="conclusion-card intel">
+                    <h4>최고 Intel: r8i-flex</h4>
+                    <p>r8i-flex.xlarge가 Intel 최고 (67,892 docs/s). Flex 모델이 일반 모델 대비 18-25% 우수.</p>
+                </div>
+                <div class="conclusion-card intel">
+                    <h4>최고 가성비: c7i-flex</h4>
+                    <p>c7i-flex.xlarge - 8세대 대비 저렴하면서 높은 처리량으로 가격 대비 성능 우수.</p>
+                </div>
+                <div class="conclusion-card">
+                    <h4>메모리 패밀리 (R) 추천</h4>
+                    <p>ES 워크로드에서 R 패밀리 (32GB 메모리)가 인덱싱 성능 향상에 유리.</p>
+                </div>
+            </div>
+            <div class="insights" style="margin-top: 1.5rem;">
+                <h4>선택 가이드</h4>
+                <ul>
+                    <li><strong>최고 성능이 필요하면:</strong> Graviton4 (m8g, r8g, c8g) - 가장 빠른 처리량과 시작 시간</li>
+                    <li><strong>x86 호환성이 필요하면:</strong> Intel Flex (r8i-flex, c8i-flex, c7i-flex) - 일반 모델 대비 우수</li>
+                    <li><strong>비용 효율이 중요하면:</strong> c7i-flex.xlarge - 가격 대비 성능 최고</li>
+                    <li><strong>피해야 할 선택:</strong> AMD 5a 시리즈 (m5a, r5a, r5ad, m5ad) - Intel 대비 33% 느림</li>
+                </ul>
+            </div>
         </div>
 
         <footer>
@@ -754,11 +952,19 @@
             btn.classList.add('active');
         }
 
+        // Current filter state
+        let currentRallyFamily = 'all';
+        let currentColdstartFamily = 'all';
+
         // Rally Chart
         let rallyChart;
-        function createRallyChart() {
-            const top20 = benchmarkData.slice(0, 20);
+        function createRallyChart(family = 'all') {
+            currentRallyFamily = family;
+            let filtered = [...benchmarkData];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
+            const top20 = filtered.sort((a, b) => b.rally_throughput_avg - a.rally_throughput_avg).slice(0, 20);
             const ctx = document.getElementById('rallyChart').getContext('2d');
+            if (rallyChart) rallyChart.destroy();
             rallyChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -792,35 +998,37 @@
 
         function updateRallyChart(metric) {
             setActiveToggle(event.target);
+            let baseData = [...benchmarkData];
+            if (currentRallyFamily !== 'all') baseData = baseData.filter(d => d.family === currentRallyFamily.toUpperCase());
             let top20, label, format, xLabel;
 
             if (metric === 'throughput') {
-                top20 = [...benchmarkData].sort((a, b) => b.rally_throughput_avg - a.rally_throughput_avg).slice(0, 20);
+                top20 = baseData.sort((a, b) => b.rally_throughput_avg - a.rally_throughput_avg).slice(0, 20);
                 label = 'Throughput (docs/s)';
                 format = v => `${v.toLocaleString()} docs/s`;
                 xLabel = 'Throughput (docs/s) - Higher is better';
             } else if (metric === 'latency50') {
-                top20 = [...benchmarkData].sort((a, b) => a.rally_latency_50_avg - b.rally_latency_50_avg).slice(0, 20);
+                top20 = baseData.sort((a, b) => a.rally_latency_50_avg - b.rally_latency_50_avg).slice(0, 20);
                 label = 'Latency p50 (ms)';
                 format = v => `${v.toFixed(1)} ms`;
                 xLabel = 'Latency p50 (ms) - Lower is better';
             } else if (metric === 'latency99') {
-                top20 = [...benchmarkData].sort((a, b) => a.rally_latency_99_avg - b.rally_latency_99_avg).slice(0, 20);
+                top20 = baseData.sort((a, b) => a.rally_latency_99_avg - b.rally_latency_99_avg).slice(0, 20);
                 label = 'Latency p99 (ms)';
                 format = v => `${v.toFixed(1)} ms`;
                 xLabel = 'Latency p99 (ms) - Lower is better';
             } else if (metric === 'gc') {
-                top20 = [...benchmarkData].sort((a, b) => a.rally_gc_young_avg - b.rally_gc_young_avg).slice(0, 20);
+                top20 = baseData.sort((a, b) => a.rally_gc_young_avg - b.rally_gc_young_avg).slice(0, 20);
                 label = 'GC Time (s)';
                 format = v => `${v.toFixed(2)} s`;
                 xLabel = 'GC Time (s) - Lower is better';
             } else if (metric === 'indexing') {
-                top20 = [...benchmarkData].filter(d => d.indexing_time_avg).sort((a, b) => a.indexing_time_avg - b.indexing_time_avg).slice(0, 20);
+                top20 = baseData.filter(d => d.indexing_time_avg).sort((a, b) => a.indexing_time_avg - b.indexing_time_avg).slice(0, 20);
                 label = 'Indexing Time (min)';
                 format = v => `${v.toFixed(1)} min`;
                 xLabel = 'Cumulative Indexing Time (min) - Lower is better';
             } else if (metric === 'merge') {
-                top20 = [...benchmarkData].filter(d => d.merge_time_avg).sort((a, b) => a.merge_time_avg - b.merge_time_avg).slice(0, 20);
+                top20 = baseData.filter(d => d.merge_time_avg).sort((a, b) => a.merge_time_avg - b.merge_time_avg).slice(0, 20);
                 label = 'Merge Time (min)';
                 format = v => `${v.toFixed(1)} min`;
                 xLabel = 'Cumulative Merge Time (min) - Lower is better';
@@ -845,9 +1053,13 @@
 
         // Coldstart Chart
         let coldstartChart;
-        function createColdstartChart() {
-            const sorted = [...benchmarkData].sort((a, b) => a.coldstart_avg - b.coldstart_avg).slice(0, 20);
+        function createColdstartChart(family = 'all') {
+            currentColdstartFamily = family;
+            let filtered = [...benchmarkData];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
+            const sorted = filtered.sort((a, b) => a.coldstart_avg - b.coldstart_avg).slice(0, 20);
             const ctx = document.getElementById('coldstartChart').getContext('2d');
+            if (coldstartChart) coldstartChart.destroy();
             coldstartChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -881,30 +1093,32 @@
 
         function updateColdstartChart(metric) {
             setActiveToggle(event.target);
+            let baseData = [...benchmarkData];
+            if (currentColdstartFamily !== 'all') baseData = baseData.filter(d => d.family === currentColdstartFamily.toUpperCase());
             let sorted, label, format, xLabel;
 
             if (metric === 'coldstart') {
-                sorted = [...benchmarkData].sort((a, b) => a.coldstart_avg - b.coldstart_avg).slice(0, 20);
+                sorted = baseData.sort((a, b) => a.coldstart_avg - b.coldstart_avg).slice(0, 20);
                 label = 'Cold Start (s)';
                 format = v => `${v.toFixed(2)}s`;
                 xLabel = 'Cold Start (s) - Lower is better';
             } else if (metric === 'sequential') {
-                sorted = [...benchmarkData].filter(d => d.sequential_index_avg).sort((a, b) => a.sequential_index_avg - b.sequential_index_avg).slice(0, 20);
+                sorted = baseData.filter(d => d.sequential_index_avg).sort((a, b) => a.sequential_index_avg - b.sequential_index_avg).slice(0, 20);
                 label = 'Sequential Index (ms)';
                 format = v => `${v.toFixed(0)} ms`;
                 xLabel = 'Sequential Index 100 docs (ms) - Lower is better';
             } else if (metric === 'bulk') {
-                sorted = [...benchmarkData].sort((a, b) => a.bulk_index_avg - b.bulk_index_avg).slice(0, 20);
+                sorted = baseData.sort((a, b) => a.bulk_index_avg - b.bulk_index_avg).slice(0, 20);
                 label = 'Bulk Index (ms)';
                 format = v => `${v.toFixed(0)} ms`;
                 xLabel = 'Bulk Index 1000 docs (ms) - Lower is better';
             } else if (metric === 'search_match_all') {
-                sorted = [...benchmarkData].filter(d => d.search_match_all_avg).sort((a, b) => a.search_match_all_avg - b.search_match_all_avg).slice(0, 20);
+                sorted = baseData.filter(d => d.search_match_all_avg).sort((a, b) => a.search_match_all_avg - b.search_match_all_avg).slice(0, 20);
                 label = 'Search match_all (ms)';
                 format = v => `${v.toFixed(0)} ms`;
                 xLabel = 'Search match_all (ms) - Lower is better';
             } else if (metric === 'search_term') {
-                sorted = [...benchmarkData].filter(d => d.search_term_avg).sort((a, b) => a.search_term_avg - b.search_term_avg).slice(0, 20);
+                sorted = baseData.filter(d => d.search_term_avg).sort((a, b) => a.search_term_avg - b.search_term_avg).slice(0, 20);
                 label = 'Search term (ms)';
                 format = v => `${v.toFixed(0)} ms`;
                 xLabel = 'Search term (ms) - Lower is better';
@@ -1361,6 +1575,24 @@
             renderTable(sorted);
         }
 
+        // Setup chart controls
+        function setupControls() {
+            document.querySelectorAll('.btn-group[data-toggle="family"]').forEach(group => {
+                group.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+
+                        const chartId = group.dataset.chart;
+                        const family = btn.dataset.value;
+
+                        if (chartId === 'rally') createRallyChart(family);
+                        else if (chartId === 'coldstart') createColdstartChart(family);
+                    });
+                });
+            });
+        }
+
         // Initialize all charts
         createRallyChart();
         createColdstartChart();
@@ -1372,6 +1604,7 @@
         createScatterChart();
         createCombinedGenChart();
         renderTable(benchmarkData);
+        setupControls();
     </script>
 </body>
 </html>

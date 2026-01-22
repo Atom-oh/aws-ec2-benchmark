@@ -205,6 +205,44 @@
             color: var(--muted);
         }
 
+        /* Chart Controls */
+        .chart-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .chart-controls label {
+            font-weight: 500;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+        .btn-group {
+            display: flex;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .btn-group button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: #f8fafc;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .btn-group button:hover {
+            background: #e2e8f0;
+        }
+        .btn-group button.active {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #10b981; }
+        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #3b82f6; }
+        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
+
         @media (max-width: 768px) {
             .chart-grid { grid-template-columns: 1fr; }
             .toc ul { columns: 1; }
@@ -512,6 +550,15 @@
         <!-- 가격 대비 성능 -->
         <section class="section" id="price-performance">
             <h2>가격 대비 성능</h2>
+            <div class="chart-controls">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="efficiency">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
             <div class="chart-grid">
                 <div class="chart-container tall">
                     <div class="chart-title">CPU 가성비 (events per $/hr) Top 20</div>
@@ -522,7 +569,16 @@
                     <canvas id="memEfficiencyChart"></canvas>
                 </div>
             </div>
-            <div class="chart-container" style="height: 500px; margin-top: 2rem;">
+            <div class="chart-controls" style="margin-top: 2rem;">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="bubble">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 500px;">
                 <div class="chart-title">가격 vs CPU 성능 (버블 크기 = 메모리 대역폭)</div>
                 <canvas id="pricePerformanceChart"></canvas>
             </div>
@@ -978,107 +1034,133 @@
             }
         });
 
-        // CPU 가성비 Top 20
-        const cpuEffTop = [...data].filter(d => d.cpu_efficiency > 0).sort((a, b) => b.cpu_efficiency - a.cpu_efficiency).slice(0, 20);
-        new Chart(document.getElementById('cpuEfficiencyChart'), {
-            type: 'bar',
-            data: {
-                labels: cpuEffTop.map(d => d.name),
-                datasets: [{
-                    data: cpuEffTop.map(d => d.cpu_efficiency),
-                    backgroundColor: cpuEffTop.map(d => getColor(d.arch)),
-                    borderColor: cpuEffTop.map(d => getColor(d.arch, 1)),
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                ...commonOptions,
-                indexAxis: 'y',
-                scales: {
-                    x: { title: { display: true, text: 'events per $/hr' } }
-                }
+        // CPU 가성비 Top 20 (with family filter)
+        let cpuEfficiencyChart;
+        function createCpuEfficiencyChart(family = 'all') {
+            let filtered = [...data].filter(d => d.cpu_efficiency > 0);
+            if (family !== 'all') {
+                filtered = filtered.filter(d => d.family.toUpperCase() === family.toUpperCase());
             }
-        });
-
-        // Memory 가성비 Top 20
-        const memEffTop = [...data].filter(d => d.mem_efficiency > 0).sort((a, b) => b.mem_efficiency - a.mem_efficiency).slice(0, 20);
-        new Chart(document.getElementById('memEfficiencyChart'), {
-            type: 'bar',
-            data: {
-                labels: memEffTop.map(d => d.name),
-                datasets: [{
-                    data: memEffTop.map(d => d.mem_efficiency),
-                    backgroundColor: memEffTop.map(d => getColor(d.arch)),
-                    borderColor: memEffTop.map(d => getColor(d.arch, 1)),
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                ...commonOptions,
-                indexAxis: 'y',
-                scales: {
-                    x: { title: { display: true, text: 'MiB/sec per $/hr' } }
-                }
-            }
-        });
-
-        // 가격 vs 성능 버블 차트
-        const priceData = data.filter(d => d.price > 0 && d.cpu_mt > 0);
-        new Chart(document.getElementById('pricePerformanceChart'), {
-            type: 'bubble',
-            data: {
-                datasets: [
-                    {
-                        label: 'Graviton',
-                        data: priceData.filter(d => d.arch === 'graviton').map(d => ({
-                            x: d.price,
-                            y: d.cpu_mt,
-                            r: Math.sqrt(d.mem_large_block) / 15,
-                            name: d.name
-                        })),
-                        backgroundColor: getColor('graviton', 0.6)
-                    },
-                    {
-                        label: 'Intel',
-                        data: priceData.filter(d => d.arch === 'intel').map(d => ({
-                            x: d.price,
-                            y: d.cpu_mt,
-                            r: Math.sqrt(d.mem_large_block) / 15,
-                            name: d.name
-                        })),
-                        backgroundColor: getColor('intel', 0.6)
-                    },
-                    {
-                        label: 'AMD',
-                        data: priceData.filter(d => d.arch === 'amd').map(d => ({
-                            x: d.price,
-                            y: d.cpu_mt,
-                            r: Math.sqrt(d.mem_large_block) / 15,
-                            name: d.name
-                        })),
-                        backgroundColor: getColor('amd', 0.6)
+            const cpuEffTop = filtered.sort((a, b) => b.cpu_efficiency - a.cpu_efficiency).slice(0, 20);
+            if (cpuEfficiencyChart) cpuEfficiencyChart.destroy();
+            cpuEfficiencyChart = new Chart(document.getElementById('cpuEfficiencyChart'), {
+                type: 'bar',
+                data: {
+                    labels: cpuEffTop.map(d => d.name),
+                    datasets: [{
+                        data: cpuEffTop.map(d => d.cpu_efficiency),
+                        backgroundColor: cpuEffTop.map(d => getColor(d.arch)),
+                        borderColor: cpuEffTop.map(d => getColor(d.arch, 1)),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { title: { display: true, text: 'events per $/hr' } }
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: true },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.raw.name + ': $' + context.raw.x + '/hr, ' + context.raw.y.toLocaleString() + ' events/sec';
+                }
+            });
+        }
+        createCpuEfficiencyChart();
+
+        // Memory 가성비 Top 20 (with family filter)
+        let memEfficiencyChart;
+        function createMemEfficiencyChart(family = 'all') {
+            let filtered = [...data].filter(d => d.mem_efficiency > 0);
+            if (family !== 'all') {
+                filtered = filtered.filter(d => d.family.toUpperCase() === family.toUpperCase());
+            }
+            const memEffTop = filtered.sort((a, b) => b.mem_efficiency - a.mem_efficiency).slice(0, 20);
+            if (memEfficiencyChart) memEfficiencyChart.destroy();
+            memEfficiencyChart = new Chart(document.getElementById('memEfficiencyChart'), {
+                type: 'bar',
+                data: {
+                    labels: memEffTop.map(d => d.name),
+                    datasets: [{
+                        data: memEffTop.map(d => d.mem_efficiency),
+                        backgroundColor: memEffTop.map(d => getColor(d.arch)),
+                        borderColor: memEffTop.map(d => getColor(d.arch, 1)),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { title: { display: true, text: 'MiB/sec per $/hr' } }
+                    }
+                }
+            });
+        }
+        createMemEfficiencyChart();
+
+        // 가격 vs 성능 버블 차트 (with family filter)
+        let pricePerformanceChart;
+        function createPricePerformanceChart(family = 'all') {
+            let priceData = data.filter(d => d.price > 0 && d.cpu_mt > 0);
+            if (family !== 'all') {
+                priceData = priceData.filter(d => d.family.toUpperCase() === family.toUpperCase());
+            }
+            if (pricePerformanceChart) pricePerformanceChart.destroy();
+            pricePerformanceChart = new Chart(document.getElementById('pricePerformanceChart'), {
+                type: 'bubble',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Graviton',
+                            data: priceData.filter(d => d.arch === 'graviton').map(d => ({
+                                x: d.price,
+                                y: d.cpu_mt,
+                                r: Math.sqrt(d.mem_large_block) / 15,
+                                name: d.name
+                            })),
+                            backgroundColor: getColor('graviton', 0.6)
+                        },
+                        {
+                            label: 'Intel',
+                            data: priceData.filter(d => d.arch === 'intel').map(d => ({
+                                x: d.price,
+                                y: d.cpu_mt,
+                                r: Math.sqrt(d.mem_large_block) / 15,
+                                name: d.name
+                            })),
+                            backgroundColor: getColor('intel', 0.6)
+                        },
+                        {
+                            label: 'AMD',
+                            data: priceData.filter(d => d.arch === 'amd').map(d => ({
+                                x: d.price,
+                                y: d.cpu_mt,
+                                r: Math.sqrt(d.mem_large_block) / 15,
+                                name: d.name
+                            })),
+                            backgroundColor: getColor('amd', 0.6)
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.name + ': $' + context.raw.x + '/hr, ' + context.raw.y.toLocaleString() + ' events/sec';
+                                }
                             }
                         }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: '시간당 가격 ($)' } },
+                        y: { title: { display: true, text: 'CPU events/sec' } }
                     }
-                },
-                scales: {
-                    x: { title: { display: true, text: '시간당 가격 ($)' } },
-                    y: { title: { display: true, text: 'CPU events/sec' } }
                 }
-            }
-        });
+            });
+        }
+        createPricePerformanceChart();
 
         // 테이블 렌더링
         function renderTable(filteredData) {
@@ -1150,6 +1232,27 @@
                 renderTable(sorted);
             });
         });
+
+        // 차트 컨트롤 설정
+        function setupControls() {
+            document.querySelectorAll('.btn-group[data-toggle="family"]').forEach(group => {
+                group.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        const chartId = group.dataset.chart;
+                        const family = btn.dataset.value;
+                        if (chartId === 'efficiency') {
+                            createCpuEfficiencyChart(family);
+                            createMemEfficiencyChart(family);
+                        } else if (chartId === 'bubble') {
+                            createPricePerformanceChart(family);
+                        }
+                    });
+                });
+            });
+        }
+        setupControls();
     </script>
 </body>
 </html>

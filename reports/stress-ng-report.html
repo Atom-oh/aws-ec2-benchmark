@@ -113,31 +113,159 @@
             border-radius: 0.5rem;
             font-size: 0.875rem;
         }
-        .tab-buttons {
+        /* 표준 chart-controls 스타일 */
+        .chart-controls {
             display: flex;
-            gap: 0.5rem;
+            gap: 1rem;
             margin-bottom: 1rem;
             flex-wrap: wrap;
+            align-items: center;
         }
-        .tab-btn {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border);
-            background: var(--card);
+        .chart-controls label {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+        .btn-group {
+            display: flex;
             border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-group button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: #f8fafc;
             cursor: pointer;
             font-size: 0.875rem;
             transition: all 0.2s;
         }
-        .tab-btn:hover { background: #f1f5f9; }
-        .tab-btn.active { background: var(--intel); color: white; border-color: var(--intel); }
-        .tab-btn.active-green { background: var(--graviton); color: white; border-color: var(--graviton); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .nav { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
-        .nav a { padding: 0.5rem 1rem; background: var(--card); border-radius: 0.5rem; text-decoration: none; color: var(--text); font-size: 0.875rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .nav a:hover { background: var(--border); }
-        @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
-        @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+        .btn-group button:hover { background: #e2e8f0; }
+        .btn-group button.active { background: #3b82f6; color: white; }
+        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #10b981; }
+        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #3b82f6; }
+        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
+
+        /* 목차 스타일 */
+        .toc {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .toc h2 { font-size: 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 0.5rem;
+        }
+        .toc-grid a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text);
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        .toc-grid a:hover { background: #f1f5f9; }
+        .toc-grid .num {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* 섹션 헤더 스타일 */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .section-header .num {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .section-header h2 { font-size: 1.25rem; margin: 0; }
+
+        /* 정보 그리드 스타일 */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .info-box {
+            background: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border-left: 4px solid #10b981;
+        }
+        .info-box h4 {
+            font-size: 0.9rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+        .info-box ul {
+            margin: 0;
+            padding-left: 1.25rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+        .info-box li { margin-bottom: 0.25rem; }
+        .info-box.blue { border-left-color: #3b82f6; }
+        .info-box.purple { border-left-color: #8b5cf6; }
+        .info-box.orange { border-left-color: #f59e0b; }
+
+        /* 결론 섹션 스타일 */
+        .conclusion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .conclusion-card {
+            background: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            border-top: 4px solid #10b981;
+        }
+        .conclusion-card.blue { border-top-color: #3b82f6; }
+        .conclusion-card.purple { border-top-color: #8b5cf6; }
+        .conclusion-card.orange { border-top-color: #f59e0b; }
+        .conclusion-card h4 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .conclusion-card ul {
+            margin: 0;
+            padding-left: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+        .conclusion-card li { margin-bottom: 0.5rem; }
+        .conclusion-card strong { color: var(--text); }
+
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -188,6 +316,8 @@
             background: rgba(99, 102, 241, 0.3);
             color: #a5b4fc;
         }
+        @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
             .navbar { padding: 0.5rem 1rem; }
             .navbar-links a { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
@@ -195,22 +325,12 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="../index.html" class="navbar-brand">🏠 EC2 Benchmark</a>
-            <div class="navbar-links">
-                <a href="geekbench-report.html">Geekbench</a>
-                <a href="passmark-report.html">PassMark</a>
-                <a href="sysbench-report.html">Sysbench</a>
-                <a href="stress-ng-report.html" class="active">stress-ng</a>
-                <a href="iperf3-report.html">iperf3</a>
-                <a href="redis-report.html">Redis</a>
-                <a href="nginx-report.html">Nginx</a>
-                <a href="springboot-report.html">SpringBoot</a>
-                <a href="elasticsearch-report.html">Elasticsearch</a>
-            </div>
-        </div>
-    </nav>
+<nav class="navbar">
+    <div class="navbar-container">
+        <a href="index.html" class="navbar-brand">EC2 Benchmark</a>
+        <div class="navbar-links"><a href="geekbench-report.html">Geekbench</a><a href="passmark-report.html">PassMark</a><a href="sysbench-report.html">Sysbench</a><a href="stress-ng-report.html" class="active">stress-ng</a><a href="iperf3-report.html">iperf3</a><a href="redis-report.html">Redis</a><a href="nginx-report.html">Nginx</a><a href="springboot-report.html">SpringBoot</a><a href="elasticsearch-report.html">Elasticsearch</a></div>
+    </div>
+</nav>
     <div class="container">
         <header>
             <h1>Stress-ng 종합 벤치마크</h1>
@@ -251,14 +371,21 @@
             </div>
         </div>
 
-        <nav class="nav">
-            <a href="#cpu-perf">CPU 성능</a>
-            <a href="#memory-perf">메모리 성능</a>
-            <a href="#system-perf">시스템 성능</a>
-            <a href="#price-perf">가격 대비 성능</a>
-            <a href="#gen-compare">세대별 비교</a>
-            <a href="#full-results">전체 결과</a>
-        </nav>
+        <!-- 목차 섹션 -->
+        <div class="toc">
+            <h2>목차</h2>
+            <div class="toc-grid">
+                <a href="#methodology"><span class="num">1</span> 테스트 방법론</a>
+                <a href="#environment"><span class="num">2</span> 테스트 환경</a>
+                <a href="#cpu-perf"><span class="num">3</span> CPU 성능 분석</a>
+                <a href="#memory-perf"><span class="num">4</span> 메모리 성능 분석</a>
+                <a href="#system-perf"><span class="num">5</span> 시스템 성능 분석</a>
+                <a href="#price-perf"><span class="num">6</span> 가격 대비 성능</a>
+                <a href="#gen-compare"><span class="num">7</span> 세대별 비교</a>
+                <a href="#full-results"><span class="num">8</span> 전체 결과</a>
+                <a href="#conclusion"><span class="num">9</span> 결론</a>
+            </div>
+        </div>
 
         <div class="insights">
             <h4>핵심 인사이트</h4>
@@ -270,173 +397,230 @@
             </ul>
         </div>
 
+        <!-- 테스트 방법론 섹션 -->
+        <div class="chart-section" id="methodology">
+            <div class="section-header">
+                <span class="num">1</span>
+                <h2>테스트 방법론</h2>
+            </div>
+            <p class="description">stress-ng는 리눅스 시스템의 CPU, 메모리, 컨텍스트 스위칭 등 다양한 하위 시스템 성능을 측정하는 종합 스트레스 테스트 도구입니다.</p>
+
+            <div class="info-grid">
+                <div class="info-box">
+                    <h4>테스트 대상</h4>
+                    <ul>
+                        <li><strong>CPU Integer</strong>: 정수 연산 처리량 측정</li>
+                        <li><strong>CPU Float</strong>: 부동소수점 연산 처리량</li>
+                        <li><strong>Matrix</strong>: 행렬 연산 (SIMD 최적화 반영)</li>
+                        <li><strong>Memcpy</strong>: 메모리 복사 대역폭</li>
+                        <li><strong>Context Switch</strong>: 프로세스 전환 속도</li>
+                        <li><strong>Branch</strong>: 분기 예측 효율성</li>
+                    </ul>
+                </div>
+                <div class="info-box blue">
+                    <h4>수집 메트릭</h4>
+                    <ul>
+                        <li><strong>bogo ops/s</strong>: 초당 작업 처리량</li>
+                        <li><strong>종합 점수</strong>: 개별 메트릭의 가중 합산</li>
+                        <li><strong>가성비</strong>: 종합점수 / 시간당 비용</li>
+                    </ul>
+                </div>
+                <div class="info-box purple">
+                    <h4>왜 중요한가?</h4>
+                    <ul>
+                        <li>실제 워크로드를 대표하는 다양한 스트레서</li>
+                        <li>CPU 아키텍처 차이가 명확히 드러남</li>
+                        <li>컨테이너, 마이크로서비스 환경 성능 예측</li>
+                        <li>메모리 집약적 작업 성능 평가</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 테스트 환경 섹션 -->
+        <div class="chart-section" id="environment">
+            <div class="section-header">
+                <span class="num">2</span>
+                <h2>테스트 환경</h2>
+            </div>
+            <p class="description">모든 테스트는 동일한 조건에서 실행되었습니다.</p>
+
+            <div class="info-grid">
+                <div class="info-box">
+                    <h4>인프라 구성</h4>
+                    <ul>
+                        <li><strong>플랫폼</strong>: Amazon EKS (Kubernetes)</li>
+                        <li><strong>리전</strong>: ap-northeast-2 (서울)</li>
+                        <li><strong>노드 관리</strong>: Karpenter (동적 프로비저닝)</li>
+                        <li><strong>격리</strong>: Pod Anti-Affinity 적용</li>
+                    </ul>
+                </div>
+                <div class="info-box blue">
+                    <h4>인스턴스 구성</h4>
+                    <ul>
+                        <li><strong>크기</strong>: xlarge (4 vCPU)</li>
+                        <li><strong>총 51종</strong>: Intel 35 + Graviton 16</li>
+                        <li><strong>세대</strong>: 5세대 ~ 8세대</li>
+                        <li><strong>패밀리</strong>: C (컴퓨팅), M (범용), R (메모리)</li>
+                    </ul>
+                </div>
+                <div class="info-box purple">
+                    <h4>stress-ng 설정</h4>
+                    <ul>
+                        <li><strong>버전</strong>: 0.17.x</li>
+                        <li><strong>실행 시간</strong>: 60초/스트레서</li>
+                        <li><strong>워커 수</strong>: 4 (vCPU와 동일)</li>
+                        <li><strong>반복</strong>: 3회 측정 후 평균</li>
+                    </ul>
+                </div>
+                <div class="info-box orange">
+                    <h4>가격 기준</h4>
+                    <ul>
+                        <li><strong>기준</strong>: On-Demand 시간당 가격</li>
+                        <li><strong>리전</strong>: 서울 (ap-northeast-2)</li>
+                        <li><strong>날짜</strong>: 2026년 1월 기준</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
         <!-- CPU 성능 섹션 -->
         <div class="chart-section" id="cpu-perf">
-            <h2>CPU 성능 분석</h2>
-            <p class="description">Integer, Float, Matrix 연산 성능을 선택하여 비교</p>
-
-            <div class="tab-buttons">
-                <button class="tab-btn active" onclick="showCpuTab('integer')">Integer 연산</button>
-                <button class="tab-btn" onclick="showCpuTab('float')">Float 연산</button>
-                <button class="tab-btn" onclick="showCpuTab('matrix')">Matrix 연산</button>
+            <div class="section-header">
+                <span class="num">3</span>
+                <h2>CPU 성능 분석</h2>
             </div>
+            <p class="description">Integer, Float, Matrix 연산 성능을 선택하여 비교 (패밀리별 필터 가능)</p>
 
-            <div id="cpu-integer" class="tab-content active">
-                <div class="chart-container tall">
-                    <canvas id="cpuIntChart"></canvas>
+            <div class="chart-controls">
+                <label>메트릭:</label>
+                <div class="btn-group" data-toggle="metric" data-chart="cpu">
+                    <button class="active" data-value="int">Integer</button>
+                    <button data-value="float">Float</button>
+                    <button data-value="matrix">Matrix</button>
                 </div>
-                <div class="insights" style="margin-top: 1rem;">
-                    <h4>Integer 연산 인사이트</h4>
-                    <ul>
-                        <li><strong>Graviton4 압도적</strong>: m8g/r8g/c8g가 526K ops/s로 Top 3 독점</li>
-                        <li><strong>Intel 8세대</strong>: 376K ops/s로 Graviton4 대비 71% 수준</li>
-                        <li><strong>세대 간 격차</strong>: 8세대 Intel이 6세대 대비 39% 향상</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div id="cpu-float" class="tab-content">
-                <div class="chart-container tall">
-                    <canvas id="cpuFloatChart"></canvas>
-                </div>
-                <div class="insights" style="margin-top: 1rem;">
-                    <h4>Float 연산 인사이트</h4>
-                    <ul>
-                        <li><strong>Graviton4 최고</strong>: c8g/m8g/r8g가 54K ops/s로 동일 성능</li>
-                        <li><strong>Intel 8세대</strong>: 48K ops/s로 Graviton4 대비 89% 수준</li>
-                        <li><strong>AMD 5세대</strong>: c5a가 33K로 Intel 5세대보다 우수</li>
-                    </ul>
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="cpu">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="C">C</button>
+                    <button data-value="M">M</button>
+                    <button data-value="R">R</button>
                 </div>
             </div>
 
-            <div id="cpu-matrix" class="tab-content">
-                <div class="chart-container tall">
-                    <canvas id="matrixChart"></canvas>
-                </div>
-                <div class="insights" style="margin-top: 1rem;">
-                    <h4>Matrix 연산 인사이트</h4>
-                    <ul>
-                        <li><strong>행렬 연산 최적화</strong>: Graviton이 NEON SIMD로 압도적 우위</li>
-                        <li><strong>8세대 Graviton</strong>: 21.9K ops/s (7세대 18.5K 대비 18% 향상)</li>
-                        <li><strong>Intel 최고</strong>: c8i가 12.1K로 Graviton의 55% 수준</li>
-                    </ul>
-                </div>
+            <div class="chart-container tall">
+                <canvas id="cpuChart"></canvas>
+            </div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>CPU 성능 인사이트</h4>
+                <ul>
+                    <li><strong>Graviton4 압도적</strong>: m8g/r8g/c8g가 526K ops/s로 Top 3 독점 (Integer)</li>
+                    <li><strong>Matrix 연산</strong>: Graviton의 NEON SIMD로 인해 Intel 대비 80% 우위</li>
+                    <li><strong>세대 간 격차</strong>: 8세대 Intel이 6세대 대비 39% 향상</li>
+                </ul>
             </div>
         </div>
 
         <!-- 메모리 성능 섹션 -->
         <div class="chart-section" id="memory-perf">
-            <h2>메모리 성능 분석</h2>
-            <p class="description">Memcpy (메모리 복사) 및 Cache 성능</p>
+            <div class="section-header">
+                <span class="num">4</span>
+                <h2>메모리 성능 분석</h2>
+            </div>
+            <p class="description">Memcpy (메모리 복사) 및 Cache 성능 비교</p>
 
-            <div class="tab-buttons">
-                <button class="tab-btn active-green active" onclick="showMemTab('memcpy')">Memcpy</button>
-                <button class="tab-btn" onclick="showMemTab('cache')">Cache</button>
+            <div class="chart-controls">
+                <label>메트릭:</label>
+                <div class="btn-group" data-toggle="metric" data-chart="memory">
+                    <button class="active" data-value="memcpy">Memcpy</button>
+                    <button data-value="cache">Cache</button>
+                </div>
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="memory">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="C">C</button>
+                    <button data-value="M">M</button>
+                    <button data-value="R">R</button>
+                </div>
             </div>
 
-            <div id="mem-memcpy" class="tab-content active">
-                <div class="chart-container tall">
-                    <canvas id="memcpyChart"></canvas>
-                </div>
-                <div class="insights" style="margin-top: 1rem;">
-                    <h4>Memcpy 인사이트</h4>
-                    <ul>
-                        <li><strong>메모리 대역폭</strong>: r8g.xlarge가 1,808 ops/s로 최고</li>
-                        <li><strong>Graviton 우위</strong>: 8세대 Graviton이 1,780-1,808 범위로 최상위권</li>
-                        <li><strong>Intel 8세대</strong>: 1,165 ops/s로 Graviton 대비 65% 수준</li>
-                    </ul>
-                </div>
+            <div class="chart-container tall">
+                <canvas id="memoryChart"></canvas>
             </div>
 
-            <div id="mem-cache" class="tab-content">
-                <div class="chart-container tall">
-                    <canvas id="cacheChart"></canvas>
-                </div>
-                <div class="insights" style="margin-top: 1rem;">
-                    <h4>Cache 인사이트</h4>
-                    <ul>
-                        <li><strong>캐시 효율성</strong>: m5zn.xlarge가 36 ops/s로 의외의 강세</li>
-                        <li><strong>세대별 차이 미미</strong>: 캐시 성능은 아키텍처보다 캐시 크기에 의존</li>
-                        <li><strong>5세대 강세</strong>: c5.xlarge 33 ops/s로 상위권</li>
-                    </ul>
-                </div>
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>메모리 성능 인사이트</h4>
+                <ul>
+                    <li><strong>메모리 대역폭</strong>: r8g.xlarge가 1,808 ops/s로 최고</li>
+                    <li><strong>Graviton 우위</strong>: 8세대 Graviton이 1,780-1,808 범위로 최상위권</li>
+                    <li><strong>Cache 성능</strong>: 캐시 크기에 의존하여 세대별 차이 미미</li>
+                </ul>
             </div>
         </div>
 
         <!-- 시스템 성능 섹션 -->
         <div class="chart-section" id="system-perf">
-            <h2>시스템 성능 분석</h2>
-            <p class="description">Context Switch 및 Branch Prediction 성능</p>
+            <div class="section-header">
+                <span class="num">5</span>
+                <h2>시스템 성능 분석</h2>
+            </div>
+            <p class="description">Context Switch 및 Branch Prediction 성능 비교</p>
 
-            <div class="tab-buttons">
-                <button class="tab-btn active" onclick="showSysTab('switch')">Context Switch</button>
-                <button class="tab-btn" onclick="showSysTab('branch')">Branch Prediction</button>
+            <div class="chart-controls">
+                <label>메트릭:</label>
+                <div class="btn-group" data-toggle="metric" data-chart="system">
+                    <button class="active" data-value="switch">Context Switch</button>
+                    <button data-value="branch">Branch</button>
+                </div>
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="system">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="C">C</button>
+                    <button data-value="M">M</button>
+                    <button data-value="R">R</button>
+                </div>
             </div>
 
-            <div id="sys-switch" class="tab-content active">
-                <div class="chart-container tall">
-                    <canvas id="switchChart"></canvas>
-                </div>
-                <div class="insights" style="margin-top: 1rem;">
-                    <h4>Context Switch 인사이트</h4>
-                    <ul>
-                        <li><strong>8세대 압도적</strong>: Graviton4가 1.9M ops/s로 최고 (프로세스 스케줄링 최적화)</li>
-                        <li><strong>Intel 8세대</strong>: 1.59M ops/s로 Graviton4 대비 84%</li>
-                        <li><strong>7세대 격차</strong>: Graviton3 1.32M vs Intel7 1.2M (10% 차이)</li>
-                    </ul>
-                </div>
+            <div class="chart-container tall">
+                <canvas id="systemChart"></canvas>
             </div>
 
-            <div id="sys-branch" class="tab-content">
-                <div class="chart-container tall">
-                    <canvas id="branchChart"></canvas>
-                </div>
-                <div class="insights" style="margin-top: 1rem;">
-                    <h4>Branch Prediction 인사이트</h4>
-                    <ul>
-                        <li><strong>분기 예측 효율</strong>: Graviton4가 618K ops/s로 최고</li>
-                        <li><strong>세대별 향상</strong>: Graviton 6→7→8세대 약 13% 향상</li>
-                        <li><strong>Intel 8세대</strong>: 384K ops/s로 Graviton의 62% 수준</li>
-                    </ul>
-                </div>
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>시스템 성능 인사이트</h4>
+                <ul>
+                    <li><strong>Context Switch</strong>: Graviton4가 1.9M ops/s로 최고 (프로세스 스케줄링 최적화)</li>
+                    <li><strong>Branch Prediction</strong>: Graviton4가 618K ops/s로 최고</li>
+                    <li><strong>Intel 8세대</strong>: 컨텍스트 스위칭 1.59M ops/s로 Graviton4 대비 84%</li>
+                </ul>
             </div>
         </div>
 
         <!-- 가격 대비 성능 섹션 -->
         <div class="chart-section" id="price-perf">
-            <h2>가격 대비 성능 (Cost Efficiency)</h2>
+            <div class="section-header">
+                <span class="num">6</span>
+                <h2>가격 대비 성능 (Cost Efficiency)</h2>
+            </div>
             <p class="description">시간당 비용 대비 종합 점수 - 버블 크기는 종합 점수</p>
 
-            <div class="tab-buttons">
-                <button class="tab-btn active" onclick="showPriceTab('bubble')">버블 차트</button>
-                <button class="tab-btn" onclick="showPriceTab('efficiency')">가성비 순위</button>
-                <button class="tab-btn" onclick="showPriceTab('cpueff')">CPU별 가성비</button>
-            </div>
-
-            <div id="price-bubble" class="tab-content active">
-                <div class="chart-container extra-tall">
-                    <canvas id="pricePerfChart"></canvas>
+            <div class="chart-controls">
+                <label>차트 유형:</label>
+                <div class="btn-group" data-toggle="view" data-chart="price">
+                    <button class="active" data-value="bubble">버블 차트</button>
+                    <button data-value="efficiency">가성비 순위</button>
+                </div>
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="price">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="C">C</button>
+                    <button data-value="M">M</button>
+                    <button data-value="R">R</button>
                 </div>
             </div>
 
-            <div id="price-efficiency" class="tab-content">
-                <div class="chart-container tall">
-                    <canvas id="efficiencyChart"></canvas>
-                </div>
-            </div>
-
-            <div id="price-cpueff" class="tab-content">
-                <div class="grid-3">
-                    <div class="chart-container">
-                        <canvas id="intEffChart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="floatEffChart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="matrixEffChart"></canvas>
-                    </div>
-                </div>
+            <div class="chart-container extra-tall">
+                <canvas id="priceChart"></canvas>
             </div>
 
             <div class="insights" style="margin-top: 1rem;">
@@ -452,16 +636,22 @@
 
         <!-- 세대별 비교 -->
         <div class="chart-section" id="gen-compare">
-            <h2>아키텍처별/세대별 성능 비교</h2>
-            <p class="description">세대별(5-8세대) Graviton vs Intel vs AMD 성능 비교</p>
-            <div style="margin-bottom: 1rem;">
-                <label for="metricSelector" style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</label>
-                <select id="metricSelector" onchange="updateArchGenChart()" style="padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; font-size: 1rem;">
-                    <option value="matrix">Matrix (행렬 연산)</option>
-                    <option value="int">CPU Int (정수 연산)</option>
-                    <option value="switch">Context Switch</option>
-                </select>
+            <div class="section-header">
+                <span class="num">7</span>
+                <h2>아키텍처별/세대별 성능 비교</h2>
             </div>
+            <p class="description">세대별(5-8세대) Graviton vs Intel vs AMD 성능 비교</p>
+
+            <div class="chart-controls">
+                <label>메트릭:</label>
+                <div class="btn-group" data-toggle="metric" data-chart="archGen">
+                    <button class="active" data-value="matrix">Matrix</button>
+                    <button data-value="int">CPU Int</button>
+                    <button data-value="switch">Context Switch</button>
+                    <button data-value="total">종합 점수</button>
+                </div>
+            </div>
+
             <div class="chart-container" style="height: 400px;">
                 <canvas id="archChart"></canvas>
             </div>
@@ -482,20 +672,14 @@
             <div class="chart-container tall">
                 <canvas id="costEffTop20Chart"></canvas>
             </div>
-            <div class="insights" style="margin-top: 1rem;">
-                <h4>가성비 핵심 인사이트</h4>
-                <ul>
-                    <li><strong>Graviton4 압도적</strong>: c8g.xlarge가 $0.154/hr로 가성비 1위 (3,037 점/$)</li>
-                    <li><strong>상위 독점</strong>: Top 10 중 8개가 Graviton - ARM 아키텍처의 효율성 입증</li>
-                    <li><strong>Intel 최선</strong>: c8i-flex.xlarge가 Intel 중 가성비 최고 (1,708 점/$)</li>
-                    <li><strong>세대 효과</strong>: 같은 가격대에서 신세대가 구세대 대비 20-40% 효율적</li>
-                </ul>
-            </div>
         </div>
 
         <!-- 전체 결과 테이블 -->
         <div class="chart-section" id="full-results">
-            <h2>전체 결과 테이블</h2>
+            <div class="section-header">
+                <span class="num">8</span>
+                <h2>전체 결과 테이블</h2>
+            </div>
             <div class="filter-bar">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
                 <select id="archFilter" onchange="filterTable()">
@@ -511,6 +695,12 @@
                     <option value="6">6세대</option>
                     <option value="5">5세대</option>
                 </select>
+                <select id="familyFilter" onchange="filterTable()">
+                    <option value="">모든 패밀리</option>
+                    <option value="C">C (컴퓨팅)</option>
+                    <option value="M">M (범용)</option>
+                    <option value="R">R (메모리)</option>
+                </select>
             </div>
             <table id="resultsTable">
                 <thead>
@@ -519,19 +709,78 @@
                         <th onclick="sortTable(1)">인스턴스</th>
                         <th onclick="sortTable(2)">Arch</th>
                         <th onclick="sortTable(3)">Gen</th>
-                        <th onclick="sortTable(4)">$/hr</th>
-                        <th onclick="sortTable(5)">Matrix</th>
-                        <th onclick="sortTable(6)">Float</th>
-                        <th onclick="sortTable(7)">Int</th>
-                        <th onclick="sortTable(8)">Memcpy</th>
-                        <th onclick="sortTable(9)">Switch</th>
-                        <th onclick="sortTable(10)">종합</th>
-                        <th onclick="sortTable(11)">가성비</th>
+                        <th onclick="sortTable(4)">Family</th>
+                        <th onclick="sortTable(5)">$/hr</th>
+                        <th onclick="sortTable(6)">Matrix</th>
+                        <th onclick="sortTable(7)">Float</th>
+                        <th onclick="sortTable(8)">Int</th>
+                        <th onclick="sortTable(9)">Memcpy</th>
+                        <th onclick="sortTable(10)">Switch</th>
+                        <th onclick="sortTable(11)">종합</th>
+                        <th onclick="sortTable(12)">가성비</th>
                     </tr>
                 </thead>
                 <tbody id="resultsBody">
                 </tbody>
             </table>
+        </div>
+
+        <!-- 결론 섹션 -->
+        <div class="chart-section" id="conclusion">
+            <div class="section-header">
+                <span class="num">9</span>
+                <h2>결론 및 권장사항</h2>
+            </div>
+            <p class="description">stress-ng 벤치마크 결과를 바탕으로 한 인스턴스 선택 가이드</p>
+
+            <div class="conclusion-grid">
+                <div class="conclusion-card">
+                    <h4>🏆 최고 성능</h4>
+                    <ul>
+                        <li><strong>종합 1위</strong>: r8g.xlarge (472,629점)</li>
+                        <li><strong>CPU 성능</strong>: m8g/r8g/c8g 모두 52만 ops/s</li>
+                        <li><strong>Matrix 연산</strong>: c8g.xlarge (21,897 ops/s)</li>
+                        <li>Graviton4가 모든 카테고리 석권</li>
+                    </ul>
+                </div>
+                <div class="conclusion-card blue">
+                    <h4>💰 최고 가성비</h4>
+                    <ul>
+                        <li><strong>1위</strong>: c8g.xlarge (3,037 점/$)</li>
+                        <li><strong>2위</strong>: m8g.xlarge (2,547 점/$)</li>
+                        <li><strong>Intel 최선</strong>: c8i-flex.xlarge (1,708 점/$)</li>
+                        <li>Graviton이 상위 10개 중 8개 차지</li>
+                    </ul>
+                </div>
+                <div class="conclusion-card purple">
+                    <h4>📊 아키텍처 비교</h4>
+                    <ul>
+                        <li><strong>Graviton 평균</strong>: 348,161점 (16개 인스턴스)</li>
+                        <li><strong>Intel 평균</strong>: 247,144점 (30개 인스턴스)</li>
+                        <li><strong>성능 차이</strong>: Graviton이 41% 우위</li>
+                        <li><strong>가격 차이</strong>: Graviton이 평균 20% 저렴</li>
+                    </ul>
+                </div>
+                <div class="conclusion-card orange">
+                    <h4>💡 권장 인스턴스</h4>
+                    <ul>
+                        <li><strong>컴퓨팅 집약</strong>: c8g.xlarge (가성비+성능 최고)</li>
+                        <li><strong>범용 워크로드</strong>: m7g.xlarge (밸런스)</li>
+                        <li><strong>메모리 집약</strong>: r8g.xlarge (종합 1위)</li>
+                        <li><strong>Intel 필요시</strong>: c8i-flex.xlarge</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1.5rem;">
+                <h4>핵심 결론</h4>
+                <ul>
+                    <li><strong>Graviton4 선택</strong>: ARM 호환성 이슈가 없다면 Graviton4 (8세대)가 최선의 선택</li>
+                    <li><strong>세대 효과</strong>: 동일 가격대에서 신세대가 구세대 대비 20-40% 효율적</li>
+                    <li><strong>피해야 할 선택</strong>: 5세대 AMD (c5a/m5a/r5a)는 가성비가 가장 낮음</li>
+                    <li><strong>Matrix 연산</strong>: SIMD 최적화가 중요한 워크로드라면 Graviton 필수</li>
+                </ul>
+            </div>
         </div>
 
         <footer>
@@ -542,56 +791,56 @@
     <script>
         // 전체 데이터 (가격 포함)
         const data = [
-            {instance: 'r8g.xlarge', arch: 'Graviton', gen: 8, family: 'R', price: 0.229, matrix: 21623, float: 54203, int: 526122, memcpy: 1808, cache: 22, switch: 1934407, branch: 618000, total: 472629},
-            {instance: 'm8g.xlarge', arch: 'Graviton', gen: 8, family: 'M', price: 0.185, matrix: 21888, float: 54216, int: 526352, memcpy: 1804, cache: 22, switch: 1924708, branch: 618000, total: 471227},
-            {instance: 'c8g.xlarge', arch: 'Graviton', gen: 8, family: 'C', price: 0.154, matrix: 21897, float: 54227, int: 526031, memcpy: 1779, cache: 22, switch: 1900854, branch: 618000, total: 467597},
-            {instance: 'm8i.xlarge', arch: 'Intel', gen: 8, family: 'M', price: 0.254, matrix: 11938, float: 48225, int: 376627, memcpy: 1165, cache: 24, switch: 1596099, branch: 384000, total: 365376},
-            {instance: 'c8i.xlarge', arch: 'Intel', gen: 8, family: 'C', price: 0.212, matrix: 12117, float: 48157, int: 376175, memcpy: 1165, cache: 24, switch: 1594655, branch: 384000, total: 365054},
-            {instance: 'r8i.xlarge', arch: 'Intel', gen: 8, family: 'R', price: 0.316, matrix: 11930, float: 48064, int: 376166, memcpy: 1174, cache: 24, switch: 1591272, branch: 383000, total: 364421},
-            {instance: 'r8i-flex.xlarge', arch: 'Intel', gen: 8, family: 'R', price: 0.294, matrix: 11883, float: 48235, int: 376301, memcpy: 1174, cache: 24, switch: 1577812, branch: 384000, total: 362580},
-            {instance: 'r7g.xlarge', arch: 'Graviton', gen: 7, family: 'R', price: 0.240, matrix: 18558, float: 47908, int: 424900, memcpy: 1689, cache: 20, switch: 1327950, branch: 545000, total: 352228},
-            {instance: 'c7g.xlarge', arch: 'Graviton', gen: 7, family: 'C', price: 0.162, matrix: 18520, float: 47947, int: 424860, memcpy: 1684, cache: 20, switch: 1325654, branch: 545000, total: 351826},
-            {instance: 'm7gd.xlarge', arch: 'Graviton', gen: 7, family: 'M', price: 0.231, matrix: 18848, float: 47969, int: 425542, memcpy: 1691, cache: 20, switch: 1322073, branch: 546000, total: 351587},
-            {instance: 'c7gd.xlarge', arch: 'Graviton', gen: 7, family: 'C', price: 0.193, matrix: 18540, float: 47972, int: 425090, memcpy: 1694, cache: 20, switch: 1313500, branch: 545000, total: 350183},
-            {instance: 'r7gd.xlarge', arch: 'Graviton', gen: 7, family: 'R', price: 0.287, matrix: 18551, float: 47952, int: 425202, memcpy: 1691, cache: 20, switch: 1306008, branch: 545000, total: 349062},
-            {instance: 'm7g.xlarge', arch: 'Graviton', gen: 7, family: 'M', price: 0.194, matrix: 18539, float: 47921, int: 424569, memcpy: 1692, cache: 20, switch: 1304380, branch: 545000, total: 348651},
-            {instance: 'c8i-flex.xlarge', arch: 'Intel', gen: 8, family: 'C', price: 0.200, matrix: 11121, float: 46123, int: 360869, memcpy: 1148, cache: 23, switch: 1472594, branch: 360000, total: 341633},
-            {instance: 'r7i.xlarge', arch: 'Intel', gen: 7, family: 'R', price: 0.301, matrix: 10563, float: 43576, int: 348569, memcpy: 896, cache: 21, switch: 1228865, branch: 340000, total: 299985},
+            {instance: 'r8g.xlarge', arch: 'Graviton', gen: 8, family: 'R', price: 0.269, matrix: 21623, float: 54203, int: 526122, memcpy: 1808, cache: 22, switch: 1934407, branch: 618000, total: 472629},
+            {instance: 'm8g.xlarge', arch: 'Graviton', gen: 8, family: 'M', price: 0.206, matrix: 21888, float: 54216, int: 526352, memcpy: 1804, cache: 22, switch: 1924708, branch: 618000, total: 471227},
+            {instance: 'c8g.xlarge', arch: 'Graviton', gen: 8, family: 'C', price: 0.171, matrix: 21897, float: 54227, int: 526031, memcpy: 1779, cache: 22, switch: 1900854, branch: 618000, total: 467597},
+            {instance: 'm8i.xlarge', arch: 'Intel', gen: 8, family: 'M', price: 0.245, matrix: 11938, float: 48225, int: 376627, memcpy: 1165, cache: 24, switch: 1596099, branch: 384000, total: 365376},
+            {instance: 'c8i.xlarge', arch: 'Intel', gen: 8, family: 'C', price: 0.204, matrix: 12117, float: 48157, int: 376175, memcpy: 1165, cache: 24, switch: 1594655, branch: 384000, total: 365054},
+            {instance: 'r8i.xlarge', arch: 'Intel', gen: 8, family: 'R', price: 0.321, matrix: 11930, float: 48064, int: 376166, memcpy: 1174, cache: 24, switch: 1591272, branch: 383000, total: 364421},
+            {instance: 'r8i-flex.xlarge', arch: 'Intel', gen: 8, family: 'R', price: 0.240, matrix: 11883, float: 48235, int: 376301, memcpy: 1174, cache: 24, switch: 1577812, branch: 384000, total: 362580},
+            {instance: 'r7g.xlarge', arch: 'Graviton', gen: 7, family: 'R', price: 0.256, matrix: 18558, float: 47908, int: 424900, memcpy: 1689, cache: 20, switch: 1327950, branch: 545000, total: 352228},
+            {instance: 'c7g.xlarge', arch: 'Graviton', gen: 7, family: 'C', price: 0.163, matrix: 18520, float: 47947, int: 424860, memcpy: 1684, cache: 20, switch: 1325654, branch: 545000, total: 351826},
+            {instance: 'm7gd.xlarge', arch: 'Graviton', gen: 7, family: 'M', price: 0.245, matrix: 18848, float: 47969, int: 425542, memcpy: 1691, cache: 20, switch: 1322073, branch: 546000, total: 351587},
+            {instance: 'c7gd.xlarge', arch: 'Graviton', gen: 7, family: 'C', price: 0.204, matrix: 18540, float: 47972, int: 425090, memcpy: 1694, cache: 20, switch: 1313500, branch: 545000, total: 350183},
+            {instance: 'r7gd.xlarge', arch: 'Graviton', gen: 7, family: 'R', price: 0.320, matrix: 18551, float: 47952, int: 425202, memcpy: 1691, cache: 20, switch: 1306008, branch: 545000, total: 349062},
+            {instance: 'm7g.xlarge', arch: 'Graviton', gen: 7, family: 'M', price: 0.196, matrix: 18539, float: 47921, int: 424569, memcpy: 1692, cache: 20, switch: 1304380, branch: 545000, total: 348651},
+            {instance: 'c8i-flex.xlarge', arch: 'Intel', gen: 8, family: 'C', price: 0.154, matrix: 11121, float: 46123, int: 360869, memcpy: 1148, cache: 23, switch: 1472594, branch: 360000, total: 341633},
+            {instance: 'r7i.xlarge', arch: 'Intel', gen: 7, family: 'R', price: 0.317, matrix: 10563, float: 43576, int: 348569, memcpy: 896, cache: 21, switch: 1228865, branch: 340000, total: 299985},
             {instance: 'm7i.xlarge', arch: 'Intel', gen: 7, family: 'M', price: 0.242, matrix: 10310, float: 42796, int: 342444, memcpy: 881, cache: 21, switch: 1205695, branch: 335000, total: 294275},
-            {instance: 'r6g.xlarge', arch: 'Graviton', gen: 6, family: 'R', price: 0.229, matrix: 14481, float: 38368, int: 307324, memcpy: 825, cache: 18, switch: 1129720, branch: 480000, total: 293992},
-            {instance: 'm6gd.xlarge', arch: 'Graviton', gen: 6, family: 'M', price: 0.220, matrix: 14502, float: 38380, int: 307556, memcpy: 822, cache: 18, switch: 1128972, branch: 480000, total: 293925},
+            {instance: 'r6g.xlarge', arch: 'Graviton', gen: 6, family: 'R', price: 0.242, matrix: 14481, float: 38368, int: 307324, memcpy: 825, cache: 18, switch: 1129720, branch: 480000, total: 293992},
+            {instance: 'm6gd.xlarge', arch: 'Graviton', gen: 6, family: 'M', price: 0.222, matrix: 14502, float: 38380, int: 307556, memcpy: 822, cache: 18, switch: 1128972, branch: 480000, total: 293925},
             {instance: 'c6g.xlarge', arch: 'Graviton', gen: 6, family: 'C', price: 0.154, matrix: 15605, float: 38429, int: 307500, memcpy: 831, cache: 18, switch: 1127102, branch: 480000, total: 293878},
             {instance: 'm6g.xlarge', arch: 'Graviton', gen: 6, family: 'M', price: 0.185, matrix: 14504, float: 38380, int: 307060, memcpy: 827, cache: 18, switch: 1128568, branch: 480000, total: 293749},
-            {instance: 'r6gd.xlarge', arch: 'Graviton', gen: 6, family: 'R', price: 0.264, matrix: 14486, float: 38398, int: 307306, memcpy: 830, cache: 18, switch: 1126844, branch: 480000, total: 293568},
-            {instance: 'c6gn.xlarge', arch: 'Graviton', gen: 6, family: 'C', price: 0.194, matrix: 14528, float: 38406, int: 307422, memcpy: 829, cache: 18, switch: 1126266, branch: 480000, total: 293498},
+            {instance: 'r6gd.xlarge', arch: 'Graviton', gen: 6, family: 'R', price: 0.290, matrix: 14486, float: 38398, int: 307306, memcpy: 830, cache: 18, switch: 1126844, branch: 480000, total: 293568},
+            {instance: 'c6gn.xlarge', arch: 'Graviton', gen: 6, family: 'C', price: 0.195, matrix: 14528, float: 38406, int: 307422, memcpy: 829, cache: 18, switch: 1126266, branch: 480000, total: 293498},
             {instance: 'c6gd.xlarge', arch: 'Graviton', gen: 6, family: 'C', price: 0.185, matrix: 14554, float: 38392, int: 307426, memcpy: 831, cache: 18, switch: 1123042, branch: 480000, total: 292972},
-            {instance: 'c7i-flex.xlarge', arch: 'Intel', gen: 7, family: 'C', price: 0.193, matrix: 10706, float: 41609, int: 332560, memcpy: 855, cache: 21, switch: 1200025, branch: 328000, total: 290549},
+            {instance: 'c7i-flex.xlarge', arch: 'Intel', gen: 7, family: 'C', price: 0.152, matrix: 10706, float: 41609, int: 332560, memcpy: 855, cache: 21, switch: 1200025, branch: 328000, total: 290549},
             {instance: 'c7i.xlarge', arch: 'Intel', gen: 7, family: 'C', price: 0.202, matrix: 10183, float: 42188, int: 337573, memcpy: 869, cache: 21, switch: 1187277, branch: 330000, total: 290139},
-            {instance: 'm7i-flex.xlarge', arch: 'Intel', gen: 7, family: 'M', price: 0.218, matrix: 10005, float: 39932, int: 321396, memcpy: 826, cache: 20, switch: 1174872, branch: 315000, total: 282635},
-            {instance: 'm5zn.xlarge', arch: 'Intel', gen: 5, family: 'M', price: 0.331, matrix: 9900, float: 39832, int: 353597, memcpy: 1082, cache: 36, switch: 853362, branch: 310000, total: 258715},
-            {instance: 'r6i.xlarge', arch: 'Intel', gen: 6, family: 'R', price: 0.286, matrix: 9312, float: 34049, int: 270550, memcpy: 813, cache: 19, switch: 944674, branch: 265000, total: 240252},
+            {instance: 'm7i-flex.xlarge', arch: 'Intel', gen: 7, family: 'M', price: 0.181, matrix: 10005, float: 39932, int: 321396, memcpy: 826, cache: 20, switch: 1174872, branch: 315000, total: 282635},
+            {instance: 'm5zn.xlarge', arch: 'Intel', gen: 5, family: 'M', price: 0.375, matrix: 9900, float: 39832, int: 353597, memcpy: 1082, cache: 36, switch: 853362, branch: 310000, total: 258715},
+            {instance: 'r6i.xlarge', arch: 'Intel', gen: 6, family: 'R', price: 0.302, matrix: 9312, float: 34049, int: 270550, memcpy: 813, cache: 19, switch: 944674, branch: 265000, total: 240252},
             {instance: 'c6in.xlarge', arch: 'Intel', gen: 6, family: 'C', price: 0.254, matrix: 9386, float: 34108, int: 270379, memcpy: 818, cache: 19, switch: 944421, branch: 265000, total: 240117},
-            {instance: 'c6id.xlarge', arch: 'Intel', gen: 6, family: 'C', price: 0.242, matrix: 9362, float: 33958, int: 270467, memcpy: 810, cache: 19, switch: 942775, branch: 264000, total: 239871},
-            {instance: 'm6idn.xlarge', arch: 'Intel', gen: 6, family: 'M', price: 0.321, matrix: 9499, float: 33723, int: 270457, memcpy: 816, cache: 19, switch: 942500, branch: 264000, total: 239838},
+            {instance: 'c6id.xlarge', arch: 'Intel', gen: 6, family: 'C', price: 0.240, matrix: 9362, float: 33958, int: 270467, memcpy: 810, cache: 19, switch: 942775, branch: 264000, total: 239871},
+            {instance: 'm6idn.xlarge', arch: 'Intel', gen: 6, family: 'M', price: 0.339, matrix: 9499, float: 33723, int: 270457, memcpy: 816, cache: 19, switch: 942500, branch: 264000, total: 239838},
             {instance: 'c6i.xlarge', arch: 'Intel', gen: 6, family: 'C', price: 0.192, matrix: 9510, float: 34013, int: 269906, memcpy: 818, cache: 19, switch: 941357, branch: 264000, total: 239561},
-            {instance: 'r6id.xlarge', arch: 'Intel', gen: 6, family: 'R', price: 0.353, matrix: 9104, float: 33896, int: 270348, memcpy: 819, cache: 19, switch: 939462, branch: 264000, total: 239110},
-            {instance: 'm6in.xlarge', arch: 'Intel', gen: 6, family: 'M', price: 0.285, matrix: 8898, float: 33946, int: 270074, memcpy: 814, cache: 19, switch: 939138, branch: 264000, total: 239009},
+            {instance: 'r6id.xlarge', arch: 'Intel', gen: 6, family: 'R', price: 0.362, matrix: 9104, float: 33896, int: 270348, memcpy: 819, cache: 19, switch: 939462, branch: 264000, total: 239110},
+            {instance: 'm6in.xlarge', arch: 'Intel', gen: 6, family: 'M', price: 0.293, matrix: 8898, float: 33946, int: 270074, memcpy: 814, cache: 19, switch: 939138, branch: 264000, total: 239009},
             {instance: 'm6i.xlarge', arch: 'Intel', gen: 6, family: 'M', price: 0.230, matrix: 8947, float: 33558, int: 269460, memcpy: 812, cache: 19, switch: 934409, branch: 263000, total: 237951},
-            {instance: 'm6id.xlarge', arch: 'Intel', gen: 6, family: 'M', price: 0.285, matrix: 9266, float: 33780, int: 270002, memcpy: 815, cache: 19, switch: 934281, branch: 264000, total: 237944},
+            {instance: 'm6id.xlarge', arch: 'Intel', gen: 6, family: 'M', price: 0.286, matrix: 9266, float: 33780, int: 270002, memcpy: 815, cache: 19, switch: 934281, branch: 264000, total: 237944},
             {instance: 'c5.xlarge', arch: 'Intel', gen: 5, family: 'C', price: 0.192, matrix: 8188, float: 31978, int: 179811, memcpy: 914, cache: 33, switch: 688242, branch: 210000, total: 187771},
-            {instance: 'r5dn.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.377, matrix: 7404, float: 28110, int: 249193, memcpy: 811, cache: 17, switch: 605465, branch: 205000, total: 182996},
-            {instance: 'r5b.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.343, matrix: 7301, float: 27878, int: 248935, memcpy: 806, cache: 17, switch: 604729, branch: 204000, total: 182787},
-            {instance: 'c5d.xlarge', arch: 'Intel', gen: 5, family: 'C', price: 0.218, matrix: 8057, float: 30837, int: 172308, memcpy: 880, cache: 32, switch: 661917, branch: 200000, total: 180098},
-            {instance: 'r5n.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.343, matrix: 6817, float: 27412, int: 243600, memcpy: 796, cache: 17, switch: 596126, branch: 200000, total: 179325},
-            {instance: 'c5n.xlarge', arch: 'Intel', gen: 5, family: 'C', price: 0.242, matrix: 7982, float: 29867, int: 168358, memcpy: 863, cache: 31, switch: 657357, branch: 195000, total: 177529},
-            {instance: 'c5a.xlarge', arch: 'AMD', gen: 5, family: 'C', price: 0.173, matrix: 7808, float: 33105, int: 269010, memcpy: 993, cache: 25, switch: 446425, branch: 250000, total: 168249},
-            {instance: 'r5d.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.329, matrix: 7584, float: 28527, int: 159527, memcpy: 818, cache: 17, switch: 612349, branch: 190000, total: 166245},
-            {instance: 'm5d.xlarge', arch: 'Intel', gen: 5, family: 'M', price: 0.261, matrix: 7121, float: 28061, int: 156542, memcpy: 809, cache: 17, switch: 606007, branch: 185000, total: 164258},
-            {instance: 'r5.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.286, matrix: 6710, float: 26737, int: 154787, memcpy: 800, cache: 17, switch: 599035, branch: 180000, total: 162156},
+            {instance: 'r5dn.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.400, matrix: 7404, float: 28110, int: 249193, memcpy: 811, cache: 17, switch: 605465, branch: 205000, total: 182996},
+            {instance: 'r5b.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.357, matrix: 7301, float: 27878, int: 248935, memcpy: 806, cache: 17, switch: 604729, branch: 204000, total: 182787},
+            {instance: 'c5d.xlarge', arch: 'Intel', gen: 5, family: 'C', price: 0.216, matrix: 8057, float: 30837, int: 172308, memcpy: 880, cache: 32, switch: 661917, branch: 200000, total: 180098},
+            {instance: 'r5n.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.356, matrix: 6817, float: 27412, int: 243600, memcpy: 796, cache: 17, switch: 596126, branch: 200000, total: 179325},
+            {instance: 'c5n.xlarge', arch: 'Intel', gen: 5, family: 'C', price: 0.244, matrix: 7982, float: 29867, int: 168358, memcpy: 863, cache: 31, switch: 657357, branch: 195000, total: 177529},
+            {instance: 'c5a.xlarge', arch: 'AMD', gen: 5, family: 'C', price: 0.172, matrix: 7808, float: 33105, int: 269010, memcpy: 993, cache: 25, switch: 446425, branch: 250000, total: 168249},
+            {instance: 'r5d.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.346, matrix: 7584, float: 28527, int: 159527, memcpy: 818, cache: 17, switch: 612349, branch: 190000, total: 166245},
+            {instance: 'm5d.xlarge', arch: 'Intel', gen: 5, family: 'M', price: 0.271, matrix: 7121, float: 28061, int: 156542, memcpy: 809, cache: 17, switch: 606007, branch: 185000, total: 164258},
+            {instance: 'r5.xlarge', arch: 'Intel', gen: 5, family: 'R', price: 0.302, matrix: 6710, float: 26737, int: 154787, memcpy: 800, cache: 17, switch: 599035, branch: 180000, total: 162156},
             {instance: 'm5.xlarge', arch: 'Intel', gen: 5, family: 'M', price: 0.230, matrix: 6886, float: 27166, int: 154349, memcpy: 805, cache: 17, switch: 597952, branch: 180000, total: 162124},
             {instance: 'm5a.xlarge', arch: 'AMD', gen: 5, family: 'M', price: 0.206, matrix: 6256, float: 22866, int: 188694, memcpy: 771, cache: 16, switch: 352132, branch: 175000, total: 126499},
-            {instance: 'r5a.xlarge', arch: 'AMD', gen: 5, family: 'R', price: 0.257, matrix: 6586, float: 22717, int: 188084, memcpy: 765, cache: 16, switch: 346569, branch: 172000, total: 125441},
-            {instance: 'r5ad.xlarge', arch: 'AMD', gen: 5, family: 'R', price: 0.308, matrix: 6430, float: 22933, int: 188923, memcpy: 775, cache: 16, switch: 349629, branch: 173000, total: 125299},
+            {instance: 'r5a.xlarge', arch: 'AMD', gen: 5, family: 'R', price: 0.272, matrix: 6586, float: 22717, int: 188084, memcpy: 765, cache: 16, switch: 346569, branch: 172000, total: 125441},
+            {instance: 'r5ad.xlarge', arch: 'AMD', gen: 5, family: 'R', price: 0.326, matrix: 6430, float: 22933, int: 188923, memcpy: 775, cache: 16, switch: 349629, branch: 173000, total: 125299},
             {instance: 'm5ad.xlarge', arch: 'AMD', gen: 5, family: 'M', price: 0.247, matrix: 6478, float: 22744, int: 188634, memcpy: 772, cache: 16, switch: 343029, branch: 170000, total: 124374}
         ];
 
@@ -605,409 +854,292 @@
 
         const colors = { Graviton: '#10b981', Intel: '#3b82f6', AMD: '#ef4444' };
 
-        // CPU 탭 전환
-        function showCpuTab(type) {
-            document.querySelectorAll('#cpu-perf .tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('#cpu-perf .tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById('cpu-' + type).classList.add('active');
-            event.target.classList.add('active');
-        }
+        // 차트 인스턴스 저장
+        let cpuChart, memoryChart, systemChart, priceChart, archGenChart;
 
-        // Memory 탭 전환
-        function showMemTab(type) {
-            document.querySelectorAll('#memory-perf .tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('#memory-perf .tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById('mem-' + type).classList.add('active');
-            event.target.classList.add('active');
-        }
+        // CPU 차트 생성
+        function createCpuChart(metric = 'int', family = 'all') {
+            const ctx = document.getElementById('cpuChart');
+            if (cpuChart) cpuChart.destroy();
 
-        // System 탭 전환
-        function showSysTab(type) {
-            document.querySelectorAll('#system-perf .tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('#system-perf .tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById('sys-' + type).classList.add('active');
-            event.target.classList.add('active');
-        }
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family);
+            filtered = filtered.sort((a, b) => b[metric] - a[metric]).slice(0, 20);
 
-        // Price 탭 전환
-        function showPriceTab(type) {
-            document.querySelectorAll('#price-perf .tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('#price-perf .tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById('price-' + type).classList.add('active');
-            event.target.classList.add('active');
-        }
+            const labels = { int: 'Integer ops/s', float: 'Float ops/s', matrix: 'Matrix ops/s' };
 
-        // CPU Integer Chart
-        const intSorted = [...data].sort((a, b) => b.int - a.int).slice(0, 20);
-        new Chart(document.getElementById('cpuIntChart'), {
-            type: 'bar',
-            data: {
-                labels: intSorted.map(d => d.instance),
-                datasets: [{
-                    label: 'Integer ops/s',
-                    data: intSorted.map(d => d.int),
-                    backgroundColor: intSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'bogo ops/s' } } }
-            }
-        });
-
-        // CPU Float Chart
-        const floatSorted = [...data].sort((a, b) => b.float - a.float).slice(0, 20);
-        new Chart(document.getElementById('cpuFloatChart'), {
-            type: 'bar',
-            data: {
-                labels: floatSorted.map(d => d.instance),
-                datasets: [{
-                    label: 'Float ops/s',
-                    data: floatSorted.map(d => d.float),
-                    backgroundColor: floatSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'bogo ops/s' } } }
-            }
-        });
-
-        // Matrix Chart
-        const matrixSorted = [...data].sort((a, b) => b.matrix - a.matrix).slice(0, 20);
-        new Chart(document.getElementById('matrixChart'), {
-            type: 'bar',
-            data: {
-                labels: matrixSorted.map(d => d.instance),
-                datasets: [{
-                    label: 'Matrix ops/s',
-                    data: matrixSorted.map(d => d.matrix),
-                    backgroundColor: matrixSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'bogo ops/s' } } }
-            }
-        });
-
-        // Memcpy Chart
-        const memcpySorted = [...data].sort((a, b) => b.memcpy - a.memcpy).slice(0, 20);
-        new Chart(document.getElementById('memcpyChart'), {
-            type: 'bar',
-            data: {
-                labels: memcpySorted.map(d => d.instance),
-                datasets: [{
-                    label: 'Memcpy ops/s',
-                    data: memcpySorted.map(d => d.memcpy),
-                    backgroundColor: memcpySorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'ops/s' } } }
-            }
-        });
-
-        // Cache Chart
-        const cacheSorted = [...data].sort((a, b) => b.cache - a.cache).slice(0, 20);
-        new Chart(document.getElementById('cacheChart'), {
-            type: 'bar',
-            data: {
-                labels: cacheSorted.map(d => d.instance),
-                datasets: [{
-                    label: 'Cache ops/s',
-                    data: cacheSorted.map(d => d.cache),
-                    backgroundColor: cacheSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'ops/s' } } }
-            }
-        });
-
-        // Context Switch Chart
-        const switchSorted = [...data].sort((a, b) => b.switch - a.switch).slice(0, 20);
-        new Chart(document.getElementById('switchChart'), {
-            type: 'bar',
-            data: {
-                labels: switchSorted.map(d => d.instance),
-                datasets: [{
-                    label: 'Context Switch ops/s',
-                    data: switchSorted.map(d => d.switch),
-                    backgroundColor: switchSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'ops/s' } } }
-            }
-        });
-
-        // Branch Chart
-        const branchSorted = [...data].sort((a, b) => b.branch - a.branch).slice(0, 20);
-        new Chart(document.getElementById('branchChart'), {
-            type: 'bar',
-            data: {
-                labels: branchSorted.map(d => d.instance),
-                datasets: [{
-                    label: 'Branch ops/s',
-                    data: branchSorted.map(d => d.branch),
-                    backgroundColor: branchSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'ops/s' } } }
-            }
-        });
-
-        // 가격 대비 성능 버블 차트
-        new Chart(document.getElementById('pricePerfChart'), {
-            type: 'bubble',
-            data: {
-                datasets: [
-                    {
-                        label: 'Graviton',
-                        data: data.filter(d => d.arch === 'Graviton').map(d => ({
-                            x: d.price,
-                            y: d.total,
-                            r: Math.sqrt(d.total) / 50,
-                            instance: d.instance,
-                            efficiency: d.efficiency
-                        })),
-                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
-                        borderColor: '#10b981'
-                    },
-                    {
-                        label: 'Intel',
-                        data: data.filter(d => d.arch === 'Intel').map(d => ({
-                            x: d.price,
-                            y: d.total,
-                            r: Math.sqrt(d.total) / 50,
-                            instance: d.instance,
-                            efficiency: d.efficiency
-                        })),
-                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                        borderColor: '#3b82f6'
-                    },
-                    {
-                        label: 'AMD',
-                        data: data.filter(d => d.arch === 'AMD').map(d => ({
-                            x: d.price,
-                            y: d.total,
-                            r: Math.sqrt(d.total) / 50,
-                            instance: d.instance,
-                            efficiency: d.efficiency
-                        })),
-                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                        borderColor: '#ef4444'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top' },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                const d = ctx.raw;
-                                return `${d.instance}: $${d.x}/hr, 점수: ${d.y.toLocaleString()}, 가성비: ${d.efficiency.toLocaleString()} 점/$`;
+            cpuChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: filtered.map(d => d.instance),
+                    datasets: [{
+                        label: labels[metric],
+                        data: filtered.map(d => d[metric]),
+                        backgroundColor: filtered.map(d => colors[d.arch]),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(ctx) {
+                                    const d = filtered[ctx.dataIndex];
+                                    return `${d.arch} ${d.gen}세대 | $${d.price}/hr`;
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    x: { title: { display: true, text: '시간당 비용 ($/hr)' } },
-                    y: { title: { display: true, text: '종합 점수' }, beginAtZero: false }
+                    },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: 'bogo ops/s' } } }
                 }
-            }
-        });
+            });
+        }
 
-        // 가성비 순위 차트
-        const effSorted = [...data].sort((a, b) => b.efficiency - a.efficiency).slice(0, 20);
-        new Chart(document.getElementById('efficiencyChart'), {
-            type: 'bar',
-            data: {
-                labels: effSorted.map(d => d.instance),
-                datasets: [{
-                    label: '가성비 (점수/$)',
-                    data: effSorted.map(d => d.efficiency),
-                    backgroundColor: effSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: '점수/$ (높을수록 좋음)' } } }
-            }
-        });
+        // 메모리 차트 생성
+        function createMemoryChart(metric = 'memcpy', family = 'all') {
+            const ctx = document.getElementById('memoryChart');
+            if (memoryChart) memoryChart.destroy();
 
-        // CPU별 가성비 차트
-        const intEffSorted = [...data].sort((a, b) => b.intEff - a.intEff).slice(0, 10);
-        new Chart(document.getElementById('intEffChart'), {
-            type: 'bar',
-            data: {
-                labels: intEffSorted.map(d => d.instance.replace('.xlarge', '')),
-                datasets: [{
-                    label: 'Int 가성비',
-                    data: intEffSorted.map(d => d.intEff),
-                    backgroundColor: intEffSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, title: { display: true, text: 'Integer 가성비' } },
-                scales: { x: { beginAtZero: true } }
-            }
-        });
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family);
+            filtered = filtered.sort((a, b) => b[metric] - a[metric]).slice(0, 20);
 
-        const floatEffSorted = [...data].sort((a, b) => b.floatEff - a.floatEff).slice(0, 10);
-        new Chart(document.getElementById('floatEffChart'), {
-            type: 'bar',
-            data: {
-                labels: floatEffSorted.map(d => d.instance.replace('.xlarge', '')),
-                datasets: [{
-                    label: 'Float 가성비',
-                    data: floatEffSorted.map(d => d.floatEff),
-                    backgroundColor: floatEffSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, title: { display: true, text: 'Float 가성비' } },
-                scales: { x: { beginAtZero: true } }
-            }
-        });
+            const labels = { memcpy: 'Memcpy ops/s', cache: 'Cache ops/s' };
 
-        const matrixEffSorted = [...data].sort((a, b) => b.matrixEff - a.matrixEff).slice(0, 10);
-        new Chart(document.getElementById('matrixEffChart'), {
-            type: 'bar',
-            data: {
-                labels: matrixEffSorted.map(d => d.instance.replace('.xlarge', '')),
-                datasets: [{
-                    label: 'Matrix 가성비',
-                    data: matrixEffSorted.map(d => d.matrixEff),
-                    backgroundColor: matrixEffSorted.map(d => colors[d.arch]),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, title: { display: true, text: 'Matrix 가성비' } },
-                scales: { x: { beginAtZero: true } }
-            }
-        });
+            memoryChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: filtered.map(d => d.instance),
+                    datasets: [{
+                        label: labels[metric],
+                        data: filtered.map(d => d[metric]),
+                        backgroundColor: filtered.map(d => colors[d.arch]),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(ctx) {
+                                    const d = filtered[ctx.dataIndex];
+                                    return `${d.arch} ${d.gen}세대 | $${d.price}/hr`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: 'ops/s' } } }
+                }
+            });
+        }
 
-        // 아키텍처 + 세대별 비교 차트
+        // 시스템 차트 생성
+        function createSystemChart(metric = 'switch', family = 'all') {
+            const ctx = document.getElementById('systemChart');
+            if (systemChart) systemChart.destroy();
+
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family);
+            filtered = filtered.sort((a, b) => b[metric] - a[metric]).slice(0, 20);
+
+            const labels = { switch: 'Context Switch ops/s', branch: 'Branch ops/s' };
+
+            systemChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: filtered.map(d => d.instance),
+                    datasets: [{
+                        label: labels[metric],
+                        data: filtered.map(d => d[metric]),
+                        backgroundColor: filtered.map(d => colors[d.arch]),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(ctx) {
+                                    const d = filtered[ctx.dataIndex];
+                                    return `${d.arch} ${d.gen}세대 | $${d.price}/hr`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: 'ops/s' } } }
+                }
+            });
+        }
+
+        // 가격 차트 생성
+        function createPriceChart(view = 'bubble', family = 'all') {
+            const ctx = document.getElementById('priceChart');
+            if (priceChart) priceChart.destroy();
+
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family);
+
+            if (view === 'bubble') {
+                priceChart = new Chart(ctx, {
+                    type: 'bubble',
+                    data: {
+                        datasets: [
+                            {
+                                label: 'Graviton',
+                                data: filtered.filter(d => d.arch === 'Graviton').map(d => ({
+                                    x: d.price,
+                                    y: d.total,
+                                    r: Math.sqrt(d.total) / 50,
+                                    instance: d.instance,
+                                    efficiency: d.efficiency
+                                })),
+                                backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                                borderColor: '#10b981'
+                            },
+                            {
+                                label: 'Intel',
+                                data: filtered.filter(d => d.arch === 'Intel').map(d => ({
+                                    x: d.price,
+                                    y: d.total,
+                                    r: Math.sqrt(d.total) / 50,
+                                    instance: d.instance,
+                                    efficiency: d.efficiency
+                                })),
+                                backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                                borderColor: '#3b82f6'
+                            },
+                            {
+                                label: 'AMD',
+                                data: filtered.filter(d => d.arch === 'AMD').map(d => ({
+                                    x: d.price,
+                                    y: d.total,
+                                    r: Math.sqrt(d.total) / 50,
+                                    instance: d.instance,
+                                    efficiency: d.efficiency
+                                })),
+                                backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                                borderColor: '#ef4444'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        const d = ctx.raw;
+                                        return `${d.instance}: $${d.x}/hr, 점수: ${d.y.toLocaleString()}, 가성비: ${d.efficiency.toLocaleString()} 점/$`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: '시간당 비용 ($/hr)' } },
+                            y: { title: { display: true, text: '종합 점수' }, beginAtZero: false }
+                        }
+                    }
+                });
+            } else {
+                const sorted = filtered.sort((a, b) => b.efficiency - a.efficiency).slice(0, 20);
+                priceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sorted.map(d => d.instance),
+                        datasets: [{
+                            label: '가성비 (점수/$)',
+                            data: sorted.map(d => d.efficiency),
+                            backgroundColor: sorted.map(d => colors[d.arch]),
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    afterLabel: function(ctx) {
+                                        const d = sorted[ctx.dataIndex];
+                                        return `$${d.price}/hr | 종합: ${d.total.toLocaleString()}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: { x: { beginAtZero: true, title: { display: true, text: '점수/$ (높을수록 좋음)' } } }
+                    }
+                });
+            }
+        }
+
+        // 아키텍처+세대별 비교 차트
         function calcArchGenAvg(arch, gen, key) {
             const filtered = data.filter(d => d.arch === arch && d.gen === gen);
             return filtered.length ? Math.round(filtered.reduce((sum, d) => sum + d[key], 0) / filtered.length) : null;
         }
 
-        const archColors = {
-            'Graviton': '#10b981',
-            'Intel': '#3b82f6',
-            'AMD': '#ef4444'
-        };
+        const archColors = { 'Graviton': '#10b981', 'Intel': '#3b82f6', 'AMD': '#ef4444' };
         const generations = [5, 6, 7, 8];
         const architectures = ['Graviton', 'Intel', 'AMD'];
 
-        let archGenChart = new Chart(document.getElementById('archChart'), {
-            type: 'bar',
-            data: {
-                labels: ['5세대', '6세대', '7세대', '8세대'],
-                datasets: architectures.map(arch => ({
-                    label: arch,
-                    data: generations.map(gen => {
-                        const val = calcArchGenAvg(arch, gen, 'matrix');
-                        return val ? Math.round(val / 1000) : null;
-                    }),
-                    backgroundColor: archColors[arch],
-                    borderColor: archColors[arch],
-                    borderWidth: 1
-                }))
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top' },
-                    title: { display: true, text: 'Matrix 성능 (K ops/sec) - 세대별 아키텍처 비교', font: { size: 14 } }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: { display: true, text: 'K ops/sec' }
-                    }
-                }
-            }
-        });
+        function createArchGenChart(metric = 'matrix') {
+            const ctx = document.getElementById('archChart');
+            if (archGenChart) archGenChart.destroy();
 
-        function updateArchGenChart() {
-            const metric = document.getElementById('metricSelector').value;
             const metricLabels = {
                 'matrix': { title: 'Matrix 성능 (K ops/sec)', unit: 'K ops/sec', divisor: 1000 },
                 'int': { title: 'CPU Int 성능 (K ops/sec)', unit: 'K ops/sec', divisor: 1000 },
-                'switch': { title: 'Context Switch 성능 (100K ops/sec)', unit: '100K ops/sec', divisor: 100000 }
+                'switch': { title: 'Context Switch 성능 (100K ops/sec)', unit: '100K ops/sec', divisor: 100000 },
+                'total': { title: '종합 점수 (K)', unit: 'K', divisor: 1000 }
             };
             const config = metricLabels[metric];
 
-            archGenChart.data.datasets = architectures.map(arch => ({
-                label: arch,
-                data: generations.map(gen => {
-                    const val = calcArchGenAvg(arch, gen, metric);
-                    return val ? Math.round(val / config.divisor) : null;
-                }),
-                backgroundColor: archColors[arch],
-                borderColor: archColors[arch],
-                borderWidth: 1
-            }));
-            archGenChart.options.plugins.title.text = config.title + ' - 세대별 아키텍처 비교';
-            archGenChart.options.scales.y.title.text = config.unit;
-            archGenChart.update();
+            archGenChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['5세대', '6세대', '7세대', '8세대'],
+                    datasets: architectures.map(arch => ({
+                        label: arch,
+                        data: generations.map(gen => {
+                            const val = calcArchGenAvg(arch, gen, metric);
+                            return val ? Math.round(val / config.divisor) : null;
+                        }),
+                        backgroundColor: archColors[arch],
+                        borderColor: archColors[arch],
+                        borderWidth: 1
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: config.title + ' - 세대별 아키텍처 비교', font: { size: 14 } }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: config.unit }
+                        }
+                    }
+                }
+            });
         }
 
         // 세대별 성능 추이 (아키텍처별)
@@ -1091,6 +1223,44 @@
             }
         });
 
+        // 차트 컨트롤 설정
+        function setupControls() {
+            document.querySelectorAll('.btn-group').forEach(group => {
+                group.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        // 같은 그룹 내 active 클래스 제거
+                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+
+                        const chartType = group.dataset.chart;
+                        const section = group.closest('.chart-section');
+
+                        // 현재 선택 값 가져오기
+                        const metricBtn = section.querySelector('[data-toggle="metric"] .active');
+                        const familyBtn = section.querySelector('[data-toggle="family"] .active');
+                        const viewBtn = section.querySelector('[data-toggle="view"] .active');
+
+                        const metric = metricBtn ? metricBtn.dataset.value : 'default';
+                        const family = familyBtn ? familyBtn.dataset.value : 'all';
+                        const view = viewBtn ? viewBtn.dataset.value : 'default';
+
+                        // 차트 업데이트
+                        if (chartType === 'cpu') {
+                            createCpuChart(metric, family);
+                        } else if (chartType === 'memory') {
+                            createMemoryChart(metric, family);
+                        } else if (chartType === 'system') {
+                            createSystemChart(metric, family);
+                        } else if (chartType === 'price') {
+                            createPriceChart(view, family);
+                        } else if (chartType === 'archGen') {
+                            createArchGenChart(metric);
+                        }
+                    });
+                });
+            });
+        }
+
         // 테이블 렌더링
         function renderTable(filteredData) {
             const tbody = document.getElementById('resultsBody');
@@ -1098,11 +1268,12 @@
             filteredData.forEach((d, i) => {
                 const archClass = d.arch === 'Graviton' ? 'badge-graviton' : d.arch === 'Intel' ? 'badge-intel' : 'badge-amd';
                 tbody.innerHTML += `
-                    <tr data-arch="${d.arch}" data-gen="${d.gen}">
+                    <tr data-arch="${d.arch}" data-gen="${d.gen}" data-family="${d.family}">
                         <td>${i + 1}</td>
                         <td><strong>${d.instance}</strong></td>
                         <td><span class="badge ${archClass}">${d.arch.substring(0,3)}</span></td>
                         <td>${d.gen}</td>
+                        <td>${d.family}</td>
                         <td>$${d.price.toFixed(3)}</td>
                         <td>${d.matrix.toLocaleString()}</td>
                         <td>${d.float.toLocaleString()}</td>
@@ -1116,19 +1287,18 @@
             });
         }
 
-        // 초기 렌더링
-        renderTable(data);
-
         // 필터링
         function filterTable() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const arch = document.getElementById('archFilter').value;
             const gen = document.getElementById('genFilter').value;
+            const family = document.getElementById('familyFilter').value;
 
             let filtered = data;
             if (search) filtered = filtered.filter(d => d.instance.toLowerCase().includes(search));
             if (arch) filtered = filtered.filter(d => d.arch === arch);
             if (gen) filtered = filtered.filter(d => d.gen === parseInt(gen));
+            if (family) filtered = filtered.filter(d => d.family === family);
 
             renderTable(filtered);
         }
@@ -1136,7 +1306,7 @@
         // 정렬
         let sortDir = {};
         function sortTable(col) {
-            const keys = ['', 'instance', 'arch', 'gen', 'price', 'matrix', 'float', 'int', 'memcpy', 'switch', 'total', 'efficiency'];
+            const keys = ['', 'instance', 'arch', 'gen', 'family', 'price', 'matrix', 'float', 'int', 'memcpy', 'switch', 'total', 'efficiency'];
             const key = keys[col];
             if (!key) return;
 
@@ -1147,6 +1317,17 @@
             });
             renderTable(sorted);
         }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            createCpuChart('int', 'all');
+            createMemoryChart('memcpy', 'all');
+            createSystemChart('switch', 'all');
+            createPriceChart('bubble', 'all');
+            createArchGenChart('matrix');
+            setupControls();
+            renderTable(data);
+        });
     </script>
 </body>
 </html>

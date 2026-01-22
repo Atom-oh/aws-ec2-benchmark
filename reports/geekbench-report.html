@@ -172,6 +172,149 @@
             .navbar { padding: 0.5rem 1rem; }
             .navbar-links a { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
         }
+        /* TOC Styles */
+        .toc {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .toc h2 { font-size: 1.25rem; margin-bottom: 1rem; }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 0.75rem;
+        }
+        .toc-grid a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .toc-grid a:hover { background: #e2e8f0; transform: translateX(4px); }
+        .toc-grid .num {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        /* Section Header */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .section-header .section-number {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .section-header h2 { margin-bottom: 0; }
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .info-box {
+            background: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            border-left: 4px solid #6366f1;
+        }
+        .info-box h4 {
+            color: #4f46e5;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+        .info-box ul {
+            margin-left: 1.25rem;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .info-box li { margin-bottom: 0.3rem; }
+        /* Chart Controls */
+        .chart-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .chart-controls label {
+            font-size: 0.875rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .btn-group {
+            display: flex;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-group button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: #f8fafc;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .btn-group button:hover { background: #e2e8f0; }
+        .btn-group button.active { background: #6366f1; color: white; }
+        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #3b82f6; }
+        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #10b981; }
+        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
+        /* Conclusion */
+        .conclusion {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .conclusion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .conclusion-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border-left: 4px solid #6366f1;
+        }
+        .conclusion-card h4 {
+            color: #4f46e5;
+            margin-bottom: 0.75rem;
+        }
+        .conclusion-card p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -236,34 +379,196 @@
             </ul>
         </div>
 
-        <div class="chart-section">
-            <h2>멀티코어 성능 순위 Top 20</h2>
+        <!-- 목차 -->
+        <div class="toc">
+            <h2>목차</h2>
+            <div class="toc-grid">
+                <a href="#methodology"><span class="num">1</span> 테스트 방법론</a>
+                <a href="#environment"><span class="num">2</span> 테스트 환경</a>
+                <a href="#multi-core"><span class="num">3</span> 멀티코어 성능</a>
+                <a href="#single-core"><span class="num">4</span> 싱글코어 성능</a>
+                <a href="#value"><span class="num">5</span> 가성비 분석</a>
+                <a href="#arch-gen"><span class="num">6</span> 아키텍처/세대 비교</a>
+                <a href="#bubble"><span class="num">7</span> 가격 대비 성능</a>
+                <a href="#results"><span class="num">8</span> 전체 결과</a>
+                <a href="#conclusion"><span class="num">9</span> 결론</a>
+            </div>
+        </div>
+
+        <!-- 1. 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <div class="section-header">
+                <span class="section-number">1</span>
+                <h2>테스트 방법론</h2>
+            </div>
+            <p class="description">Geekbench 6의 테스트 구성과 측정 방식</p>
+            <div class="info-grid">
+                <div class="info-box">
+                    <h4>Geekbench 6란?</h4>
+                    <ul>
+                        <li>Primate Labs의 크로스플랫폼 CPU 벤치마크</li>
+                        <li>실제 워크로드 기반 테스트 (AI/ML, 압축, 암호화 등)</li>
+                        <li>싱글코어: 단일 스레드 성능 측정</li>
+                        <li>멀티코어: 전체 코어 병렬 성능 측정</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h4>주요 테스트 항목</h4>
+                    <ul>
+                        <li><strong>Text Processing</strong>: 텍스트 렌더링, 파싱</li>
+                        <li><strong>Object Detection</strong>: AI/ML 추론</li>
+                        <li><strong>HDR Compositing</strong>: 이미지 처리</li>
+                        <li><strong>Navigation</strong>: 경로 탐색 알고리즘</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h4>측정 방식</h4>
+                    <ul>
+                        <li>각 인스턴스 타입별 5회 반복 측정</li>
+                        <li>5회 평균값으로 결과 산출</li>
+                        <li>EKS Job으로 격리된 환경에서 실행</li>
+                        <li>결과는 Geekbench Browser에 자동 업로드</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h4>수집 메트릭</h4>
+                    <ul>
+                        <li><strong>Single-Core Score</strong>: 단일 스레드 성능</li>
+                        <li><strong>Multi-Core Score</strong>: 병렬 처리 성능</li>
+                        <li><strong>가성비</strong>: 멀티코어 점수 / 시간당 가격</li>
+                        <li>점수가 높을수록 좋음</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 테스트 환경 -->
+        <div class="chart-section" id="environment">
+            <div class="section-header">
+                <span class="section-number">2</span>
+                <h2>테스트 환경</h2>
+            </div>
+            <p class="description">벤치마크 실행 인프라 및 구성</p>
+            <div class="info-grid">
+                <div class="info-box">
+                    <h4>인프라 구성</h4>
+                    <ul>
+                        <li>AWS EKS 1.32 (Kubernetes)</li>
+                        <li>Karpenter 1.1.0 (노드 프로비저닝)</li>
+                        <li>리전: ap-northeast-2 (서울)</li>
+                        <li>네트워크: VPC CNI</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h4>인스턴스 구성</h4>
+                    <ul>
+                        <li>총 51개 인스턴스 타입 테스트</li>
+                        <li>모두 xlarge 사이즈 (4 vCPU)</li>
+                        <li>Intel: 35개 (5~8세대)</li>
+                        <li>AMD: 5개 (5세대)</li>
+                        <li>Graviton: 16개 (6~8세대)</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h4>벤치마크 설정</h4>
+                    <ul>
+                        <li>Geekbench 6.3.0</li>
+                        <li>컨테이너 리소스 제한 없음</li>
+                        <li>노드 격리 (Anti-Affinity)</li>
+                        <li>온디맨드 인스턴스 사용</li>
+                    </ul>
+                </div>
+                <div class="info-box">
+                    <h4>가격 정보</h4>
+                    <ul>
+                        <li>서울 리전 온디맨드 가격 기준</li>
+                        <li>2026년 1월 기준 가격</li>
+                        <li>가성비 = 멀티코어 점수 / 시간당 가격</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 멀티코어 성능 -->
+        <div class="chart-section" id="multi-core">
+            <div class="section-header">
+                <span class="section-number">3</span>
+                <h2>멀티코어 성능 순위 Top 20</h2>
+            </div>
             <p class="description">Geekbench 6 멀티코어 점수 (5회 평균, 높을수록 좋음)</p>
+            <div class="chart-controls">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="multi">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
             <div class="chart-container tall">
                 <canvas id="multiChart"></canvas>
             </div>
         </div>
 
         <div class="grid-2">
-            <div class="chart-section">
-                <h2>싱글코어 성능 순위 Top 15</h2>
+            <!-- 4. 싱글코어 성능 -->
+            <div class="chart-section" id="single-core">
+                <div class="section-header">
+                    <span class="section-number">4</span>
+                    <h2>싱글코어 성능 Top 15</h2>
+                </div>
                 <p class="description">단일 스레드 성능 비교</p>
+                <div class="chart-controls">
+                    <label>패밀리:</label>
+                    <div class="btn-group" data-toggle="family" data-chart="single">
+                        <button class="active" data-value="all">All</button>
+                        <button data-value="c">C</button>
+                        <button data-value="m">M</button>
+                        <button data-value="r">R</button>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="singleChart"></canvas>
                 </div>
             </div>
-            <div class="chart-section">
-                <h2>가성비 순위 Top 15</h2>
+            <!-- 5. 가성비 분석 -->
+            <div class="chart-section" id="value">
+                <div class="section-header">
+                    <span class="section-number">5</span>
+                    <h2>가성비 순위 Top 15</h2>
+                </div>
                 <p class="description">멀티코어 점수 / 시간당 가격</p>
+                <div class="chart-controls">
+                    <label>패밀리:</label>
+                    <div class="btn-group" data-toggle="family" data-chart="value">
+                        <button class="active" data-value="all">All</button>
+                        <button data-value="c">C</button>
+                        <button data-value="m">M</button>
+                        <button data-value="r">R</button>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="valueChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>아키텍처별 세대별 성능 비교</h2>
+        <!-- 6. 아키텍처/세대 비교 -->
+        <div class="chart-section" id="arch-gen">
+            <div class="section-header">
+                <span class="section-number">6</span>
+                <h2>아키텍처별 세대별 성능 비교</h2>
+            </div>
             <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) 싱글코어/멀티코어 평균 점수</p>
+            <div class="chart-controls">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="arch">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
             <div class="chart-container" style="height: 450px;">
                 <canvas id="archChart"></canvas>
             </div>
@@ -287,16 +592,33 @@
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>가격 대비 성능 분포</h2>
+        <!-- 7. 가격 대비 성능 -->
+        <div class="chart-section" id="bubble">
+            <div class="section-header">
+                <span class="section-number">7</span>
+                <h2>가격 대비 성능 분포</h2>
+            </div>
             <p class="description">X축: 시간당 가격, Y축: 멀티코어 점수, 크기: 가성비</p>
+            <div class="chart-controls">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="bubble">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
             <div class="chart-container tall">
                 <canvas id="bubbleChart"></canvas>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>전체 결과 테이블</h2>
+        <!-- 8. 전체 결과 -->
+        <div class="chart-section" id="results">
+            <div class="section-header">
+                <span class="section-number">8</span>
+                <h2>전체 결과 테이블</h2>
+            </div>
             <p class="description">각 인스턴스별 5회 측정 평균값</p>
             <div class="filter-bar">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
@@ -313,6 +635,12 @@
                     <option value="6">6세대</option>
                     <option value="5">5세대</option>
                 </select>
+                <select id="familyFilter" onchange="filterTable()">
+                    <option value="">모든 패밀리</option>
+                    <option value="C">C (Compute)</option>
+                    <option value="M">M (General)</option>
+                    <option value="R">R (Memory)</option>
+                </select>
             </div>
             <table id="resultsTable">
                 <thead>
@@ -321,15 +649,54 @@
                         <th onclick="sortTable(1)">인스턴스</th>
                         <th onclick="sortTable(2)">아키텍처</th>
                         <th onclick="sortTable(3)">세대</th>
-                        <th onclick="sortTable(4)">싱글코어</th>
-                        <th onclick="sortTable(5)">멀티코어</th>
-                        <th onclick="sortTable(6)">가격 ($/hr)</th>
-                        <th onclick="sortTable(7)">가성비</th>
+                        <th onclick="sortTable(4)">패밀리</th>
+                        <th onclick="sortTable(5)">싱글코어</th>
+                        <th onclick="sortTable(6)">멀티코어</th>
+                        <th onclick="sortTable(7)">가격 ($/hr)</th>
+                        <th onclick="sortTable(8)">가성비</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
                 </tbody>
             </table>
+        </div>
+
+        <!-- 9. 결론 -->
+        <div class="conclusion" id="conclusion">
+            <div class="section-header">
+                <span class="section-number" style="background: linear-gradient(135deg, #4338ca, #6366f1);">9</span>
+                <h2>결론 및 권장사항</h2>
+            </div>
+
+            <div class="conclusion-grid">
+                <div class="conclusion-card">
+                    <h4>최고 멀티코어 성능</h4>
+                    <p><strong>Graviton4 (r8g, m8g, c8g)</strong> 선택. 멀티코어 5,800+ 점수로 Intel 8세대 대비 +17% 우수. 병렬 처리가 많은 웹서버, 컨테이너 워크로드에 최적.</p>
+                </div>
+                <div class="conclusion-card">
+                    <h4>최고 싱글코어 성능</h4>
+                    <p><strong>Intel 8세대 (c8i, m8i, r8i)</strong> 추천. 싱글코어 2,150+ 점수로 업계 최고. 단일 스레드 성능이 중요한 데이터베이스, 게임 서버에 적합.</p>
+                </div>
+                <div class="conclusion-card">
+                    <h4>비용 효율을 중시할 때</h4>
+                    <p><strong>Graviton4 (c8g)</strong>가 가성비 최고 (34,141점/$). Intel Flex 인스턴스도 27,000점/$ 이상의 우수한 가성비를 제공.</p>
+                </div>
+                <div class="conclusion-card">
+                    <h4>균형 잡힌 선택</h4>
+                    <p><strong>c7i-flex.xlarge</strong> - 멀티코어 5,000점대에 $0.18/hr의 합리적 가격. x86 호환성이 필요하면서 비용을 줄이고 싶을 때 추천.</p>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1.5rem; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left-color: #3b82f6;">
+                <h4 style="color: #1e40af;">핵심 결론</h4>
+                <ul style="color: #1e3a8a;">
+                    <li><strong>멀티코어 성능</strong>: Graviton4 > Intel 8세대 > Graviton3 > Intel 7세대</li>
+                    <li><strong>싱글코어 성능</strong>: Intel 8세대 > Intel 7세대 > Graviton4 > Graviton3</li>
+                    <li><strong>가성비</strong>: Graviton4 > Intel Flex > Graviton3 > 일반 Intel</li>
+                    <li><strong>세대 업그레이드 효과</strong>: Intel +98%, Graviton +81% (5/6세대 대비 8세대)</li>
+                    <li><strong>아키텍처 선택</strong>: 병렬 처리 → Graviton, 싱글스레드 → Intel, x86 필수 → Intel Flex</li>
+                </ul>
+            </div>
         </div>
 
         <footer>
@@ -400,144 +767,163 @@
             'AMD': '#ef4444'
         };
 
+        // Chart instances for destroy/recreate
+        let multiChart, singleChart, valueChart, archChart, bubbleChart;
+
         // Multi-core Top 20
-        const top20 = data.slice(0, 20);
-        new Chart(document.getElementById('multiChart'), {
-            type: 'bar',
-            data: {
-                labels: top20.map(d => d.instance),
-                datasets: [{
-                    data: top20.map(d => d.multi),
-                    backgroundColor: top20.map(d => archColors[d.arch]),
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { beginAtZero: true, title: { display: true, text: 'Multi-Core Score' } }
+        function createMultiChart(family = 'all') {
+            const ctx = document.getElementById('multiChart');
+            if (multiChart) multiChart.destroy();
+
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
+            const top20 = filtered.sort((a, b) => b.multi - a.multi).slice(0, 20);
+
+            multiChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: top20.map(d => d.instance),
+                    datasets: [{
+                        data: top20.map(d => d.multi),
+                        backgroundColor: top20.map(d => archColors[d.arch]),
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: 'Multi-Core Score' } } }
                 }
-            }
-        });
+            });
+        }
 
         // Single-core Top 15
-        const bySingle = [...data].sort((a, b) => b.single - a.single).slice(0, 15);
-        new Chart(document.getElementById('singleChart'), {
-            type: 'bar',
-            data: {
-                labels: bySingle.map(d => d.instance),
-                datasets: [{
-                    data: bySingle.map(d => d.single),
-                    backgroundColor: bySingle.map(d => archColors[d.arch]),
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'Single-Core Score' } } }
-            }
-        });
+        function createSingleChart(family = 'all') {
+            const ctx = document.getElementById('singleChart');
+            if (singleChart) singleChart.destroy();
+
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
+            const bySingle = filtered.sort((a, b) => b.single - a.single).slice(0, 15);
+
+            singleChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: bySingle.map(d => d.instance),
+                    datasets: [{
+                        data: bySingle.map(d => d.single),
+                        backgroundColor: bySingle.map(d => archColors[d.arch]),
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: 'Single-Core Score' } } }
+                }
+            });
+        }
 
         // Value Top 15
-        const byValue = [...data].sort((a, b) => b.value - a.value).slice(0, 15);
-        new Chart(document.getElementById('valueChart'), {
-            type: 'bar',
-            data: {
-                labels: byValue.map(d => d.instance),
-                datasets: [{
-                    data: byValue.map(d => d.value),
-                    backgroundColor: byValue.map(d => archColors[d.arch]),
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, title: { display: true, text: 'Score per $/hr' } } }
-            }
-        });
+        function createValueChart(family = 'all') {
+            const ctx = document.getElementById('valueChart');
+            if (valueChart) valueChart.destroy();
+
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
+            const byValue = filtered.sort((a, b) => b.value - a.value).slice(0, 15);
+
+            valueChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: byValue.map(d => d.instance),
+                    datasets: [{
+                        data: byValue.map(d => d.value),
+                        backgroundColor: byValue.map(d => archColors[d.arch]),
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: 'Score per $/hr' } } }
+                }
+            });
+        }
 
         // Architecture + Generation comparison (Single + Multi)
-        function calcArchGenAvg(arch, gen, key) {
-            const filtered = data.filter(d => d.arch === arch && d.gen === gen);
+        function calcArchGenAvg(arch, gen, key, family = 'all') {
+            let filtered = data.filter(d => d.arch === arch && d.gen === gen);
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
             if (filtered.length === 0) return null;
             return Math.round(filtered.reduce((sum, d) => sum + d[key], 0) / filtered.length);
         }
 
-        new Chart(document.getElementById('archChart'), {
-            type: 'bar',
-            data: {
-                labels: ['5세대', '6세대', '7세대', '8세대'],
-                datasets: [
-                    // Multi-Core scores (진한 색상)
-                    {
-                        label: 'Intel Multi',
-                        data: [calcArchGenAvg('Intel', 5, 'multi'), calcArchGenAvg('Intel', 6, 'multi'), calcArchGenAvg('Intel', 7, 'multi'), calcArchGenAvg('Intel', 8, 'multi')],
-                        backgroundColor: '#3b82f6',
-                        borderColor: '#2563eb',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'AMD Multi',
-                        data: [calcArchGenAvg('AMD', 5, 'multi'), null, null, null],
-                        backgroundColor: '#ef4444',
-                        borderColor: '#dc2626',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Graviton Multi',
-                        data: [null, calcArchGenAvg('Graviton', 6, 'multi'), calcArchGenAvg('Graviton', 7, 'multi'), calcArchGenAvg('Graviton', 8, 'multi')],
-                        backgroundColor: '#10b981',
-                        borderColor: '#059669',
-                        borderWidth: 1
-                    },
-                    // Single-Core scores (연한 색상, 패턴으로 구분)
-                    {
-                        label: 'Intel Single',
-                        data: [calcArchGenAvg('Intel', 5, 'single'), calcArchGenAvg('Intel', 6, 'single'), calcArchGenAvg('Intel', 7, 'single'), calcArchGenAvg('Intel', 8, 'single')],
-                        backgroundColor: '#93c5fd',
-                        borderColor: '#3b82f6',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'AMD Single',
-                        data: [calcArchGenAvg('AMD', 5, 'single'), null, null, null],
-                        backgroundColor: '#fca5a5',
-                        borderColor: '#ef4444',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'Graviton Single',
-                        data: [null, calcArchGenAvg('Graviton', 6, 'single'), calcArchGenAvg('Graviton', 7, 'single'), calcArchGenAvg('Graviton', 8, 'single')],
-                        backgroundColor: '#6ee7b7',
-                        borderColor: '#10b981',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            usePointStyle: false,
-                            boxWidth: 20
+        function createArchChart(family = 'all') {
+            const ctx = document.getElementById('archChart');
+            if (archChart) archChart.destroy();
+
+            archChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['5세대', '6세대', '7세대', '8세대'],
+                    datasets: [
+                        {
+                            label: 'Intel Multi',
+                            data: [calcArchGenAvg('Intel', 5, 'multi', family), calcArchGenAvg('Intel', 6, 'multi', family), calcArchGenAvg('Intel', 7, 'multi', family), calcArchGenAvg('Intel', 8, 'multi', family)],
+                            backgroundColor: '#3b82f6',
+                            borderColor: '#2563eb',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'AMD Multi',
+                            data: [calcArchGenAvg('AMD', 5, 'multi', family), null, null, null],
+                            backgroundColor: '#ef4444',
+                            borderColor: '#dc2626',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Graviton Multi',
+                            data: [null, calcArchGenAvg('Graviton', 6, 'multi', family), calcArchGenAvg('Graviton', 7, 'multi', family), calcArchGenAvg('Graviton', 8, 'multi', family)],
+                            backgroundColor: '#10b981',
+                            borderColor: '#059669',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Intel Single',
+                            data: [calcArchGenAvg('Intel', 5, 'single', family), calcArchGenAvg('Intel', 6, 'single', family), calcArchGenAvg('Intel', 7, 'single', family), calcArchGenAvg('Intel', 8, 'single', family)],
+                            backgroundColor: '#93c5fd',
+                            borderColor: '#3b82f6',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'AMD Single',
+                            data: [calcArchGenAvg('AMD', 5, 'single', family), null, null, null],
+                            backgroundColor: '#fca5a5',
+                            borderColor: '#ef4444',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Graviton Single',
+                            data: [null, calcArchGenAvg('Graviton', 6, 'single', family), calcArchGenAvg('Graviton', 7, 'single', family), calcArchGenAvg('Graviton', 8, 'single', family)],
+                            backgroundColor: '#6ee7b7',
+                            borderColor: '#10b981',
+                            borderWidth: 2
                         }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                if (context.raw === null) return null;
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: false, boxWidth: 20 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.raw === null) return null;
                                 return context.dataset.label + ': ' + context.raw.toLocaleString() + ' points';
                             }
                         }
@@ -551,6 +937,7 @@
                 }
             }
         });
+        }
 
         // Generation trend by family
         function calcFamilyGenAvg(family, gen) {
@@ -578,47 +965,55 @@
         });
 
         // Bubble chart (Price vs Performance)
-        new Chart(document.getElementById('bubbleChart'), {
-            type: 'bubble',
-            data: {
-                datasets: [
-                    {
-                        label: 'Graviton',
-                        data: data.filter(d => d.arch === 'Graviton').map(d => ({x: d.price, y: d.multi, r: Math.min(d.value / 1200, 30), label: d.instance})),
-                        backgroundColor: 'rgba(16, 185, 129, 0.6)'
-                    },
-                    {
-                        label: 'Intel',
-                        data: data.filter(d => d.arch === 'Intel').map(d => ({x: d.price, y: d.multi, r: Math.min(d.value / 1200, 30), label: d.instance})),
-                        backgroundColor: 'rgba(59, 130, 246, 0.6)'
-                    },
-                    {
-                        label: 'AMD',
-                        data: data.filter(d => d.arch === 'AMD').map(d => ({x: d.price, y: d.multi, r: Math.min(d.value / 1200, 30), label: d.instance})),
-                        backgroundColor: 'rgba(239, 68, 68, 0.6)'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top' },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const d = context.raw;
-                                return d.label + ': $' + d.x.toFixed(3) + '/hr, ' + d.y + ' points';
+        function createBubbleChart(family = 'all') {
+            const ctx = document.getElementById('bubbleChart');
+            if (bubbleChart) bubbleChart.destroy();
+
+            let filtered = [...data];
+            if (family !== 'all') filtered = filtered.filter(d => d.family === family.toUpperCase());
+
+            bubbleChart = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Graviton',
+                            data: filtered.filter(d => d.arch === 'Graviton').map(d => ({x: d.price, y: d.multi, r: Math.min(d.value / 1200, 30), label: d.instance})),
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)'
+                        },
+                        {
+                            label: 'Intel',
+                            data: filtered.filter(d => d.arch === 'Intel').map(d => ({x: d.price, y: d.multi, r: Math.min(d.value / 1200, 30), label: d.instance})),
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)'
+                        },
+                        {
+                            label: 'AMD',
+                            data: filtered.filter(d => d.arch === 'AMD').map(d => ({x: d.price, y: d.multi, r: Math.min(d.value / 1200, 30), label: d.instance})),
+                            backgroundColor: 'rgba(239, 68, 68, 0.6)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const d = context.raw;
+                                    return d.label + ': $' + d.x.toFixed(3) + '/hr, ' + d.y + ' points';
+                                }
                             }
                         }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Price ($/hour)' } },
+                        y: { title: { display: true, text: 'Multi-Core Score' } }
                     }
-                },
-                scales: {
-                    x: { title: { display: true, text: 'Price ($/hour)' } },
-                    y: { title: { display: true, text: 'Multi-Core Score' } }
                 }
-            }
-        });
+            });
+        }
 
         // Generate table
         function generateTable() {
@@ -626,11 +1021,12 @@
             tbody.innerHTML = '';
             data.forEach((d, i) => {
                 const badgeClass = d.arch === 'Graviton' ? 'badge-graviton' : d.arch === 'Intel' ? 'badge-intel' : 'badge-amd';
-                const row = `<tr data-arch="${d.arch}" data-gen="${d.gen}">
+                const row = `<tr data-arch="${d.arch}" data-gen="${d.gen}" data-family="${d.family}">
                     <td>${i + 1}</td>
                     <td><strong>${d.instance}</strong></td>
                     <td><span class="badge ${badgeClass}">${d.arch}</span></td>
                     <td>${d.gen}세대</td>
+                    <td>${d.family}</td>
                     <td>${d.single.toLocaleString()}</td>
                     <td><strong>${d.multi.toLocaleString()}</strong></td>
                     <td>$${d.price.toFixed(3)}</td>
@@ -639,25 +1035,27 @@
                 tbody.innerHTML += row;
             });
         }
-        generateTable();
 
         // Table functions
         function filterTable() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const arch = document.getElementById('archFilter').value;
             const gen = document.getElementById('genFilter').value;
+            const family = document.getElementById('familyFilter').value;
             const rows = document.querySelectorAll('#resultsTable tbody tr');
 
             rows.forEach(row => {
                 const instance = row.cells[1].textContent.toLowerCase();
                 const rowArch = row.dataset.arch;
                 const rowGen = row.dataset.gen;
+                const rowFamily = row.dataset.family;
 
                 const matchSearch = instance.includes(search);
                 const matchArch = !arch || rowArch === arch;
                 const matchGen = !gen || rowGen === gen;
+                const matchFamily = !family || rowFamily === family;
 
-                row.style.display = matchSearch && matchArch && matchGen ? '' : 'none';
+                row.style.display = matchSearch && matchArch && matchGen && matchFamily ? '' : 'none';
             });
         }
 
@@ -686,6 +1084,38 @@
             const tbody = table.querySelector('tbody');
             rows.forEach(row => tbody.appendChild(row));
         }
+
+        // Setup chart controls
+        function setupControls() {
+            document.querySelectorAll('.btn-group[data-toggle="family"]').forEach(group => {
+                group.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+
+                        const chartId = group.dataset.chart;
+                        const family = btn.dataset.value;
+
+                        if (chartId === 'multi') createMultiChart(family);
+                        else if (chartId === 'single') createSingleChart(family);
+                        else if (chartId === 'value') createValueChart(family);
+                        else if (chartId === 'arch') createArchChart(family);
+                        else if (chartId === 'bubble') createBubbleChart(family);
+                    });
+                });
+            });
+        }
+
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            createMultiChart();
+            createSingleChart();
+            createValueChart();
+            createArchChart();
+            createBubbleChart();
+            generateTable();
+            setupControls();
+        });
     </script>
 </body>
 </html>

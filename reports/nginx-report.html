@@ -184,6 +184,45 @@
             header h1 { font-size: 1.5rem; }
             .chart-container { height: 300px; }
         }
+
+        /* Chart Controls */
+        .chart-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .chart-controls label {
+            font-size: 0.875rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .btn-group {
+            display: flex;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-group button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: #f8fafc;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .btn-group button:hover {
+            background: #e2e8f0;
+        }
+        .btn-group button.active {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #10b981; }
+        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #3b82f6; }
+        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
+
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -400,6 +439,15 @@
         <div class="chart-section">
             <h2>3. Top 20 Requests/sec 성능</h2>
             <p class="description">높을수록 좋음 | 초록: Graviton, 파랑: Intel, 빨강: AMD</p>
+            <div class="chart-controls">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="top20">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
             <div class="chart-container tall">
                 <canvas id="top20ReqSecChart"></canvas>
             </div>
@@ -518,6 +566,15 @@
         <div class="chart-section">
             <h2>가격 대비 성능 분석</h2>
             <p class="description">X축: 시간당 비용($), Y축: Requests/sec | 우측 상단이 최적</p>
+            <div class="chart-controls">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="bubble">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
             <div class="chart-container tall">
                 <canvas id="pricePerformanceChart"></canvas>
             </div>
@@ -532,6 +589,15 @@
         <div class="chart-section">
             <h2>가성비 Top 15 (효율성 점수)</h2>
             <p class="description">효율성 = requests_per_sec / ($/hr x 1000) | 높을수록 좋음</p>
+            <div class="chart-controls">
+                <label>패밀리:</label>
+                <div class="btn-group" data-toggle="family" data-chart="efficiency">
+                    <button class="active" data-value="all">All</button>
+                    <button data-value="c">C</button>
+                    <button data-value="m">M</button>
+                    <button data-value="r">R</button>
+                </div>
+            </div>
             <div class="chart-container">
                 <canvas id="costEfficiencyChart"></canvas>
             </div>
@@ -778,30 +844,42 @@
 
         const colorMap = { graviton: '#10b981', intel: '#3b82f6', amd: '#ef4444' };
 
-        // 차트 1: Top 20 Requests/sec
-        const top20 = allInstances.slice(0, 20);
-        new Chart(document.getElementById('top20ReqSecChart'), {
-            type: 'bar',
-            data: {
-                labels: top20.map(i => i.name),
-                datasets: [{
-                    label: 'Requests/sec',
-                    data: top20.map(i => i.reqSec),
-                    backgroundColor: top20.map(i => colorMap[i.arch]),
-                    borderRadius: 4,
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { title: { display: true, text: 'Requests/sec' } },
-                    y: { ticks: { font: { size: 11 } } }
-                }
+        // 차트 인스턴스 저장
+        let top20Chart, pricePerformanceChart, costEfficiencyChart;
+
+        // 차트 1: Top 20 Requests/sec (with family filter)
+        function createTop20Chart(family = 'all') {
+            let filtered = [...allInstances];
+            if (family !== 'all') {
+                filtered = filtered.filter(i => i.family === family);
             }
-        });
+            const top20 = filtered.sort((a, b) => b.reqSec - a.reqSec).slice(0, 20);
+
+            if (top20Chart) top20Chart.destroy();
+            top20Chart = new Chart(document.getElementById('top20ReqSecChart'), {
+                type: 'bar',
+                data: {
+                    labels: top20.map(i => i.name),
+                    datasets: [{
+                        label: 'Requests/sec',
+                        data: top20.map(i => i.reqSec),
+                        backgroundColor: top20.map(i => colorMap[i.arch]),
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { title: { display: true, text: 'Requests/sec' } },
+                        y: { ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+        createTop20Chart();
 
         // 차트 2: Top 20 Latency
         const top20Latency = [...allInstances].sort((a, b) => a.latency - b.latency).slice(0, 20);
@@ -976,60 +1054,77 @@
             }
         });
 
-        // 차트 9: 가격 대비 성능
-        const bubbleData = allInstances.map(i => ({
-            x: i.price,
-            y: i.reqSec,
-            r: 8,
-            label: i.name,
-            arch: i.arch
-        }));
+        // 차트 9: 가격 대비 성능 (with family filter)
+        function createPricePerformanceChart(family = 'all') {
+            let filtered = [...allInstances];
+            if (family !== 'all') {
+                filtered = filtered.filter(i => i.family === family);
+            }
+            const bubbleData = filtered.map(i => ({
+                x: i.price,
+                y: i.reqSec,
+                r: 8,
+                label: i.name,
+                arch: i.arch,
+                family: i.family
+            }));
 
-        new Chart(document.getElementById('pricePerformanceChart'), {
-            type: 'bubble',
-            data: {
-                datasets: [
-                    { label: 'Graviton', data: bubbleData.filter(d => d.arch === 'graviton'), backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: '#10b981' },
-                    { label: 'Intel', data: bubbleData.filter(d => d.arch === 'intel'), backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: '#3b82f6' },
-                    { label: 'AMD', data: bubbleData.filter(d => d.arch === 'amd'), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: '#ef4444' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: (ctx) => [`${ctx.raw.label}`, `$${ctx.raw.x.toFixed(3)}/hr`, `${ctx.raw.y.toLocaleString()} req/s`] } }
+            if (pricePerformanceChart) pricePerformanceChart.destroy();
+            pricePerformanceChart = new Chart(document.getElementById('pricePerformanceChart'), {
+                type: 'bubble',
+                data: {
+                    datasets: [
+                        { label: 'Graviton', data: bubbleData.filter(d => d.arch === 'graviton'), backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: '#10b981' },
+                        { label: 'Intel', data: bubbleData.filter(d => d.arch === 'intel'), backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: '#3b82f6' },
+                        { label: 'AMD', data: bubbleData.filter(d => d.arch === 'amd'), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: '#ef4444' }
+                    ]
                 },
-                scales: {
-                    x: { title: { display: true, text: '시간당 비용 ($)' }, min: 0.1, max: 0.45 },
-                    y: { title: { display: true, text: 'Requests/sec' }, min: 40000, max: 280000 }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => [`${ctx.raw.label}`, `$${ctx.raw.x.toFixed(3)}/hr`, `${ctx.raw.y.toLocaleString()} req/s`] } }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: '시간당 비용 ($)' }, min: 0.1, max: 0.45 },
+                        y: { title: { display: true, text: 'Requests/sec' }, min: 40000, max: 280000 }
+                    }
                 }
-            }
-        });
+            });
+        }
+        createPricePerformanceChart();
 
-        // 차트 10: 가성비 Top 15
-        const efficiency = allInstances.map(i => ({ ...i, efficiency: Math.round(i.reqSec / (i.price * 1000)) }))
-            .sort((a, b) => b.efficiency - a.efficiency).slice(0, 15);
-
-        new Chart(document.getElementById('costEfficiencyChart'), {
-            type: 'bar',
-            data: {
-                labels: efficiency.map(i => i.name),
-                datasets: [{
-                    label: '효율성 점수',
-                    data: efficiency.map(i => i.efficiency),
-                    backgroundColor: efficiency.map(i => colorMap[i.arch]),
-                    borderRadius: 6,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, title: { display: true, text: '효율성 점수' } } }
+        // 차트 10: 가성비 Top 15 (with family filter)
+        function createCostEfficiencyChart(family = 'all') {
+            let filtered = [...allInstances];
+            if (family !== 'all') {
+                filtered = filtered.filter(i => i.family === family);
             }
-        });
+            const efficiency = filtered.map(i => ({ ...i, efficiency: Math.round(i.reqSec / (i.price * 1000)) }))
+                .sort((a, b) => b.efficiency - a.efficiency).slice(0, 15);
+
+            if (costEfficiencyChart) costEfficiencyChart.destroy();
+            costEfficiencyChart = new Chart(document.getElementById('costEfficiencyChart'), {
+                type: 'bar',
+                data: {
+                    labels: efficiency.map(i => i.name),
+                    datasets: [{
+                        label: '효율성 점수',
+                        data: efficiency.map(i => i.efficiency),
+                        backgroundColor: efficiency.map(i => colorMap[i.arch]),
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: '효율성 점수' } } }
+                }
+            });
+        }
+        createCostEfficiencyChart();
 
         // 차트 11: 피해야 할 인스턴스
         const avoidInstances = allInstances.filter(i => ['r5ad.xlarge', 'r5a.xlarge', 'm5ad.xlarge', 'm5a.xlarge', 'c5a.xlarge'].includes(i.name));
@@ -1131,6 +1226,32 @@
                 renderTable(filtered);
             });
         });
+
+        // 차트 컨트롤 설정
+        function setupControls() {
+            document.querySelectorAll('.btn-group').forEach(group => {
+                group.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        // 같은 그룹의 다른 버튼들 비활성화
+                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+
+                        const chartId = group.dataset.chart;
+                        const family = btn.dataset.value;
+
+                        // 차트별 업데이트
+                        if (chartId === 'top20') {
+                            createTop20Chart(family);
+                        } else if (chartId === 'bubble') {
+                            createPricePerformanceChart(family);
+                        } else if (chartId === 'efficiency') {
+                            createCostEfficiencyChart(family);
+                        }
+                    });
+                });
+            });
+        }
+        setupControls();
     </script>
 </body>
 </html>

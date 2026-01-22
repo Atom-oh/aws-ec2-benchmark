@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iperf3 Network 벤치마크 리포트</title>
+    <title>iperf3 네트워크 벤치마크 리포트</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -42,6 +42,7 @@
 
         header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
         header p { opacity: 0.9; font-size: 1.1rem; }
+        header .meta { margin-top: 1rem; font-size: 0.9rem; opacity: 0.8; }
 
         .summary-cards {
             display: grid;
@@ -73,6 +74,7 @@
 
         .card .label { font-size: 0.875rem; color: var(--muted); }
         .card.graviton .value { color: var(--graviton); }
+        .card.amd .value { color: var(--amd); }
 
         .chart-section {
             background: var(--card);
@@ -122,6 +124,7 @@
             border-radius: 3px;
         }
 
+        /* Table styles */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -138,13 +141,215 @@
             background: #f1f5f9;
             font-weight: 600;
             font-size: 0.875rem;
+            cursor: pointer;
         }
+
+        th:hover { background: #e2e8f0; }
 
         td { font-size: 0.875rem; }
 
         tr:hover { background: #f8fafc; }
 
         .highlight { background: #fef3c7 !important; }
+
+        /* Badge styles */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-graviton { background: #d1fae5; color: #065f46; }
+        .badge-intel { background: #dbeafe; color: #1e40af; }
+        .badge-amd { background: #fee2e2; color: #991b1b; }
+
+        /* Insights box */
+        .insights {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .insights h4 {
+            color: #92400e;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .insights ul {
+            margin-left: 1.25rem;
+            color: #78350f;
+        }
+
+        .insights li { margin-bottom: 0.5rem; }
+
+        /* TOC styles */
+        .toc {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .toc a {
+            display: block;
+            padding: 0.75rem 1rem;
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            color: var(--text);
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .toc a:hover {
+            background: #e2e8f0;
+            transform: translateX(4px);
+        }
+
+        /* Filter styles */
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+
+        .filter-group select, .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Environment table */
+        .env-table {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .env-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 3px solid var(--intel);
+        }
+
+        .env-item h4 {
+            font-size: 0.875rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .env-item p {
+            font-weight: 600;
+        }
+
+        /* Recommendation cards */
+        .recommendation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .recommendation-card {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #86efac;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+        }
+
+        .recommendation-card.warning {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-color: #fca5a5;
+        }
+
+        .recommendation-card h4 {
+            color: #166534;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .recommendation-card.warning h4 {
+            color: #991b1b;
+        }
+
+        .recommendation-card ul {
+            margin-left: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .recommendation-card li {
+            margin-bottom: 0.4rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+
+        /* Chart Controls */
+        .chart-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .chart-controls label {
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+        .btn-group {
+            display: flex;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-group button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: #f8fafc;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .btn-group button:hover {
+            background: #e2e8f0;
+        }
+        .btn-group button.active {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-group[data-toggle="family"] button.active[data-value="c"] { background: #10b981; }
+        .btn-group[data-toggle="family"] button.active[data-value="m"] { background: #3b82f6; }
+        .btn-group[data-toggle="family"] button.active[data-value="r"] { background: #8b5cf6; }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            header h1 { font-size: 1.75rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -202,48 +407,42 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="../index.html" class="navbar-brand">🏠 EC2 Benchmark</a>
-            <div class="navbar-links">
-                <a href="geekbench-report.html">Geekbench</a>
-                <a href="passmark-report.html">PassMark</a>
-                <a href="sysbench-report.html">Sysbench</a>
-                <a href="stress-ng-report.html">stress-ng</a>
-                <a href="iperf3-report.html" class="active">iperf3</a>
-                <a href="redis-report.html">Redis</a>
-                <a href="nginx-report.html">Nginx</a>
-                <a href="springboot-report.html">SpringBoot</a>
-                <a href="elasticsearch-report.html">Elasticsearch</a>
-            </div>
-        </div>
-    </nav>
+<nav class="navbar">
+    <div class="navbar-container">
+        <a href="index.html" class="navbar-brand">EC2 Benchmark</a>
+        <div class="navbar-links"><a href="geekbench-report.html">Geekbench</a><a href="passmark-report.html">PassMark</a><a href="sysbench-report.html">Sysbench</a><a href="stress-ng-report.html">stress-ng</a><a href="iperf3-report.html" class="active">iperf3</a><a href="redis-report.html">Redis</a><a href="nginx-report.html">Nginx</a><a href="springboot-report.html">SpringBoot</a><a href="elasticsearch-report.html">Elasticsearch</a></div>    </div></nav>
     <div class="container">
         <header>
-            <h1>iperf3 Network Benchmark</h1>
-            <p>EC2 Instance Network Performance Comparison (xlarge, 4 vCPU)</p>
+            <h1>iperf3 네트워크 벤치마크 리포트</h1>
+            <p>EC2 인스턴스 네트워크 성능 비교 (xlarge, 4 vCPU)</p>
+            <div class="meta">서울 리전 (ap-northeast-2) | 2026년 1월</div>
         </header>
 
         <div class="summary-cards">
             <div class="card">
-                <h3>Top TCP Single Stream</h3>
-                <div class="value">9.53 Gbps</div>
-                <div class="label">m6idn.xlarge (Intel 6th)</div>
+                <h3>최고 TCP 병렬 대역폭</h3>
+                <div class="value">29.80 Gbps</div>
+                <div class="label">m6idn.xlarge (Intel 6세대)</div>
             </div>
             <div class="card">
-                <h3>Top TCP Parallel</h3>
-                <div class="value">29.80 Gbps</div>
-                <div class="label">m6idn.xlarge (Intel 6th)</div>
+                <h3>최고 TCP 단일 스트림</h3>
+                <div class="value">9.53 Gbps</div>
+                <div class="label">m6idn.xlarge (Intel 6세대)</div>
             </div>
             <div class="card graviton">
-                <h3>Top Graviton Single</h3>
-                <div class="value">9.53 Gbps</div>
-                <div class="label">m8g.xlarge (Graviton4)</div>
+                <h3>최고 Graviton 성능</h3>
+                <div class="value">23.38 Gbps</div>
+                <div class="label">c6gn.xlarge (Graviton2)</div>
             </div>
             <div class="card">
-                <h3>Best Jitter</h3>
+                <h3>최저 Jitter</h3>
                 <div class="value">0.004 ms</div>
-                <div class="label">r7i.xlarge</div>
+                <div class="label">r7i.xlarge (Intel 7세대)</div>
+            </div>
+            <div class="card">
+                <h3>최고 가성비</h3>
+                <div class="value">c5n.xlarge</div>
+                <div class="label">309 Gbps/$/hr</div>
             </div>
         </div>
 
@@ -253,63 +452,466 @@
             <div class="legend-item"><div class="legend-color" style="background: var(--amd)"></div> AMD</div>
         </div>
 
-        <div class="chart-section">
-            <h2>TCP Parallel Bandwidth (8 Streams)</h2>
-            <p class="description">Network bandwidth with 8 parallel TCP streams (Gbps) - Higher is better</p>
-            <div class="chart-container extra-tall">
-                <canvas id="parallelChart"></canvas>
+        <!-- 목차 -->
+        <div class="chart-section" style="padding: 1rem 1.5rem;">
+            <h2>목차</h2>
+            <div class="toc">
+                <a href="#methodology">1. 테스트 방법론</a>
+                <a href="#environment">2. 테스트 환경</a>
+                <a href="#performance">3. 성능 분석</a>
+                <a href="#price-performance">4. 가격 대비 성능</a>
+                <a href="#recommendations">5. 추천 인스턴스</a>
+                <a href="#full-results">6. 전체 결과</a>
+                <a href="#conclusion">7. 결론</a>
             </div>
         </div>
 
-        <div class="grid-2">
-            <div class="chart-section">
-                <h2>TCP Single Stream Bandwidth</h2>
-                <p class="description">Network bandwidth with single TCP stream (Gbps)</p>
-                <div class="chart-container tall">
-                    <canvas id="singleChart"></canvas>
+        <!-- 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <h2>1. 테스트 방법론</h2>
+            <p class="description">iperf3를 사용한 네트워크 대역폭 및 지연시간 측정</p>
+
+            <div class="insights">
+                <h4>왜 iperf3 벤치마크가 중요한가?</h4>
+                <ul>
+                    <li><strong>실제 네트워크 성능 측정</strong> - 인스턴스 유형별 실제 네트워크 처리량 비교</li>
+                    <li><strong>고성능 네트워킹 옵션 비교</strong> - 'n' 접미사 인스턴스(예: c6in)의 네트워크 향상 효과 확인</li>
+                    <li><strong>분산 시스템 설계</strong> - 데이터 복제, 마이크로서비스 간 통신 성능 예측</li>
+                    <li><strong>비용 최적화</strong> - 네트워크 집약적 워크로드에 적합한 인스턴스 선택</li>
+                </ul>
+            </div>
+
+            <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">수집 메트릭</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>메트릭</th>
+                        <th>설명</th>
+                        <th>단위</th>
+                        <th>방향</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>TCP Single Stream</strong></td>
+                        <td>단일 TCP 연결 대역폭</td>
+                        <td>Gbps</td>
+                        <td>높을수록 좋음</td>
+                    </tr>
+                    <tr>
+                        <td><strong>TCP Parallel (8 streams)</strong></td>
+                        <td>8개 병렬 TCP 연결 총 대역폭</td>
+                        <td>Gbps</td>
+                        <td>높을수록 좋음</td>
+                    </tr>
+                    <tr>
+                        <td><strong>TCP Reverse</strong></td>
+                        <td>역방향 TCP 대역폭</td>
+                        <td>Gbps</td>
+                        <td>높을수록 좋음</td>
+                    </tr>
+                    <tr>
+                        <td><strong>UDP Bandwidth</strong></td>
+                        <td>UDP 대역폭</td>
+                        <td>Mbps</td>
+                        <td>높을수록 좋음</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Jitter</strong></td>
+                        <td>패킷 지연 변동</td>
+                        <td>ms</td>
+                        <td>낮을수록 좋음</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Packet Loss</strong></td>
+                        <td>패킷 손실률</td>
+                        <td>%</td>
+                        <td>낮을수록 좋음</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 테스트 환경 -->
+        <div class="chart-section" id="environment">
+            <h2>2. 테스트 환경</h2>
+            <p class="description">EKS 클러스터 기반 네트워크 벤치마크 환경</p>
+
+            <div class="env-table">
+                <div class="env-item">
+                    <h4>테스트 도구</h4>
+                    <p>iperf3 3.x</p>
+                </div>
+                <div class="env-item">
+                    <h4>클러스터</h4>
+                    <p>EKS 1.32 / Karpenter</p>
+                </div>
+                <div class="env-item">
+                    <h4>네트워크</h4>
+                    <p>Same AZ, VPC CNI</p>
+                </div>
+                <div class="env-item">
+                    <h4>인스턴스 크기</h4>
+                    <p>xlarge (4 vCPU)</p>
+                </div>
+                <div class="env-item">
+                    <h4>테스트 인스턴스</h4>
+                    <p>51개 (Intel/AMD/Graviton)</p>
+                </div>
+                <div class="env-item">
+                    <h4>리전</h4>
+                    <p>ap-northeast-2 (서울)</p>
                 </div>
             </div>
+
+            <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">테스트 구성</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>설정</th>
+                        <th>값</th>
+                        <th>설명</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>TCP Single Stream</td>
+                        <td>-c server -t 30</td>
+                        <td>30초간 단일 TCP 연결 테스트</td>
+                    </tr>
+                    <tr>
+                        <td>TCP Parallel</td>
+                        <td>-c server -P 8 -t 30</td>
+                        <td>8개 병렬 스트림으로 30초 테스트</td>
+                    </tr>
+                    <tr>
+                        <td>TCP Reverse</td>
+                        <td>-c server -R -t 30</td>
+                        <td>역방향(서버→클라이언트) 대역폭</td>
+                    </tr>
+                    <tr>
+                        <td>UDP</td>
+                        <td>-c server -u -b 1G -t 30</td>
+                        <td>1Gbps 타겟으로 UDP 테스트</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 성능 분석 -->
+        <div id="performance">
             <div class="chart-section">
-                <h2>UDP Jitter</h2>
-                <p class="description">UDP jitter in milliseconds - Lower is better</p>
+                <h2>3. TCP 병렬 대역폭 Top 20</h2>
+                <p class="description">8개 병렬 TCP 스트림 대역폭 (Gbps) - 높을수록 좋음</p>
+                <div class="chart-controls">
+                    <label>패밀리:</label>
+                    <div class="btn-group" data-toggle="family" data-chart="parallel">
+                        <button class="active" data-value="all">All</button>
+                        <button data-value="c">C</button>
+                        <button data-value="m">M</button>
+                        <button data-value="r">R</button>
+                    </div>
+                </div>
                 <div class="chart-container tall">
-                    <canvas id="jitterChart"></canvas>
+                    <canvas id="parallelChart"></canvas>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>네트워크 최적화 인스턴스 압도적</strong> - m6idn, m6in, c6in 등 'n' 접미사 인스턴스가 25Gbps+ 달성</li>
+                    <li><strong>Graviton은 c6gn만 고성능</strong> - c6gn.xlarge가 23.38 Gbps로 Graviton 중 유일한 20Gbps+ 인스턴스</li>
+                    <li><strong>일반 인스턴스는 ~12 Gbps</strong> - 네트워크 최적화 옵션 없는 인스턴스는 대부분 12.4 Gbps 내외</li>
+                    <li><strong>5세대 구형도 선전</strong> - c5n, m5zn, r5dn 등 5세대 네트워크 인스턴스도 24 Gbps+ 기록</li>
+                </ul>
+            </div>
+
+            <div class="grid-2">
+                <div class="chart-section">
+                    <h2>TCP 단일 스트림 Top 20</h2>
+                    <p class="description">단일 TCP 연결 대역폭 (Gbps)</p>
+                    <div class="chart-container tall">
+                        <canvas id="singleChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-section">
+                    <h2>UDP Jitter Top 20 (최저)</h2>
+                    <p class="description">패킷 지연 변동 (ms) - 낮을수록 좋음</p>
+                    <div class="chart-container tall">
+                        <canvas id="jitterChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h2>세대별/아키텍처별 평균 TCP 병렬 대역폭</h2>
+                <p class="description">인스턴스 세대 및 아키텍처별 평균 네트워크 성능 비교</p>
+                <div class="chart-container">
+                    <canvas id="genChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h2>인스턴스 패밀리별 비교</h2>
+                <p class="description">C(컴퓨팅) / M(범용) / R(메모리) 패밀리별 네트워크 성능</p>
+                <div class="chart-container">
+                    <canvas id="familyChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>Network Performance by Generation</h2>
-            <p class="description">Average TCP parallel bandwidth by generation and architecture</p>
-            <div class="chart-container">
-                <canvas id="genChart"></canvas>
+        <!-- 가격 대비 성능 -->
+        <div id="price-performance">
+            <div class="chart-section">
+                <h2>4. 가격 대비 성능 분석</h2>
+                <p class="description">X축: 시간당 비용 ($/hr), Y축: TCP 병렬 대역폭 (Gbps) - 좌상단이 가성비 우수</p>
+                <div class="chart-controls">
+                    <label>패밀리:</label>
+                    <div class="btn-group" data-toggle="family" data-chart="bubble">
+                        <button class="active" data-value="all">All</button>
+                        <button data-value="c">C</button>
+                        <button data-value="m">M</button>
+                        <button data-value="r">R</button>
+                    </div>
+                </div>
+                <div class="chart-container tall">
+                    <canvas id="pricePerformanceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h2>가성비 Top 15 (TCP 병렬 대역폭 / 시간당 비용)</h2>
+                <p class="description">단위 비용당 네트워크 대역폭 (Gbps / $/hr)</p>
+                <div class="chart-controls">
+                    <label>패밀리:</label>
+                    <div class="btn-group" data-toggle="family" data-chart="efficiency">
+                        <button class="active" data-value="all">All</button>
+                        <button data-value="c">C</button>
+                        <button data-value="m">M</button>
+                        <button data-value="r">R</button>
+                    </div>
+                </div>
+                <div class="chart-container tall">
+                    <canvas id="efficiencyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>가성비 분석</h4>
+                <ul>
+                    <li><strong>c5n.xlarge가 최고 가성비</strong> - 저렴한 가격($0.0802/hr)에 24.8 Gbps로 309 Gbps/$hr 달성</li>
+                    <li><strong>5세대 네트워크 인스턴스 우수</strong> - 구세대지만 네트워크 최적화 인스턴스는 여전히 가성비 뛰어남</li>
+                    <li><strong>6세대 'n' 인스턴스도 우수</strong> - c6gn, c6in, m6in 등도 상위권 가성비</li>
+                    <li><strong>일반 인스턴스도 12 Gbps면 충분</strong> - 대부분 워크로드에 네트워크 최적화 불필요</li>
+                </ul>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>Detailed Results</h2>
-            <p class="description">Complete benchmark data sorted by TCP parallel bandwidth</p>
+        <!-- 추천 인스턴스 -->
+        <div class="chart-section" id="recommendations">
+            <h2>5. 용도별 추천 인스턴스</h2>
+            <p class="description">네트워크 요구사항별 최적 인스턴스 가이드</p>
+
+            <div class="recommendation-grid">
+                <div class="recommendation-card">
+                    <h4>초고속 네트워크 (25 Gbps+)</h4>
+                    <ul>
+                        <li><strong>m6idn.xlarge</strong> - 최고 29.8 Gbps</li>
+                        <li><strong>m6in.xlarge</strong> - 29.18 Gbps</li>
+                        <li><strong>c6in.xlarge</strong> - 28.64 Gbps</li>
+                        <li>용도: 빅데이터, 분산 스토리지, HPC</li>
+                    </ul>
+                </div>
+                <div class="recommendation-card">
+                    <h4>고성능 네트워크 (20 Gbps+)</h4>
+                    <ul>
+                        <li><strong>c5n.xlarge</strong> - 24.8 Gbps, 최고 가성비</li>
+                        <li><strong>m5zn.xlarge</strong> - 24.8 Gbps</li>
+                        <li><strong>c6gn.xlarge</strong> - 23.38 Gbps (Graviton)</li>
+                        <li>용도: 실시간 스트리밍, 대규모 복제</li>
+                    </ul>
+                </div>
+                <div class="recommendation-card">
+                    <h4>범용 네트워크 (~12 Gbps)</h4>
+                    <ul>
+                        <li><strong>c7i.xlarge</strong> - 최신 Intel 7세대</li>
+                        <li><strong>m8g.xlarge</strong> - Graviton4 최신</li>
+                        <li><strong>c6i.xlarge</strong> - 안정적 가성비</li>
+                        <li>용도: 일반 웹서비스, API 서버</li>
+                    </ul>
+                </div>
+                <div class="recommendation-card">
+                    <h4>저지터 (실시간 통신)</h4>
+                    <ul>
+                        <li><strong>r7i.xlarge</strong> - 0.004ms 최저 지터</li>
+                        <li><strong>m6in.xlarge</strong> - 0.005ms</li>
+                        <li><strong>r6i.xlarge</strong> - 0.005ms</li>
+                        <li>용도: 실시간 음성/영상, 게임</li>
+                    </ul>
+                </div>
+                <div class="recommendation-card warning">
+                    <h4>피해야 할 인스턴스</h4>
+                    <ul>
+                        <li><strong>r5b.xlarge</strong> - 3.97 Gbps (매우 낮음)</li>
+                        <li><strong>r6g.xlarge</strong> - 3.96 Gbps</li>
+                        <li><strong>c6g.xlarge</strong> - 5.16 Gbps</li>
+                        <li>이유: 네트워크 대역폭 제한 심함</li>
+                    </ul>
+                </div>
+                <div class="recommendation-card">
+                    <h4>Graviton 네트워크</h4>
+                    <ul>
+                        <li><strong>c6gn.xlarge</strong> - 유일한 20Gbps+ Graviton</li>
+                        <li><strong>c7gd.xlarge</strong> - 12.4 Gbps</li>
+                        <li><strong>m7g.xlarge</strong> - 12.4 Gbps</li>
+                        <li>참고: Graviton4(8세대)는 네트워크 우위 없음</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 전체 결과 -->
+        <div class="chart-section" id="full-results">
+            <h2>6. 전체 결과 (51개 인스턴스)</h2>
+            <p class="description">모든 인스턴스의 네트워크 벤치마크 결과</p>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label>검색:</label>
+                    <input type="text" id="searchFilter" placeholder="인스턴스명...">
+                </div>
+                <div class="filter-group">
+                    <label>아키텍처:</label>
+                    <select id="archFilter">
+                        <option value="">전체</option>
+                        <option value="graviton">Graviton</option>
+                        <option value="intel">Intel</option>
+                        <option value="amd">AMD</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>세대:</label>
+                    <select id="genFilter">
+                        <option value="">전체</option>
+                        <option value="5">5세대</option>
+                        <option value="6">6세대</option>
+                        <option value="7">7세대</option>
+                        <option value="8">8세대</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>패밀리:</label>
+                    <select id="familyFilter">
+                        <option value="">전체</option>
+                        <option value="c">C (컴퓨팅)</option>
+                        <option value="m">M (범용)</option>
+                        <option value="r">R (메모리)</option>
+                    </select>
+                </div>
+            </div>
+
             <table id="dataTable">
                 <thead>
                     <tr>
-                        <th>Instance</th>
-                        <th>Arch</th>
-                        <th>Gen</th>
-                        <th>TCP Single (Gbps)</th>
-                        <th>TCP Parallel (Gbps)</th>
-                        <th>TCP Reverse (Gbps)</th>
-                        <th>UDP (Mbps)</th>
-                        <th>Jitter (ms)</th>
-                        <th>Loss (%)</th>
+                        <th data-sort="instance">인스턴스</th>
+                        <th data-sort="arch">아키텍처</th>
+                        <th data-sort="gen">세대</th>
+                        <th data-sort="single">TCP Single (Gbps)</th>
+                        <th data-sort="parallel">TCP Parallel (Gbps)</th>
+                        <th data-sort="reverse">TCP Reverse (Gbps)</th>
+                        <th data-sort="udp">UDP (Mbps)</th>
+                        <th data-sort="jitter">Jitter (ms)</th>
+                        <th data-sort="loss">Loss (%)</th>
+                        <th data-sort="price">가격 ($/hr)</th>
+                        <th data-sort="efficiency">가성비</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
             </table>
         </div>
+
+        <!-- 결론 -->
+        <div class="chart-section" id="conclusion">
+            <h2>7. 결론</h2>
+            <p class="description">AWS EC2 인스턴스 네트워크 성능 핵심 시사점</p>
+
+            <div class="insights">
+                <h4>핵심 결론</h4>
+                <ul>
+                    <li><strong>네트워크 최적화 인스턴스가 필수인 경우</strong> - 분산 시스템, 대용량 데이터 복제, HPC 워크로드에는 'n' 접미사 인스턴스(c6in, m6idn 등) 선택 필수</li>
+                    <li><strong>일반 워크로드는 ~12 Gbps로 충분</strong> - 대부분의 웹서비스, API 서버에는 기본 네트워크 대역폭으로 충분</li>
+                    <li><strong>Graviton 네트워크 우위 제한적</strong> - Graviton은 CPU 가성비는 우수하나 네트워크에서는 c6gn을 제외하면 Intel과 동등</li>
+                    <li><strong>구세대도 네트워크는 우수</strong> - c5n, m5zn 등 5세대 네트워크 인스턴스도 여전히 최고 수준의 대역폭 제공</li>
+                    <li><strong>가격 vs 네트워크 트레이드오프</strong> - 고대역폭 인스턴스는 비용도 높으므로 실제 네트워크 요구량 분석 필요</li>
+                </ul>
+            </div>
+
+            <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">최종 추천</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>워크로드</th>
+                        <th>1순위 추천</th>
+                        <th>2순위 추천</th>
+                        <th>이유</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>초고속 네트워크</strong></td>
+                        <td>m6idn.xlarge</td>
+                        <td>c6in.xlarge</td>
+                        <td>최고 29.8 Gbps 대역폭</td>
+                    </tr>
+                    <tr>
+                        <td><strong>가성비 네트워크</strong></td>
+                        <td>c5n.xlarge</td>
+                        <td>c6gn.xlarge</td>
+                        <td>24 Gbps+를 저렴하게</td>
+                    </tr>
+                    <tr>
+                        <td><strong>범용 (비용 효율)</strong></td>
+                        <td>c6i.xlarge</td>
+                        <td>m7g.xlarge</td>
+                        <td>12 Gbps로 대부분 충족</td>
+                    </tr>
+                    <tr>
+                        <td><strong>실시간 통신</strong></td>
+                        <td>r7i.xlarge</td>
+                        <td>m6in.xlarge</td>
+                        <td>최저 지터 0.004ms</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer>
+            <p>EC2 Network Benchmark Report | Generated: 2026-01-22 | Region: ap-northeast-2</p>
+        </footer>
     </div>
 
     <script>
-        // Data from CSV
+        // Instance pricing ($/hr for ap-northeast-2)
+        const instancePricing = {
+            "c5.xlarge": 0.0802, "c5a.xlarge": 0.0722, "c5d.xlarge": 0.0914, "c5n.xlarge": 0.0802,
+            "c6g.xlarge": 0.0642, "c6gd.xlarge": 0.0769, "c6gn.xlarge": 0.0814,
+            "c6i.xlarge": 0.0802, "c6id.xlarge": 0.0950, "c6in.xlarge": 0.1069,
+            "c7g.xlarge": 0.0695, "c7gd.xlarge": 0.0832, "c7i.xlarge": 0.0842, "c7i-flex.xlarge": 0.0707,
+            "c8g.xlarge": 0.0723, "c8i.xlarge": 0.0884, "c8i-flex.xlarge": 0.0743,
+            "m5.xlarge": 0.0940, "m5a.xlarge": 0.0846, "m5ad.xlarge": 0.0986, "m5d.xlarge": 0.1070, "m5zn.xlarge": 0.1576,
+            "m6g.xlarge": 0.0752, "m6gd.xlarge": 0.0901,
+            "m6i.xlarge": 0.0940, "m6id.xlarge": 0.1118, "m6idn.xlarge": 0.1419, "m6in.xlarge": 0.1251,
+            "m7g.xlarge": 0.0815, "m7gd.xlarge": 0.0977, "m7i.xlarge": 0.0987, "m7i-flex.xlarge": 0.0829,
+            "m8g.xlarge": 0.0850, "m8i.xlarge": 0.1036,
+            "r5.xlarge": 0.1180, "r5a.xlarge": 0.1062, "r5ad.xlarge": 0.1202, "r5b.xlarge": 0.1416, "r5d.xlarge": 0.1310, "r5dn.xlarge": 0.1579, "r5n.xlarge": 0.1416,
+            "r6g.xlarge": 0.0944, "r6gd.xlarge": 0.1073,
+            "r6i.xlarge": 0.1180, "r6id.xlarge": 0.1328,
+            "r7g.xlarge": 0.1022, "r7gd.xlarge": 0.1162, "r7i.xlarge": 0.1239,
+            "r8g.xlarge": 0.1088, "r8i.xlarge": 0.1302, "r8i-flex.xlarge": 0.1094
+        };
+
+        // Data from benchmark
         const rawData = [
             {instance: "m6idn.xlarge", arch: "intel", gen: 6, single: 9.53, parallel: 29.80, reverse: 9.53, udp: 998, jitter: 0.0070, loss: 0.0115},
             {instance: "m6in.xlarge", arch: "intel", gen: 6, single: 9.52, parallel: 29.18, reverse: 9.53, udp: 998, jitter: 0.0050, loss: 0.0520},
@@ -364,6 +966,13 @@
             {instance: "r6g.xlarge", arch: "graviton", gen: 6, single: 3.96, parallel: 3.96, reverse: 3.96, udp: 998, jitter: 0.0200, loss: 0.0275}
         ];
 
+        // Add price and efficiency to data
+        rawData.forEach(d => {
+            d.price = instancePricing[d.instance] || 0;
+            d.efficiency = d.price > 0 ? (d.parallel / d.price).toFixed(1) : 0;
+            d.family = d.instance.charAt(0).toUpperCase();
+        });
+
         // Sort by parallel bandwidth
         const data = rawData.sort((a, b) => b.parallel - a.parallel);
 
@@ -373,31 +982,55 @@
             amd: '#ef4444'
         };
 
-        // TCP Parallel Chart
-        new Chart(document.getElementById('parallelChart'), {
-            type: 'bar',
-            data: {
-                labels: data.map(d => d.instance),
-                datasets: [{
-                    label: 'TCP Parallel (Gbps)',
-                    data: data.map(d => d.parallel),
-                    backgroundColor: data.map(d => colors[d.arch])
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
+        const archLabels = {
+            graviton: 'Graviton',
+            intel: 'Intel',
+            amd: 'AMD'
+        };
+
+        // TCP Parallel Chart (Top 20)
+        let parallelChart;
+        function createParallelChart(family = 'all') {
+            let filtered = [...data];
+            if (family !== 'all') {
+                filtered = filtered.filter(d => d.family === family.toUpperCase());
+            }
+            const parallelTop20 = filtered.sort((a, b) => b.parallel - a.parallel).slice(0, 20);
+
+            if (parallelChart) parallelChart.destroy();
+
+            parallelChart = new Chart(document.getElementById('parallelChart'), {
+                type: 'bar',
+                data: {
+                    labels: parallelTop20.map(d => d.instance),
+                    datasets: [{
+                        label: 'TCP Parallel (Gbps)',
+                        data: parallelTop20.map(d => d.parallel),
+                        backgroundColor: parallelTop20.map(d => colors[d.arch])
+                    }]
                 },
-                scales: {
-                    x: {
-                        title: { display: true, text: 'Gbps' }
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: (ctx) => {
+                                    const d = parallelTop20[ctx.dataIndex];
+                                    return `아키텍처: ${archLabels[d.arch]}\n세대: ${d.gen}세대\n가격: $${d.price}/hr`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Gbps' } }
                     }
                 }
-            }
-        });
+            });
+        }
+        createParallelChart();
 
         // TCP Single Chart
         const singleData = [...data].sort((a, b) => b.single - a.single).slice(0, 20);
@@ -415,18 +1048,12 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: {
-                        title: { display: true, text: 'Gbps' }
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: 'Gbps' } } }
             }
         });
 
-        // Jitter Chart
+        // Jitter Chart (lowest is best)
         const jitterData = data.filter(d => d.jitter > 0).sort((a, b) => a.jitter - b.jitter).slice(0, 20);
         new Chart(document.getElementById('jitterChart'), {
             type: 'bar',
@@ -442,73 +1069,307 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: {
-                        title: { display: true, text: 'ms (lower is better)' }
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: 'ms (낮을수록 좋음)' } } }
             }
         });
 
-        // Generation comparison
+        // Generation comparison chart
         const genGroups = {};
         data.forEach(d => {
-            const key = `Gen${d.gen} ${d.arch.charAt(0).toUpperCase() + d.arch.slice(1)}`;
+            const key = `${d.gen}세대 ${archLabels[d.arch]}`;
             if (!genGroups[key]) genGroups[key] = [];
             genGroups[key].push(d.parallel);
         });
 
         const genLabels = Object.keys(genGroups).sort();
-        const genAvg = genLabels.map(k => genGroups[k].reduce((a, b) => a + b, 0) / genGroups[k].length);
+        const genAvg = genLabels.map(k => (genGroups[k].reduce((a, b) => a + b, 0) / genGroups[k].length).toFixed(2));
 
         new Chart(document.getElementById('genChart'), {
             type: 'bar',
             data: {
                 labels: genLabels,
                 datasets: [{
-                    label: 'Avg TCP Parallel (Gbps)',
+                    label: '평균 TCP Parallel (Gbps)',
                     data: genAvg,
                     backgroundColor: genLabels.map(l =>
                         l.includes('Graviton') ? colors.graviton :
-                        l.includes('Amd') ? colors.amd : colors.intel
+                        l.includes('AMD') ? colors.amd : colors.intel
                     )
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        title: { display: true, text: 'Gbps' },
-                        beginAtZero: true
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { y: { title: { display: true, text: 'Gbps' }, beginAtZero: true } }
             }
         });
 
-        // Data table
-        const tbody = document.getElementById('dataTable').querySelector('tbody');
+        // Family comparison chart
+        const familyGroups = { 'C': {}, 'M': {}, 'R': {} };
         data.forEach(d => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td><strong>${d.instance}</strong></td>
-                <td><span style="color: ${colors[d.arch]}">${d.arch}</span></td>
-                <td>${d.gen}</td>
-                <td>${d.single.toFixed(2)}</td>
-                <td><strong>${d.parallel.toFixed(2)}</strong></td>
-                <td>${d.reverse.toFixed(2)}</td>
-                <td>${d.udp}</td>
-                <td>${d.jitter.toFixed(4)}</td>
-                <td>${d.loss.toFixed(4)}%</td>
-            `;
-            tbody.appendChild(row);
+            const family = d.family;
+            if (familyGroups[family]) {
+                if (!familyGroups[family][d.arch]) familyGroups[family][d.arch] = [];
+                familyGroups[family][d.arch].push(d.parallel);
+            }
         });
+
+        const familyLabels = ['C (컴퓨팅)', 'M (범용)', 'R (메모리)'];
+        const familyKeys = ['C', 'M', 'R'];
+
+        new Chart(document.getElementById('familyChart'), {
+            type: 'bar',
+            data: {
+                labels: familyLabels,
+                datasets: [
+                    {
+                        label: 'Graviton',
+                        data: familyKeys.map(f => {
+                            const arr = familyGroups[f]['graviton'] || [];
+                            return arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : 0;
+                        }),
+                        backgroundColor: colors.graviton
+                    },
+                    {
+                        label: 'Intel',
+                        data: familyKeys.map(f => {
+                            const arr = familyGroups[f]['intel'] || [];
+                            return arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : 0;
+                        }),
+                        backgroundColor: colors.intel
+                    },
+                    {
+                        label: 'AMD',
+                        data: familyKeys.map(f => {
+                            const arr = familyGroups[f]['amd'] || [];
+                            return arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : 0;
+                        }),
+                        backgroundColor: colors.amd
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { title: { display: true, text: 'Gbps' }, beginAtZero: true } }
+            }
+        });
+
+        // Price vs Performance bubble chart
+        let pricePerformanceChart;
+        function createPricePerformanceChart(family = 'all') {
+            let filtered = data.filter(d => d.price > 0);
+            if (family !== 'all') {
+                filtered = filtered.filter(d => d.family === family.toUpperCase());
+            }
+
+            const bubbleData = filtered.map(d => ({
+                x: d.price,
+                y: d.parallel,
+                r: 8,
+                instance: d.instance,
+                arch: d.arch,
+                efficiency: d.efficiency
+            }));
+
+            if (pricePerformanceChart) pricePerformanceChart.destroy();
+
+            pricePerformanceChart = new Chart(document.getElementById('pricePerformanceChart'), {
+                type: 'bubble',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Graviton',
+                            data: bubbleData.filter(d => d.arch === 'graviton'),
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: colors.graviton
+                        },
+                        {
+                            label: 'Intel',
+                            data: bubbleData.filter(d => d.arch === 'intel'),
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                            borderColor: colors.intel
+                        },
+                        {
+                            label: 'AMD',
+                            data: bubbleData.filter(d => d.arch === 'amd'),
+                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                            borderColor: colors.amd
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const d = ctx.raw;
+                                    return [
+                                        d.instance,
+                                        `가격: $${d.x.toFixed(4)}/hr`,
+                                        `TCP Parallel: ${d.y.toFixed(2)} Gbps`,
+                                        `가성비: ${d.efficiency} Gbps/$`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: '시간당 비용 ($/hr)' } },
+                        y: { title: { display: true, text: 'TCP Parallel (Gbps)' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+        createPricePerformanceChart();
+
+        // Efficiency chart
+        let efficiencyChart;
+        function createEfficiencyChart(family = 'all') {
+            let filtered = [...data].filter(d => d.price > 0);
+            if (family !== 'all') {
+                filtered = filtered.filter(d => d.family === family.toUpperCase());
+            }
+            const efficiencyData = filtered
+                .sort((a, b) => parseFloat(b.efficiency) - parseFloat(a.efficiency))
+                .slice(0, 15);
+
+            if (efficiencyChart) efficiencyChart.destroy();
+
+            efficiencyChart = new Chart(document.getElementById('efficiencyChart'), {
+                type: 'bar',
+                data: {
+                    labels: efficiencyData.map(d => d.instance),
+                    datasets: [{
+                        label: '가성비 (Gbps / $/hr)',
+                        data: efficiencyData.map(d => d.efficiency),
+                        backgroundColor: efficiencyData.map(d => colors[d.arch])
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: (ctx) => {
+                                    const d = efficiencyData[ctx.dataIndex];
+                                    return `TCP Parallel: ${d.parallel} Gbps\n가격: $${d.price}/hr`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { x: { title: { display: true, text: 'Gbps / $/hr' } } }
+                }
+            });
+        }
+        createEfficiencyChart();
+
+        // Data table with filters
+        const tbody = document.getElementById('dataTable').querySelector('tbody');
+        let currentSort = { column: 'parallel', direction: 'desc' };
+
+        function renderTable(filteredData) {
+            tbody.innerHTML = '';
+            filteredData.forEach(d => {
+                const row = document.createElement('tr');
+                const archClass = d.arch === 'graviton' ? 'badge-graviton' : d.arch === 'intel' ? 'badge-intel' : 'badge-amd';
+                row.innerHTML = `
+                    <td><strong>${d.instance}</strong></td>
+                    <td><span class="badge ${archClass}">${archLabels[d.arch]}</span></td>
+                    <td>${d.gen}세대</td>
+                    <td>${d.single.toFixed(2)}</td>
+                    <td><strong>${d.parallel.toFixed(2)}</strong></td>
+                    <td>${d.reverse.toFixed(2)}</td>
+                    <td>${d.udp}</td>
+                    <td>${d.jitter.toFixed(4)}</td>
+                    <td>${d.loss.toFixed(4)}%</td>
+                    <td>$${d.price.toFixed(4)}</td>
+                    <td>${d.efficiency}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterData() {
+            const search = document.getElementById('searchFilter').value.toLowerCase();
+            const arch = document.getElementById('archFilter').value;
+            const gen = document.getElementById('genFilter').value;
+            const family = document.getElementById('familyFilter').value;
+
+            let filtered = data.filter(d => {
+                if (search && !d.instance.toLowerCase().includes(search)) return false;
+                if (arch && d.arch !== arch) return false;
+                if (gen && d.gen !== parseInt(gen)) return false;
+                if (family && d.instance.charAt(0).toLowerCase() !== family) return false;
+                return true;
+            });
+
+            // Sort
+            filtered.sort((a, b) => {
+                let aVal = a[currentSort.column];
+                let bVal = b[currentSort.column];
+                if (typeof aVal === 'string') {
+                    return currentSort.direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                }
+                return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+            });
+
+            renderTable(filtered);
+        }
+
+        // Filter event listeners
+        document.getElementById('searchFilter').addEventListener('input', filterData);
+        document.getElementById('archFilter').addEventListener('change', filterData);
+        document.getElementById('genFilter').addEventListener('change', filterData);
+        document.getElementById('familyFilter').addEventListener('change', filterData);
+
+        // Sort event listeners
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.sort;
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'desc';
+                }
+                filterData();
+            });
+        });
+
+        // Initial render
+        renderTable(data);
+
+        // Chart controls (family filter) setup
+        function setupControls() {
+            document.querySelectorAll('.btn-group[data-toggle="family"]').forEach(group => {
+                group.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+
+                        const chartId = group.dataset.chart;
+                        const family = btn.dataset.value;
+
+                        if (chartId === 'parallel') {
+                            createParallelChart(family);
+                        } else if (chartId === 'bubble') {
+                            createPricePerformanceChart(family);
+                        } else if (chartId === 'efficiency') {
+                            createEfficiencyChart(family);
+                        }
+                    });
+                });
+            });
+        }
+        setupControls();
     </script>
 </body>
 </html>
