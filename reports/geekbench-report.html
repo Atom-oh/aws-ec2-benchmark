@@ -251,7 +251,18 @@
 
         <div class="chart-section">
             <h2>아키텍처별 세대별 성능 비교</h2>
-            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) 싱글코어/멀티코어 평균 점수</p>
+            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) - 메트릭을 선택하여 비교 (최대 2개)</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-multi" class="geekbench-metric-chk" value="multi" checked onchange="updateGeekbenchArchChart()">
+                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Multi-Core</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-single" class="geekbench-metric-chk" value="single" onchange="updateGeekbenchArchChart()">
+                    <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Single-Core</span>
+                </label>
+            </div>
             <div class="chart-container" style="height: 450px;">
                 <canvas id="archChart"></canvas>
             </div>
@@ -450,66 +461,28 @@
             }
         });
 
-        // Architecture + Generation comparison (Single + Multi)
+        // Architecture + Generation comparison (메트릭 선택 가능)
         function calcArchGenAvg(arch, gen, key) {
             const filtered = data.filter(d => d.arch === arch && d.gen === gen);
             if (filtered.length === 0) return null;
             return Math.round(filtered.reduce((sum, d) => sum + d[key], 0) / filtered.length);
         }
 
-        new Chart(document.getElementById('archChart'), {
+        // 메트릭 설정
+        const geekbenchMetricConfig = {
+            multi: { label: 'Multi-Core', key: 'multi', unit: 'points' },
+            single: { label: 'Single-Core', key: 'single', unit: 'points' }
+        };
+
+        const geekbenchArchSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+        const geekbenchArchLightColors = { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' };
+        const geekbenchGenerations = [5, 6, 7, 8];
+
+        let geekbenchArchChart = new Chart(document.getElementById('archChart'), {
             type: 'bar',
             data: {
                 labels: ['5세대', '6세대', '7세대', '8세대'],
-                datasets: [
-                    // Multi-Core scores (진한 색상)
-                    {
-                        label: 'Intel Multi',
-                        data: [calcArchGenAvg('Intel', 5, 'multi'), calcArchGenAvg('Intel', 6, 'multi'), calcArchGenAvg('Intel', 7, 'multi'), calcArchGenAvg('Intel', 8, 'multi')],
-                        backgroundColor: '#3b82f6',
-                        borderColor: '#2563eb',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'AMD Multi',
-                        data: [calcArchGenAvg('AMD', 5, 'multi'), null, null, null],
-                        backgroundColor: '#ef4444',
-                        borderColor: '#dc2626',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Graviton Multi',
-                        data: [null, calcArchGenAvg('Graviton', 6, 'multi'), calcArchGenAvg('Graviton', 7, 'multi'), calcArchGenAvg('Graviton', 8, 'multi')],
-                        backgroundColor: '#10b981',
-                        borderColor: '#059669',
-                        borderWidth: 1
-                    },
-                    // Single-Core scores (연한 색상, 패턴으로 구분)
-                    {
-                        label: 'Intel Single',
-                        data: [calcArchGenAvg('Intel', 5, 'single'), calcArchGenAvg('Intel', 6, 'single'), calcArchGenAvg('Intel', 7, 'single'), calcArchGenAvg('Intel', 8, 'single')],
-                        backgroundColor: '#93c5fd',
-                        borderColor: '#3b82f6',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'AMD Single',
-                        data: [calcArchGenAvg('AMD', 5, 'single'), null, null, null],
-                        backgroundColor: '#fca5a5',
-                        borderColor: '#ef4444',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'Graviton Single',
-                        data: [null, calcArchGenAvg('Graviton', 6, 'single'), calcArchGenAvg('Graviton', 7, 'single'), calcArchGenAvg('Graviton', 8, 'single')],
-                        backgroundColor: '#6ee7b7',
-                        borderColor: '#10b981',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    }
-                ]
+                datasets: []
             },
             options: {
                 responsive: true,
@@ -539,6 +512,46 @@
                 }
             }
         });
+
+        function updateGeekbenchArchChart() {
+            const checkboxes = document.querySelectorAll('.geekbench-metric-chk:checked');
+            const selected = Array.from(checkboxes).map(cb => cb.value);
+
+            // 최대 2개로 제한
+            if (selected.length > 2) {
+                event.target.checked = false;
+                return;
+            }
+
+            const datasets = [];
+            const archList = ['Intel', 'AMD', 'Graviton'];
+
+            selected.forEach((metricKey, idx) => {
+                const cfg = geekbenchMetricConfig[metricKey];
+                const isSecondary = idx === 1;
+
+                archList.forEach(arch => {
+                    datasets.push({
+                        label: `${arch} ${cfg.label}`,
+                        data: geekbenchGenerations.map(g => {
+                            if (arch === 'AMD' && g !== 5) return null;
+                            if (arch === 'Graviton' && g < 6) return null;
+                            return calcArchGenAvg(arch, g, cfg.key);
+                        }),
+                        backgroundColor: isSecondary ? geekbenchArchLightColors[arch] : geekbenchArchSolidColors[arch],
+                        borderColor: geekbenchArchSolidColors[arch],
+                        borderWidth: isSecondary ? 2 : 1,
+                        borderDash: isSecondary ? [5, 5] : []
+                    });
+                });
+            });
+
+            geekbenchArchChart.data.datasets = datasets;
+            geekbenchArchChart.update();
+        }
+
+        // 초기 렌더링
+        updateGeekbenchArchChart();
 
         // Generation trend by family
         function calcFamilyGenAvg(family, gen) {

@@ -418,6 +418,34 @@
             </div>
         </div>
 
+        <!-- 아키텍처별 세대별 통합 차트 (메트릭 선택 가능) -->
+        <div class="chart-section">
+            <h2>아키텍처별 세대별 성능 비교</h2>
+            <p class="description">Intel/AMD vs Graviton - 메트릭을 선택하여 비교 (최대 2개)</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-reqsec" class="nginx-metric-chk" value="reqsec" checked onchange="updateNginxCombinedChart()">
+                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Requests/sec</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-latency" class="nginx-metric-chk" value="latency" onchange="updateNginxCombinedChart()">
+                    <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Latency (ms)</span>
+                </label>
+            </div>
+            <div class="chart-container" style="height: 500px;">
+                <canvas id="archGenCombinedChart"></canvas>
+            </div>
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>Graviton4가 모든 메트릭 최고</strong> - 가장 높은 처리량, 가장 낮은 지연</li>
+                    <li><strong>세대별 성능 향상</strong>: Intel 5세대 → 8세대 약 3배, Graviton 6세대 → 8세대 약 86%</li>
+                    <li><strong>AMD 5세대 주의</strong>: 처리량 낮고 지연 높음, 대안으로 Graviton 권장</li>
+                </ul>
+            </div>
+        </div>
+
         <!-- 차트 4: 세대별 + 아키텍처별 Requests/sec -->
         <div class="chart-section">
             <h2>세대별 Requests/sec 비교 (x86 vs Graviton)</h2>
@@ -837,7 +865,126 @@
             }
         });
 
-        // 차트 4: 세대별 + 아키텍처별 Requests/sec
+        // 차트 4a: 아키텍처별 세대별 성능 비교 (메트릭 선택 가능)
+        function calcNginxGenAvg(arch, gen, key) {
+            let filtered;
+            if (arch === 'Intel') {
+                filtered = allInstances.filter(i => i.arch === 'intel' && i.gen === gen);
+            } else if (arch === 'AMD') {
+                filtered = allInstances.filter(i => i.arch === 'amd' && i.gen === gen);
+            } else {
+                filtered = allInstances.filter(i => i.arch === 'graviton' && i.gen === gen);
+            }
+            if (filtered.length === 0) return null;
+            return filtered.reduce((sum, d) => sum + d[key], 0) / filtered.length;
+        }
+
+        // 메트릭 설정
+        const nginxMetricConfig = {
+            reqsec: {
+                label: 'Requests/sec',
+                key: 'reqSec',
+                divisor: 1000,
+                unit: 'K req/sec',
+                colors: { intel: '#3b82f6', amd: '#ef4444', graviton: '#10b981' }
+            },
+            latency: {
+                label: 'Latency',
+                key: 'latency',
+                divisor: 0.1,  // multiply by 10 for display
+                unit: 'ms',
+                colors: { intel: '#93c5fd', amd: '#fca5a5', graviton: '#6ee7b7' }
+            }
+        };
+
+        // 초기 차트 생성
+        let nginxCombinedChart = new Chart(document.getElementById('archGenCombinedChart'), {
+            type: 'bar',
+            data: { labels: ['5세대', '6세대', '7세대', '8세대'], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const label = ctx.dataset.label;
+                                if (label.includes('Latency')) {
+                                    return label + ': ' + (ctx.raw / 10).toFixed(2) + ' ms';
+                                } else {
+                                    return label + ': ' + ctx.raw.toLocaleString() + ' K req/sec';
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: '값' }
+                    }
+                }
+            }
+        });
+
+        function updateNginxCombinedChart() {
+            const checkboxes = document.querySelectorAll('.nginx-metric-chk:checked');
+            const selected = Array.from(checkboxes).map(cb => cb.value);
+
+            // 최대 2개 선택 제한
+            if (selected.length > 2) {
+                event.target.checked = false;
+                return;
+            }
+
+            // 선택된 메트릭이 없으면 빈 차트
+            if (selected.length === 0) {
+                nginxCombinedChart.data.datasets = [];
+                nginxCombinedChart.options.scales.y.title.text = '메트릭을 선택하세요';
+                nginxCombinedChart.update();
+                return;
+            }
+
+            const datasets = [];
+            const yAxisLabels = [];
+
+            selected.forEach((metricKey, idx) => {
+                const config = nginxMetricConfig[metricKey];
+                const isSecondMetric = idx === 1;
+
+                // 각 아키텍처별 데이터 생성
+                ['Intel', 'AMD', 'Graviton'].forEach(arch => {
+                    const data = [5, 6, 7, 8].map(g => {
+                        const v = calcNginxGenAvg(arch, g, config.key);
+                        if (v === null) return null;
+                        return metricKey === 'latency' ? Math.round(v * 10) : Math.round(v / config.divisor);
+                    });
+
+                    const archKey = arch.toLowerCase();
+                    datasets.push({
+                        label: `${arch} ${config.label}`,
+                        data: data,
+                        backgroundColor: isSecondMetric ? config.colors[archKey] + '99' : config.colors[archKey],
+                        borderColor: config.colors[archKey],
+                        borderWidth: 2,
+                        borderDash: isSecondMetric ? [5, 5] : [],
+                        borderRadius: 4
+                    });
+                });
+
+                yAxisLabels.push(metricKey === 'latency' ? '×10 ms' : 'K req/sec');
+            });
+
+            nginxCombinedChart.data.datasets = datasets;
+            nginxCombinedChart.options.scales.y.title.text = yAxisLabels.join(' / ');
+            nginxCombinedChart.update();
+        }
+
+        // 초기 차트 렌더링
+        updateNginxCombinedChart();
+
+        // 차트 4b: 세대별 + 아키텍처별 Requests/sec
         const genArchData = {
             labels: ['5세대', '6세대', '7세대', '8세대'],
             intel: [], graviton: []
