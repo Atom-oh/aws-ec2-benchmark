@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS EC2 Benchmark Results</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #9ca3af;
+            font-size: 1.1rem;
+        }
+
+        .badge-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .badge-graviton {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-intel {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .badge-amd {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 30px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .card p {
+            color: #9ca3af;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .card-stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        .stat-label {
+            color: #6b7280;
+        }
+
+        .stat-value {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .card-arrow {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            color: #10b981;
+        }
+
+        .card:hover .card-arrow {
+            opacity: 1;
+            right: 15px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #6b7280;
+        }
+
+        footer a {
+            color: #10b981;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .info-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-section h3 {
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .info-icon.instances {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .info-icon.vcpu {
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .info-icon.gen {
+            background: rgba(168, 85, 247, 0.2);
+        }
+
+        .info-icon.env {
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        /* Summary Section */
+        .summary-section {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 40px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .summary-section h3 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .summary-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .summary-card-title {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-card-value {
+            color: #10b981;
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .summary-card-detail {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .summary-card.intel .summary-card-value { color: #3b82f6; }
+        .summary-card.graviton .summary-card-value { color: #10b981; }
+
+        .key-insights {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .key-insights h4 {
+            color: #f59e0b;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .insights-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .insight-item {
+            color: #d1d5db;
+            font-size: 0.9rem;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .insight-item::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AWS EC2 Benchmark Results</h1>
+            <p class="subtitle">51개 EC2 인스턴스 타입의 성능 비교 분석 (xlarge, 4 vCPU)</p>
+            <div class="badge-container">
+                <span class="badge badge-graviton">Graviton (arm64)</span>
+                <span class="badge badge-intel">Intel (x86_64)</span>
+                <span class="badge badge-amd">AMD (x86_64)</span>
+            </div>
+        </header>
+
+        <!-- Benchmark Summary -->
+        <div class="summary-section">
+            <h3>📈 종합 벤치마크 결과</h3>
+            <div class="summary-grid">
+                <div class="summary-card graviton">
+                    <div class="summary-card-title">CPU 최고 성능 (Multi-core)</div>
+                    <div class="summary-card-value">Graviton4 (c8g)</div>
+                    <div class="summary-card-detail">Geekbench 5,804 / Sysbench 4,947 events/sec</div>
+                </div>
+                <div class="summary-card intel">
+                    <div class="summary-card-title">CPU 최고 성능 (Single-core)</div>
+                    <div class="summary-card-value">Intel 8세대 (c8i)</div>
+                    <div class="summary-card-detail">Geekbench Single 2,199 / 고클럭 워크로드 최적</div>
+                </div>
+                <div class="summary-card graviton">
+                    <div class="summary-card-title">최고 가성비</div>
+                    <div class="summary-card-value">c7i-flex / c8g</div>
+                    <div class="summary-card-detail">Intel flex: 저렴한 가격 / Graviton: 높은 성능</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">네트워크 최고 성능</div>
+                    <div class="summary-card-value">c6in.xlarge</div>
+                    <div class="summary-card-detail">TCP 24.2 Gbps / 네트워크 최적화 인스턴스</div>
+                </div>
+            </div>
+            <div class="key-insights">
+                <h4>💡 핵심 인사이트</h4>
+                <div class="insights-list">
+                    <div class="insight-item">Graviton4는 멀티코어에서 Intel 8세대 대비 16% 빠르고 20% 저렴</div>
+                    <div class="insight-item">Intel 8세대는 싱글코어 성능 최강 (레거시 앱, 고클럭 필요 워크로드)</div>
+                    <div class="insight-item">flex 인스턴스는 일반 대비 25% 저렴하면서 90% 이상 성능 유지</div>
+                    <div class="insight-item">Cold Start가 중요한 서버리스는 Intel 8세대, 처리량은 Graviton 권장</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cards">
+            <!-- System Benchmarks -->
+            <a href="reports/geekbench-report.html" class="card">
+                <div class="card-icon">🏆</div>
+                <h2>Geekbench 6</h2>
+                <p>업계 표준 크로스 플랫폼 벤치마크. 실제 워크로드(이미지 처리, 머신러닝, 암호화)를 시뮬레이션하여 싱글/멀티코어 성능을 측정합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 싱글</span>
+                        <span class="stat-value">c8i</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">최고 멀티</span>
+                        <span class="stat-value">c8g</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports/passmark-report.html" class="card">
+                <div class="card-icon">📊</div>
+                <h2>PassMark</h2>
+                <p>종합 CPU 성능 측정 도구. 정수/부동소수점 연산, 압축, 물리 시뮬레이션 등 다양한 테스트로 실제 컴퓨팅 성능을 평가합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-value">c8g</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">CPU Mark</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports/sysbench-report.html" class="card">
+                <div class="card-icon">⚙️</div>
+                <h2>Sysbench</h2>
+                <p>오픈소스 멀티스레드 벤치마크. CPU 소수 계산과 메모리 순차/랜덤 접근 성능을 측정하여 데이터베이스 워크로드 적합성을 평가합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-value">c8g</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">events/sec</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports/stress-ng-report.html" class="card">
+                <div class="card-icon">🔥</div>
+                <h2>stress-ng</h2>
+                <p>300+ 스트레스 테스트 지원. CPU 연산(정수, 부동소수점), 메모리 대역폭, L1/L2/L3 캐시 성능을 종합적으로 측정합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-value">c8g</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">bogo ops/s</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports/iperf3-report.html" class="card">
+                <div class="card-icon">🌐</div>
+                <h2>iperf3 Network</h2>
+                <p>네트워크 대역폭 측정 표준 도구. 동일 VPC 내 TCP 처리량과 지연시간을 측정하여 네트워크 집약적 워크로드 성능을 평가합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-value">c6in</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">Gbits/sec</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <!-- Application Benchmarks -->
+            <a href="reports/redis-report.html" class="card">
+                <div class="card-icon">⚡</div>
+                <h2>Redis</h2>
+                <p>인메모리 데이터베이스 벤치마크. SET/GET 등 주요 명령어의 초당 처리량을 측정하여 캐싱, 세션 저장소 성능을 평가합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-value">r8g</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">235K ops/s</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports/nginx-report.html" class="card">
+                <div class="card-icon">🚀</div>
+                <h2>Nginx</h2>
+                <p>웹 서버/리버스 프록시 성능 측정. wrk 부하 테스트로 초당 요청 처리량과 지연 시간을 측정하여 웹 서비스 성능을 평가합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-value">r8g</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">req/sec</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports/springboot-report.html" class="card">
+                <div class="card-icon">☕</div>
+                <h2>Spring Boot</h2>
+                <p>Java/JVM 워크로드 성능 측정. PetClinic 앱의 Cold Start 시간과 HTTP 처리량을 분석하여 서버리스/컨테이너 환경 적합성을 평가합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 처리량</span>
+                        <span class="stat-value">c7i-flex</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">req/sec</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports/elasticsearch-report.html" class="card">
+                <div class="card-icon">🔍</div>
+                <h2>Elasticsearch</h2>
+                <p>분산 검색 엔진 Cold Start 성능 측정. 노드 시작 시간을 분석하여 클러스터 스케일링, 장애 복구 시나리오에서의 성능을 평가합니다.</p>
+                <div class="card-stats">
+                    <div class="stat">
+                        <span class="stat-label">최고 성능</span>
+                        <span class="stat-value">c8i-flex</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">메트릭</span>
+                        <span class="stat-value">Cold Start (s)</span>
+                    </div>
+                </div>
+                <span class="card-arrow">→</span>
+            </a>
+        </div>
+
+        <div class="info-section">
+            <h3>테스트 환경</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-icon instances">📊</div>
+                    <div>
+                        <div style="color: #fff; font-weight: 500;">51개 인스턴스</div>
+                        <div style="color: #6b7280; font-size: 0.85rem;">서울 리전 (ap-northeast-2)</div>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-icon vcpu">💻</div>
+                    <div>
+                        <div style="color: #fff; font-weight: 500;">4 vCPU (xlarge)</div>
+                        <div style="color: #6b7280; font-size: 0.85rem;">동일 vCPU 기준 비교</div>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-icon gen">🔄</div>
+                    <div>
+                        <div style="color: #fff; font-weight: 500;">5~8세대</div>
+                        <div style="color: #6b7280; font-size: 0.85rem;">Intel, AMD, Graviton</div>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-icon env">☸️</div>
+                    <div>
+                        <div style="color: #fff; font-weight: 500;">EKS + Karpenter</div>
+                        <div style="color: #6b7280; font-size: 0.85rem;">노드 격리 보장</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                <a href="https://github.com/Atom-oh/aws-ec2-benchmark" target="_blank">GitHub Repository</a>
+                &nbsp;|&nbsp;
+                Last Updated: January 2026
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
