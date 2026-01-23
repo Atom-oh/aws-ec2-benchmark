@@ -463,9 +463,23 @@
 
         <!-- 세대별 아키텍처별 성능 비교 -->
         <section class="section" id="generation">
-            <h2>세대별 아키텍처 성능 비교</h2>
-            <p style="color: var(--muted); margin-bottom: 1rem;">5세대: Intel + AMD | 6~8세대: Intel + Graviton</p>
-            <div class="chart-grid">
+            <h2>아키텍처별 세대별 성능 비교</h2>
+            <p style="color: var(--muted); margin-bottom: 1rem;">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) - 메트릭을 선택하여 비교 (최대 2개)</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-cpu" class="sysbench-metric-chk" value="cpu" checked onchange="updateSysbenchArchGenChart()">
+                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">CPU Multi-thread</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-memory" class="sysbench-metric-chk" value="memory" onchange="updateSysbenchArchGenChart()">
+                    <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Memory Large Block</span>
+                </label>
+            </div>
+            <div class="chart-container" style="height: 500px;">
+                <canvas id="archGenChart"></canvas>
+            </div>
+            <div class="chart-grid" style="margin-top: 2rem;">
                 <div class="chart-container tall">
                     <div class="chart-title">세대별 CPU Multi-thread 평균 (아키텍처 구분)</div>
                     <canvas id="genArchCpuChart"></canvas>
@@ -815,6 +829,93 @@
 
         // 평균 계산 함수
         const avg = arr => arr.length > 0 ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
+
+        // 아키텍처별 세대별 통합 차트 (메트릭 선택 가능)
+        const sysbenchMetricConfig = {
+            cpu: { label: 'CPU', dataSource: genArchData, divisor: 1, unit: 'events/sec' },
+            memory: { label: 'Memory', dataSource: genArchMemData, divisor: 10, unit: 'MiB/s (÷10)' }
+        };
+
+        const sysbenchArchSolidColors = { intel: '#3b82f6', amd: '#ef4444', graviton: '#10b981' };
+        const sysbenchArchLightColors = { intel: '#93c5fd', amd: '#fca5a5', graviton: '#6ee7b7' };
+        const sysbenchArchLabels = { intel: 'Intel', amd: 'AMD', graviton: 'Graviton' };
+
+        let sysbenchArchGenChart = new Chart(document.getElementById('archGenChart'), {
+            type: 'bar',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: false, boxWidth: 20 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.raw === null) return null;
+                                const isMemory = context.dataset.label.includes('Memory');
+                                const unit = isMemory ? 'MiB/s (÷10)' : 'events/sec';
+                                return context.dataset.label + ': ' + context.raw.toLocaleString() + ' ' + unit;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: '' }
+                    }
+                }
+            }
+        });
+
+        function updateSysbenchArchGenChart() {
+            const checkboxes = document.querySelectorAll('.sysbench-metric-chk:checked');
+            const selected = Array.from(checkboxes).map(cb => cb.value);
+
+            // 최대 2개로 제한
+            if (selected.length > 2) {
+                event.target.checked = false;
+                return;
+            }
+
+            const datasets = [];
+            const archList = ['intel', 'amd', 'graviton'];
+            const generations = ['5', '6', '7', '8'];
+
+            selected.forEach((metricKey, idx) => {
+                const cfg = sysbenchMetricConfig[metricKey];
+                const isSecondary = idx === 1;
+
+                archList.forEach(arch => {
+                    datasets.push({
+                        label: `${sysbenchArchLabels[arch]} ${cfg.label}`,
+                        data: generations.map(g => {
+                            if (arch === 'amd' && g !== '5') return null;
+                            if (arch === 'graviton' && g === '5') return null;
+                            const vals = cfg.dataSource[g][arch];
+                            return vals.length > 0 ? Math.round(avg(vals) / cfg.divisor) : null;
+                        }),
+                        backgroundColor: isSecondary ? sysbenchArchLightColors[arch] : sysbenchArchSolidColors[arch],
+                        borderColor: sysbenchArchSolidColors[arch],
+                        borderWidth: isSecondary ? 2 : 1,
+                        borderDash: isSecondary ? [5, 5] : []
+                    });
+                });
+            });
+
+            sysbenchArchGenChart.data.datasets = datasets;
+            sysbenchArchGenChart.options.scales.y.title.text = selected.map(m => sysbenchMetricConfig[m].unit).join(' / ');
+            sysbenchArchGenChart.update();
+        }
+
+        // 초기 렌더링
+        updateSysbenchArchGenChart();
 
         // 세대별 아키텍처별 CPU Chart (Grouped Bar)
         new Chart(document.getElementById('genArchCpuChart'), {

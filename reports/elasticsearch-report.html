@@ -395,28 +395,26 @@
                 </div>
             </div>
 
-            <div class="grid-2">
-                <div class="chart-section">
-                    <h2>아키텍처별 비교</h2>
-                    <p class="description">아키텍처별 Rally 평균 처리량</p>
-                    <div class="chart-container">
-                        <canvas id="archChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-section">
-                    <h2>세대별 비교</h2>
-                    <p class="description">Intel vs Graviton 세대별</p>
-                    <div class="chart-container">
-                        <canvas id="genChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
             <div class="chart-section">
-                <h2>패밀리별 비교 (C/M/R)</h2>
-                <p class="description">컴퓨팅 vs 범용 vs 메모리 최적화</p>
-                <div class="chart-container">
-                    <canvas id="familyChart"></canvas>
+                <h2>아키텍처별 세대별 성능 비교</h2>
+                <p class="description">Intel (5-8세대), AMD (5세대), Graviton (2-4세대) Rally Throughput - 패밀리를 선택하여 비교 (최대 2개)</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                    <span style="font-weight: 600; margin-right: 0.5rem;">패밀리 선택:</span>
+                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                        <input type="checkbox" id="chk-family-c" class="es-family-chk" value="C" checked onchange="updateEsArchGenChart()">
+                        <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">C (Compute)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                        <input type="checkbox" id="chk-family-m" class="es-family-chk" value="M" onchange="updateEsArchGenChart()">
+                        <span style="background: #8b5cf6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">M (General)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                        <input type="checkbox" id="chk-family-r" class="es-family-chk" value="R" onchange="updateEsArchGenChart()">
+                        <span style="background: #ec4899; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">R (Memory)</span>
+                    </label>
+                </div>
+                <div class="chart-container" style="height: 450px;">
+                    <canvas id="archGenChart"></canvas>
                 </div>
             </div>
         </div>
@@ -914,112 +912,94 @@
             coldstartChart.update();
         }
 
-        // Architecture Chart
-        function createArchChart() {
-            const graviton = benchmarkData.filter(d => d.arch === 'Graviton');
-            const intel = benchmarkData.filter(d => d.arch === 'Intel');
-            const amd = benchmarkData.filter(d => d.arch === 'AMD');
+        // 아키텍처별 세대별 통합 차트 (패밀리 선택 가능)
+        function calcEsArchGenAvg(arch, gen, family) {
+            let filtered = benchmarkData.filter(d => d.arch === arch && d.gen === gen);
+            if (family) {
+                filtered = filtered.filter(d => d.family === family);
+            }
+            if (filtered.length === 0) return null;
+            return Math.round(filtered.reduce((s, d) => s + d.rally_throughput_avg, 0) / filtered.length);
+        }
 
-            const avgG = graviton.reduce((s, d) => s + d.rally_throughput_avg, 0) / graviton.length;
-            const avgI = intel.reduce((s, d) => s + d.rally_throughput_avg, 0) / intel.length;
-            const avgA = amd.reduce((s, d) => s + d.rally_throughput_avg, 0) / amd.length;
+        const esFamilyConfig = {
+            C: { label: 'C (Compute)', color: '#3b82f6', lightColor: '#93c5fd' },
+            M: { label: 'M (General)', color: '#8b5cf6', lightColor: '#c4b5fd' },
+            R: { label: 'R (Memory)', color: '#ec4899', lightColor: '#f9a8d4' }
+        };
 
-            new Chart(document.getElementById('archChart'), {
+        const esArchSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+        const esArchLightColors = { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' };
+
+        // Intel: 5,6,7,8세대 / Graviton: 2,3,4세대 (6,7,8세대로 표시)
+        const esGenLabels = ['5세대', '6세대', '7세대', '8세대'];
+        const esIntelGens = [5, 6, 7, 8];
+        const esGravitonGens = [null, 2, 3, 4]; // 5세대 없음, 6세대=Graviton2, 7세대=Graviton3, 8세대=Graviton4
+
+        let esArchGenChart;
+
+        function createArchGenChart() {
+            esArchGenChart = new Chart(document.getElementById('archGenChart'), {
                 type: 'bar',
                 data: {
-                    labels: ['Graviton', 'Intel', 'AMD'],
-                    datasets: [{
-                        label: 'Avg Throughput (docs/s)',
-                        data: [avgG, avgI, avgA],
-                        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(59, 130, 246, 0.8)', 'rgba(239, 68, 68, 0.8)'],
-                        borderColor: ['rgb(16, 185, 129)', 'rgb(59, 130, 246)', 'rgb(239, 68, 68)'],
-                        borderWidth: 2
-                    }]
+                    labels: esGenLabels,
+                    datasets: []
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toLocaleString()} docs/s` } }
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} docs/s` : null
+                            }
+                        }
                     },
                     scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'Throughput (docs/s)' } }
+                        y: { beginAtZero: true, title: { display: true, text: 'Rally Throughput (docs/s)' } }
                     }
                 }
             });
+            updateEsArchGenChart();
         }
 
-        // Generation Chart
-        function createGenChart() {
-            const genGroups = {
-                'Graviton2': benchmarkData.filter(d => d.arch === 'Graviton' && d.gen === 2),
-                'Graviton3': benchmarkData.filter(d => d.arch === 'Graviton' && d.gen === 3),
-                'Graviton4': benchmarkData.filter(d => d.arch === 'Graviton' && d.gen === 4),
-                'Intel 5th': benchmarkData.filter(d => d.arch === 'Intel' && d.gen === 5),
-                'Intel 6th': benchmarkData.filter(d => d.arch === 'Intel' && d.gen === 6),
-                'Intel 7th': benchmarkData.filter(d => d.arch === 'Intel' && d.gen === 7),
-                'Intel 8th': benchmarkData.filter(d => d.arch === 'Intel' && d.gen === 8)
-            };
+        function updateEsArchGenChart() {
+            const checkboxes = document.querySelectorAll('.es-family-chk:checked');
+            const selected = Array.from(checkboxes).map(cb => cb.value);
 
-            const labels = Object.keys(genGroups);
-            const avgs = labels.map(k => {
-                const g = genGroups[k];
-                return g.length ? g.reduce((s, d) => s + d.rally_throughput_avg, 0) / g.length : 0;
+            // 최대 2개로 제한
+            if (selected.length > 2) {
+                event.target.checked = false;
+                return;
+            }
+
+            const datasets = [];
+            const archList = ['Intel', 'AMD', 'Graviton'];
+
+            selected.forEach((familyKey, idx) => {
+                const isSecondary = idx === 1;
+
+                archList.forEach(arch => {
+                    datasets.push({
+                        label: `${arch} ${familyKey}`,
+                        data: esGenLabels.map((lbl, i) => {
+                            if (arch === 'AMD' && i !== 0) return null; // AMD는 5세대만
+                            if (arch === 'Graviton' && i === 0) return null; // Graviton은 5세대 없음
+
+                            const gen = arch === 'Graviton' ? esGravitonGens[i] : esIntelGens[i];
+                            return calcEsArchGenAvg(arch, gen, familyKey);
+                        }),
+                        backgroundColor: isSecondary ? esArchLightColors[arch] : esArchSolidColors[arch],
+                        borderColor: esArchSolidColors[arch],
+                        borderWidth: isSecondary ? 2 : 1,
+                        borderDash: isSecondary ? [5, 5] : []
+                    });
+                });
             });
 
-            new Chart(document.getElementById('genChart'), {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Avg Throughput (docs/s)',
-                        data: avgs,
-                        backgroundColor: labels.map(l => l.includes('Graviton') ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)'),
-                        borderColor: labels.map(l => l.includes('Graviton') ? 'rgb(16, 185, 129)' : 'rgb(59, 130, 246)'),
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'Throughput (docs/s)' } }
-                    }
-                }
-            });
-        }
-
-        // Family Chart
-        function createFamilyChart() {
-            const families = ['C', 'M', 'R'];
-            const familyData = families.map(f => {
-                const fd = benchmarkData.filter(d => d.family === f);
-                return fd.reduce((s, d) => s + d.rally_throughput_avg, 0) / fd.length;
-            });
-
-            new Chart(document.getElementById('familyChart'), {
-                type: 'bar',
-                data: {
-                    labels: ['C (Compute)', 'M (General)', 'R (Memory)'],
-                    datasets: [{
-                        label: 'Avg Throughput (docs/s)',
-                        data: familyData,
-                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(168, 85, 247, 0.8)', 'rgba(236, 72, 153, 0.8)'],
-                        borderColor: ['rgb(59, 130, 246)', 'rgb(168, 85, 247)', 'rgb(236, 72, 153)'],
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'Throughput (docs/s)' } }
-                    }
-                }
-            });
+            esArchGenChart.data.datasets = datasets;
+            esArchGenChart.update();
         }
 
         // Cost Efficiency Chart (Performance per Dollar)
@@ -1352,9 +1332,7 @@
         // Initialize all charts
         createRallyChart();
         createColdstartChart();
-        createArchChart();
-        createGenChart();
-        createFamilyChart();
+        createArchGenChart();
         createCostEfficiencyChart();
         createPricePerformanceChart();
         createScatterChart();

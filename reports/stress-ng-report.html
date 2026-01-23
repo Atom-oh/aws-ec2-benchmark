@@ -440,14 +440,64 @@
 
         <!-- 세대별 비교 -->
         <div class="chart-section" id="gen-compare">
-            <h2>아키텍처별/세대별 성능 비교</h2>
-            <p class="description">세대별(5-8세대) Graviton vs Intel vs AMD 성능 비교</p>
+            <h2>아키텍처별 세대별 성능 비교</h2>
+            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) - 최대 2개 메트릭 동시 비교</p>
+
+            <!-- 메트릭 선택 체크박스 -->
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택 (최대 2개):</span>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-matrix" class="metric-chk" value="matrix" checked onchange="updateCombinedChart()">
+                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Matrix</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-float" class="metric-chk" value="float" onchange="updateCombinedChart()">
+                    <span style="background: #8b5cf6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Float</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-int" class="metric-chk" value="int" onchange="updateCombinedChart()">
+                    <span style="background: #06b6d4; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">CPU Int</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-memcpy" class="metric-chk" value="memcpy" checked onchange="updateCombinedChart()">
+                    <span style="background: #f59e0b; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Memory</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-cache" class="metric-chk" value="cache" onchange="updateCombinedChart()">
+                    <span style="background: #ec4899; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Cache</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-switch" class="metric-chk" value="switch" onchange="updateCombinedChart()">
+                    <span style="background: #14b8a6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Context Switch</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                    <input type="checkbox" id="chk-branch" class="metric-chk" value="branch" onchange="updateCombinedChart()">
+                    <span style="background: #64748b; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Branch</span>
+                </label>
+            </div>
+
+            <div class="chart-container" style="height: 500px;">
+                <canvas id="archGenCombinedChart"></canvas>
+            </div>
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>세대별 성능 향상률</h4>
+                <ul>
+                    <li><strong>Matrix Intel</strong>: 5세대 6.7K → 8세대 12.0K (+79% 향상)</li>
+                    <li><strong>Matrix Graviton</strong>: 6세대 14.7K → 8세대 21.8K (+48% 향상)</li>
+                    <li><strong>8세대 비교</strong>: Matrix - Graviton 21.8K vs Intel 12.0K (Graviton +82%)</li>
+                </ul>
+            </div>
+            <h3 style="margin-top: 2rem;">메트릭별 세부 비교</h3>
             <div style="margin-bottom: 1rem;">
-                <label for="metricSelector" style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</label>
+                <label for="metricSelector" style="font-weight: 600; margin-right: 0.5rem;">단일 메트릭 선택:</label>
                 <select id="metricSelector" onchange="updateArchGenChart()" style="padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; font-size: 1rem;">
                     <option value="matrix">Matrix (행렬 연산)</option>
+                    <option value="float">Float (부동소수점)</option>
                     <option value="int">CPU Int (정수 연산)</option>
+                    <option value="memcpy">Memory (메모리 복사)</option>
+                    <option value="cache">Cache</option>
                     <option value="switch">Context Switch</option>
+                    <option value="branch">Branch Prediction</option>
                 </select>
             </div>
             <div class="chart-container" style="height: 400px;">
@@ -943,6 +993,95 @@
         const generations = [5, 6, 7, 8];
         const architectures = ['Graviton', 'Intel', 'AMD'];
 
+        // 메트릭 설정 (색상, 스케일링 등)
+        const metricConfig = {
+            matrix: { label: 'Matrix', divisor: 1000, unit: 'K ops/s', solidColors: ['#3b82f6', '#ef4444', '#10b981'] },
+            float: { label: 'Float', divisor: 1000, unit: 'K ops/s', solidColors: ['#8b5cf6', '#a855f7', '#7c3aed'] },
+            int: { label: 'CPU Int', divisor: 1000, unit: 'K ops/s', solidColors: ['#06b6d4', '#0891b2', '#0e7490'] },
+            memcpy: { label: 'Memory', divisor: 100, unit: '×100 MiB/s', lightColors: ['#93c5fd', '#fca5a5', '#6ee7b7'] },
+            cache: { label: 'Cache', divisor: 1, unit: 'ops/s', lightColors: ['#f9a8d4', '#f472b6', '#ec4899'] },
+            switch: { label: 'Ctx Switch', divisor: 100000, unit: '×100K ops/s', lightColors: ['#5eead4', '#2dd4bf', '#14b8a6'] },
+            branch: { label: 'Branch', divisor: 1000, unit: 'K ops/s', lightColors: ['#94a3b8', '#64748b', '#475569'] }
+        };
+
+        // 아키텍처별 세대별 통합 차트 (동적 업데이트)
+        let combinedChart = new Chart(document.getElementById('archGenCombinedChart'), {
+            type: 'bar',
+            data: {
+                labels: ['5세대', '6세대', '7세대', '8세대'],
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: false, boxWidth: 20, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.raw === null) return null;
+                                return context.dataset.label + ': ' + context.raw.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Score (normalized)' }
+                    }
+                }
+            }
+        });
+
+        function updateCombinedChart() {
+            const checkboxes = document.querySelectorAll('.metric-chk:checked');
+            const selected = Array.from(checkboxes).map(cb => cb.value);
+
+            // 최대 2개로 제한
+            if (selected.length > 2) {
+                const lastChecked = event.target;
+                lastChecked.checked = false;
+                return;
+            }
+
+            const datasets = [];
+            const archList = ['Intel', 'AMD', 'Graviton'];
+            const archSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+            const archLightColors = { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' };
+
+            selected.forEach((metric, idx) => {
+                const cfg = metricConfig[metric];
+                const isSecondary = idx === 1;
+
+                archList.forEach(arch => {
+                    datasets.push({
+                        label: `${arch} ${cfg.label}`,
+                        data: generations.map(g => {
+                            if (arch === 'AMD' && g !== 5) return null;
+                            if (arch === 'Graviton' && g < 6) return null;
+                            const v = calcArchGenAvg(arch, g, metric);
+                            return v ? Math.round(v / cfg.divisor) : null;
+                        }),
+                        backgroundColor: isSecondary ? archLightColors[arch] : archSolidColors[arch],
+                        borderColor: archSolidColors[arch],
+                        borderWidth: isSecondary ? 2 : 1,
+                        borderDash: isSecondary ? [5, 5] : []
+                    });
+                });
+            });
+
+            combinedChart.data.datasets = datasets;
+            combinedChart.options.scales.y.title.text = selected.map(m => metricConfig[m].unit).join(' / ');
+            combinedChart.update();
+        }
+
+        // 초기 렌더링
+        updateCombinedChart();
+
         let archGenChart = new Chart(document.getElementById('archChart'), {
             type: 'bar',
             data: {
@@ -977,9 +1116,13 @@
         function updateArchGenChart() {
             const metric = document.getElementById('metricSelector').value;
             const metricLabels = {
-                'matrix': { title: 'Matrix 성능 (K ops/sec)', unit: 'K ops/sec', divisor: 1000 },
-                'int': { title: 'CPU Int 성능 (K ops/sec)', unit: 'K ops/sec', divisor: 1000 },
-                'switch': { title: 'Context Switch 성능 (100K ops/sec)', unit: '100K ops/sec', divisor: 100000 }
+                'matrix': { title: 'Matrix 성능', unit: 'K ops/s', divisor: 1000 },
+                'float': { title: 'Float 성능', unit: 'K ops/s', divisor: 1000 },
+                'int': { title: 'CPU Int 성능', unit: 'K ops/s', divisor: 1000 },
+                'memcpy': { title: 'Memory 성능', unit: 'MiB/s', divisor: 1 },
+                'cache': { title: 'Cache 성능', unit: 'ops/s', divisor: 1 },
+                'switch': { title: 'Context Switch 성능', unit: '100K ops/s', divisor: 100000 },
+                'branch': { title: 'Branch Prediction 성능', unit: 'K ops/s', divisor: 1000 }
             };
             const config = metricLabels[metric];
 

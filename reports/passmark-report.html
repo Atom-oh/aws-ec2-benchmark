@@ -249,10 +249,19 @@
         </div>
 
         <div class="chart-section">
-            <h2>아키텍처별 성능 비교</h2>
-            <p class="description">Graviton vs Intel vs AMD 평균 점수</p>
-            <div class="chart-container" style="height: 300px;">
-                <canvas id="archChart"></canvas>
+            <h2>아키텍처별 세대별 성능 비교</h2>
+            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) CPU Mark/Single Thread 평균 점수</p>
+            <div class="chart-container" style="height: 450px;">
+                <canvas id="archGenChart"></canvas>
+            </div>
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>세대별 성능 향상률</h4>
+                <ul>
+                    <li><strong>CPU Mark Intel</strong>: 5세대 4,092 → 8세대 7,866 (+92% 향상)</li>
+                    <li><strong>CPU Mark Graviton</strong>: 6세대 2,468 → 8세대 3,735 (+51% 향상)</li>
+                    <li><strong>Single Thread Intel</strong>: 5세대 1,849 → 8세대 3,265 (+77% 향상)</li>
+                    <li><strong>8세대 비교</strong>: CPU Mark - Intel 7,866 vs Graviton 3,735 (Intel 2.1배) | Single - Intel 3,265 vs Graviton 1,826</li>
+                </ul>
             </div>
         </div>
 
@@ -891,29 +900,96 @@
             }
         });
 
-        // Architecture comparison
-        new Chart(document.getElementById('archChart'), {
+        // Architecture & Generation comparison (like Geekbench style)
+        // CPU Mark averages by arch and generation
+        const cpuMarkAvg = {
+            Intel: { 5: 4092, 6: 5680, 7: 6693, 8: 7866 },
+            AMD: { 5: 3822 },
+            Graviton: { 6: 2468, 7: 2871, 8: 3735 }
+        };
+        const singleAvg = {
+            Intel: { 5: 1849, 6: 2372, 7: 2826, 8: 3265 },
+            AMD: { 5: 1563 },
+            Graviton: { 6: 1380, 7: 1527, 8: 1826 }
+        };
+
+        new Chart(document.getElementById('archGenChart'), {
             type: 'bar',
             data: {
-                labels: ['Graviton', 'Intel', 'AMD'],
+                labels: ['5세대', '6세대', '7세대', '8세대'],
                 datasets: [
+                    // CPU Mark (진한 색상)
                     {
-                        label: 'Single Thread',
-                        data: [1425, 2448, 1563],
-                        backgroundColor: ['#6ee7b7', '#93c5fd', '#fca5a5']
+                        label: 'Intel CPU Mark',
+                        data: [cpuMarkAvg.Intel[5], cpuMarkAvg.Intel[6], cpuMarkAvg.Intel[7], cpuMarkAvg.Intel[8]],
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#2563eb',
+                        borderWidth: 1
                     },
                     {
-                        label: 'CPU Mark',
-                        data: [2863, 5671, 3822],
-                        backgroundColor: ['#10b981', '#3b82f6', '#ef4444']
+                        label: 'AMD CPU Mark',
+                        data: [cpuMarkAvg.AMD[5], null, null, null],
+                        backgroundColor: '#ef4444',
+                        borderColor: '#dc2626',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Graviton CPU Mark',
+                        data: [null, cpuMarkAvg.Graviton[6], cpuMarkAvg.Graviton[7], cpuMarkAvg.Graviton[8]],
+                        backgroundColor: '#10b981',
+                        borderColor: '#059669',
+                        borderWidth: 1
+                    },
+                    // Single Thread (연한 색상)
+                    {
+                        label: 'Intel Single',
+                        data: [singleAvg.Intel[5], singleAvg.Intel[6], singleAvg.Intel[7], singleAvg.Intel[8]],
+                        backgroundColor: '#93c5fd',
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'AMD Single',
+                        data: [singleAvg.AMD[5], null, null, null],
+                        backgroundColor: '#fca5a5',
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Graviton Single',
+                        data: [null, singleAvg.Graviton[6], singleAvg.Graviton[7], singleAvg.Graviton[8]],
+                        backgroundColor: '#6ee7b7',
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        borderDash: [5, 5]
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: true } }
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: false, boxWidth: 20 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.raw === null) return null;
+                                return context.dataset.label + ': ' + context.raw.toLocaleString() + ' points';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Score' }
+                    }
+                }
             }
         });
 
