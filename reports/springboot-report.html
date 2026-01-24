@@ -138,6 +138,33 @@
             .navbar { padding: 0.5rem 1rem; }
             .navbar-links a { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
         }
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background: #eff6ff;
+        }
+        .metric-tab.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+        .metric-tab .tab-icon {
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -308,13 +335,16 @@
             <!-- 아키텍처별 세대별 통합 차트 (메트릭 선택 가능) -->
             <div class="chart-container tall" style="margin-bottom: 2rem;">
                 <div class="chart-title">아키텍처별 세대별 성능 비교</div>
-                <div style="margin-bottom: 1rem;">
-                    <label for="springbootMetricSelector" style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</label>
-                    <select id="springbootMetricSelector" onchange="updateSpringbootCombinedChart()" style="padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; font-size: 1rem;">
-                        <option value="reqsec">Requests/sec (처리량)</option>
-                        <option value="latency">Latency P50 (지연시간)</option>
-                        <option value="coldstart">Cold Start (시작시간)</option>
-                    </select>
+                <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="metric-tab active" data-metric="reqsec" onclick="selectMetricTab(this)">
+                        <span class="tab-icon">⚡</span> Requests/sec
+                    </button>
+                    <button class="metric-tab" data-metric="latency" onclick="selectMetricTab(this)">
+                        <span class="tab-icon">⏱️</span> Latency P50
+                    </button>
+                    <button class="metric-tab" data-metric="coldstart" onclick="selectMetricTab(this)">
+                        <span class="tab-icon">🚀</span> Cold Start
+                    </button>
                 </div>
                 <canvas id="archGenCombinedChart"></canvas>
             </div>
@@ -1165,9 +1195,17 @@
             }
         });
 
+        let currentMetric = 'reqsec';
+
+        function selectMetricTab(btn) {
+            document.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentMetric = btn.dataset.metric;
+            updateSpringbootCombinedChart();
+        }
+
         function updateSpringbootCombinedChart() {
-            const metricKey = document.getElementById('springbootMetricSelector').value;
-            const cfg = springbootMetricConfig[metricKey];
+            const cfg = springbootMetricConfig[currentMetric];
             const archList = ['Intel', 'AMD', 'Graviton'];
 
             const datasets = archList.map(arch => ({
