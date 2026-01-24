@@ -413,25 +413,50 @@
             </div>
 
             <div class="chart-section">
-                <h2>아키텍처별 세대별 성능 비교</h2>
-                <p class="description">Intel (5-8세대), AMD (5세대), Graviton (2-4세대) - 메트릭 선택</p>
+                <h2>아키텍처별 세대별 처리량</h2>
+                <p class="description">Rally geonames 인덱싱 처리량 (docs/s) - 높을수록 좋음</p>
+                <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
+                    <div style="height: 400px; position: relative;">
+                        <canvas id="archGenThroughputChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h2>아키텍처별 세대별 Latency</h2>
+                <p class="description">Rally 인덱싱 서비스 시간 - 낮을수록 좋음</p>
                 <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                    <button class="metric-tab active" data-metric="throughput" onclick="selectEsMetricTab(this)">
-                        <span class="tab-icon">⚡</span> Throughput
-                    </button>
-                    <button class="metric-tab" data-metric="latency50" onclick="selectEsMetricTab(this)">
+                    <button class="metric-tab active" data-metric="latency50" onclick="selectLatencyTab(this)">
                         <span class="tab-icon">⏱️</span> Latency P50
                     </button>
-                    <button class="metric-tab" data-metric="latency99" onclick="selectEsMetricTab(this)">
+                    <button class="metric-tab" data-metric="latency99" onclick="selectLatencyTab(this)">
                         <span class="tab-icon">📊</span> Latency P99
-                    </button>
-                    <button class="metric-tab" data-metric="coldstart" onclick="selectEsMetricTab(this)">
-                        <span class="tab-icon">🚀</span> Cold Start
                     </button>
                 </div>
                 <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
-                    <div style="height: 450px; position: relative;">
-                        <canvas id="archGenChart"></canvas>
+                    <div style="height: 400px; position: relative;">
+                        <canvas id="archGenLatencyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h2>아키텍처별 세대별 리소스 사용량</h2>
+                <p class="description">Rally 실행 중 GC, 인덱싱, 머지 시간 - 낮을수록 좋음</p>
+                <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="metric-tab active" data-metric="gc" onclick="selectResourceTab(this)">
+                        <span class="tab-icon">🗑️</span> GC Time
+                    </button>
+                    <button class="metric-tab" data-metric="indexing" onclick="selectResourceTab(this)">
+                        <span class="tab-icon">📝</span> Indexing
+                    </button>
+                    <button class="metric-tab" data-metric="merge" onclick="selectResourceTab(this)">
+                        <span class="tab-icon">🔀</span> Merge
+                    </button>
+                </div>
+                <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
+                    <div style="height: 400px; position: relative;">
+                        <canvas id="archGenResourceChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -930,40 +955,59 @@
             coldstartChart.update();
         }
 
-        // 아키텍처별 세대별 통합 차트 (메트릭 선택 가능)
-        const esMetricConfig = {
-            throughput: { label: 'Throughput', key: 'rally_throughput_avg', unit: 'docs/s', divisor: 1 },
-            latency50: { label: 'Latency P50', key: 'rally_latency_50_avg', unit: 'ms', divisor: 1 },
-            latency99: { label: 'Latency P99', key: 'rally_latency_99_avg', unit: 'ms', divisor: 1 },
-            coldstart: { label: 'Cold Start', key: 'coldstart_avg', unit: 's', divisor: 1000 }
-        };
-
-        let currentEsMetric = 'throughput';
-
-        function calcEsArchGenAvg(arch, gen, metricKey) {
-            let filtered = benchmarkData.filter(d => d.arch === arch && d.gen === gen);
-            if (filtered.length === 0) return null;
-            const config = esMetricConfig[metricKey];
-            const sum = filtered.reduce((s, d) => s + d[config.key], 0);
-            return Math.round((sum / filtered.length) / config.divisor);
-        }
-
+        // 아키텍처별 세대별 차트 설정
         const esArchSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
-
-        // Intel: 5,6,7,8세대 / Graviton: 2,3,4세대 (6,7,8세대로 표시)
         const esGenLabels = ['5세대', '6세대', '7세대', '8세대'];
         const esIntelGens = [5, 6, 7, 8];
         const esGravitonGens = [null, 2, 3, 4]; // 5세대 없음, 6세대=Graviton2, 7세대=Graviton3, 8세대=Graviton4
 
-        let esArchGenChart;
+        // 메트릭 설정
+        const latencyConfig = {
+            latency50: { label: 'Latency P50', key: 'rally_latency_50_avg', unit: 'ms' },
+            latency99: { label: 'Latency P99', key: 'rally_latency_99_avg', unit: 'ms' }
+        };
+        const resourceConfig = {
+            gc: { label: 'GC Time', key: 'rally_gc_young_avg', unit: 's' },
+            indexing: { label: 'Indexing Time', key: 'indexing_time_avg', unit: 'min' },
+            merge: { label: 'Merge Time', key: 'merge_time_avg', unit: 'min' }
+        };
 
-        function createArchGenChart() {
-            esArchGenChart = new Chart(document.getElementById('archGenChart'), {
+        let currentLatencyMetric = 'latency50';
+        let currentResourceMetric = 'gc';
+
+        // 세대별 평균 계산
+        function calcArchGenAvg(arch, gen, key) {
+            let filtered = benchmarkData.filter(d => d.arch === arch && d.gen === gen);
+            if (filtered.length === 0) return null;
+            const sum = filtered.reduce((s, d) => s + (d[key] || 0), 0);
+            return parseFloat((sum / filtered.length).toFixed(2));
+        }
+
+        // 데이터셋 생성 헬퍼
+        function createArchGenDatasets(key) {
+            const archList = ['Intel', 'AMD', 'Graviton'];
+            return archList.map(arch => ({
+                label: arch,
+                data: esGenLabels.map((lbl, i) => {
+                    if (arch === 'AMD' && i !== 0) return null;
+                    if (arch === 'Graviton' && i === 0) return null;
+                    const gen = arch === 'Graviton' ? esGravitonGens[i] : esIntelGens[i];
+                    return calcArchGenAvg(arch, gen, key);
+                }),
+                backgroundColor: esArchSolidColors[arch],
+                borderColor: esArchSolidColors[arch],
+                borderWidth: 1
+            }));
+        }
+
+        // 차트 인스턴스
+        let throughputChart, latencyChart, resourceChart;
+
+        // 1. 처리량 차트
+        function createThroughputChart() {
+            throughputChart = new Chart(document.getElementById('archGenThroughputChart'), {
                 type: 'bar',
-                data: {
-                    labels: esGenLabels,
-                    datasets: []
-                },
+                data: { labels: esGenLabels, datasets: createArchGenDatasets('rally_throughput_avg') },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -971,48 +1015,83 @@
                         legend: { position: 'top' },
                         tooltip: {
                             callbacks: {
-                                label: ctx => ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} docs/s` : null
+                                label: ctx => ctx.raw ? `${ctx.dataset.label}: ${Math.round(ctx.raw).toLocaleString()} docs/s` : null
                             }
                         }
                     },
                     scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'Rally Throughput (docs/s)' } }
+                        y: { beginAtZero: true, title: { display: true, text: 'Throughput (docs/s)' } }
                     }
                 }
             });
-            updateEsArchGenChart();
         }
 
-        function selectEsMetricTab(btn) {
-            document.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+        // 2. Latency 차트
+        function createLatencyChart() {
+            latencyChart = new Chart(document.getElementById('archGenLatencyChart'), {
+                type: 'bar',
+                data: { labels: esGenLabels, datasets: createArchGenDatasets('rally_latency_50_avg') },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} ms` : null
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Latency P50 (ms)' } }
+                    }
+                }
+            });
+        }
+
+        function selectLatencyTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
             btn.classList.add('active');
-            currentEsMetric = btn.dataset.metric;
-            updateEsArchGenChart();
+            currentLatencyMetric = btn.dataset.metric;
+            const config = latencyConfig[currentLatencyMetric];
+            latencyChart.data.datasets = createArchGenDatasets(config.key);
+            latencyChart.options.scales.y.title.text = `${config.label} (${config.unit})`;
+            latencyChart.update();
         }
 
-        function updateEsArchGenChart() {
-            const metric = esMetricConfig[currentEsMetric];
-            const archList = ['Intel', 'AMD', 'Graviton'];
+        // 3. 리소스 차트
+        function createResourceChart() {
+            resourceChart = new Chart(document.getElementById('archGenResourceChart'), {
+                type: 'bar',
+                data: { labels: esGenLabels, datasets: createArchGenDatasets('rally_gc_young_avg') },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toFixed(2)} s` : null
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'GC Time (s)' } }
+                    }
+                }
+            });
+        }
 
-            const datasets = archList.map(arch => ({
-                label: arch,
-                data: esGenLabels.map((lbl, i) => {
-                    if (arch === 'AMD' && i !== 0) return null; // AMD는 5세대만
-                    if (arch === 'Graviton' && i === 0) return null; // Graviton은 5세대 없음
-
-                    const gen = arch === 'Graviton' ? esGravitonGens[i] : esIntelGens[i];
-                    return calcEsArchGenAvg(arch, gen, currentEsMetric);
-                }),
-                backgroundColor: esArchSolidColors[arch],
-                borderColor: esArchSolidColors[arch],
-                borderWidth: 1
-            }));
-
-            esArchGenChart.data.datasets = datasets;
-            esArchGenChart.options.scales.y.title.text = `${metric.label} (${metric.unit})`;
-            esArchGenChart.options.plugins.tooltip.callbacks.label = ctx =>
-                ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} ${metric.unit}` : null;
-            esArchGenChart.update();
+        function selectResourceTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentResourceMetric = btn.dataset.metric;
+            const config = resourceConfig[currentResourceMetric];
+            resourceChart.data.datasets = createArchGenDatasets(config.key);
+            resourceChart.options.scales.y.title.text = `${config.label} (${config.unit})`;
+            resourceChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toFixed(2)} ${config.unit}` : null;
+            resourceChart.update();
         }
 
         // Cost Efficiency Chart (Performance per Dollar)
@@ -1345,7 +1424,9 @@
         // Initialize all charts
         createRallyChart();
         createColdstartChart();
-        createArchGenChart();
+        createThroughputChart();
+        createLatencyChart();
+        createResourceChart();
         createCostEfficiencyChart();
         createPricePerformanceChart();
         createScatterChart();
