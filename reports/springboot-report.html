@@ -308,20 +308,13 @@
             <!-- 아키텍처별 세대별 통합 차트 (메트릭 선택 가능) -->
             <div class="chart-container tall" style="margin-bottom: 2rem;">
                 <div class="chart-title">아키텍처별 세대별 성능 비교</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                    <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택 (최대 2개):</span>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-reqsec" class="springboot-metric-chk" value="reqsec" checked onchange="updateSpringbootCombinedChart()">
-                        <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Requests/sec</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-latency" class="springboot-metric-chk" value="latency" onchange="updateSpringbootCombinedChart()">
-                        <span style="background: #f59e0b; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Latency P50</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-coldstart" class="springboot-metric-chk" value="coldstart" onchange="updateSpringbootCombinedChart()">
-                        <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Cold Start</span>
-                    </label>
+                <div style="margin-bottom: 1rem;">
+                    <label for="springbootMetricSelector" style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</label>
+                    <select id="springbootMetricSelector" onchange="updateSpringbootCombinedChart()" style="padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; font-size: 1rem;">
+                        <option value="reqsec">Requests/sec (처리량)</option>
+                        <option value="latency">Latency P50 (지연시간)</option>
+                        <option value="coldstart">Cold Start (시작시간)</option>
+                    </select>
                 </div>
                 <canvas id="archGenCombinedChart"></canvas>
             </div>
@@ -1173,42 +1166,27 @@
         });
 
         function updateSpringbootCombinedChart() {
-            const checkboxes = document.querySelectorAll('.springboot-metric-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
-
-            // 최대 2개로 제한
-            if (selected.length > 2) {
-                event.target.checked = false;
-                return;
-            }
-
-            const datasets = [];
+            const metricKey = document.getElementById('springbootMetricSelector').value;
+            const cfg = springbootMetricConfig[metricKey];
             const archList = ['Intel', 'AMD', 'Graviton'];
 
-            selected.forEach((metricKey, idx) => {
-                const cfg = springbootMetricConfig[metricKey];
-                const isSecondary = idx === 1;
-
-                archList.forEach(arch => {
-                    datasets.push({
-                        label: `${arch} ${cfg.label}`,
-                        data: springbootGenerations.map(g => {
-                            if (arch === 'AMD' && g !== 5) return null;
-                            if (arch === 'Graviton' && g < 6) return null;
-                            const v = calcGenAvgFloat(arch.toLowerCase(), g, cfg.key);
-                            return v ? Math.round(v / cfg.divisor) : null;
-                        }),
-                        backgroundColor: isSecondary ? springbootArchLightColors[arch] : springbootArchSolidColors[arch],
-                        borderColor: springbootArchSolidColors[arch],
-                        borderWidth: isSecondary ? 2 : 1,
-                        borderDash: isSecondary ? [5, 5] : [],
-                        borderRadius: 4
-                    });
-                });
-            });
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: springbootGenerations.map(g => {
+                    if (arch === 'AMD' && g !== 5) return null;
+                    if (arch === 'Graviton' && g < 6) return null;
+                    const v = calcGenAvgFloat(arch.toLowerCase(), g, cfg.key);
+                    return v ? Math.round(v / cfg.divisor) : null;
+                }),
+                backgroundColor: springbootArchSolidColors[arch],
+                borderColor: springbootArchSolidColors[arch],
+                borderWidth: 1,
+                borderRadius: 4
+            }));
 
             springbootCombinedChart.data.datasets = datasets;
-            springbootCombinedChart.options.scales.y.title.text = selected.map(m => springbootMetricConfig[m].unit).join(' / ');
+            springbootCombinedChart.options.scales.y.title.text = cfg.unit;
+            springbootCombinedChart.options.plugins.title = { display: true, text: cfg.label + ' - 세대별 아키텍처 비교' };
             springbootCombinedChart.update();
         }
 
