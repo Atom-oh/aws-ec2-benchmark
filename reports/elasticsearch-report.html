@@ -413,8 +413,16 @@
             </div>
 
             <div class="chart-section">
-                <h2>아키텍처별 세대별 처리량</h2>
-                <p class="description">Rally geonames 인덱싱 처리량 (docs/s) - 높을수록 좋음</p>
+                <h2>아키텍처별 세대별 처리량 / Cold Start</h2>
+                <p class="description">Rally 인덱싱 처리량과 ES 시작 시간 비교</p>
+                <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="metric-tab active" data-metric="throughput" onclick="selectThroughputTab(this)">
+                        <span class="tab-icon">⚡</span> Throughput
+                    </button>
+                    <button class="metric-tab" data-metric="coldstart" onclick="selectThroughputTab(this)">
+                        <span class="tab-icon">🚀</span> Cold Start
+                    </button>
+                </div>
                 <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
                     <div style="height: 400px; position: relative;">
                         <canvas id="archGenThroughputChart"></canvas>
@@ -962,6 +970,10 @@
         const esGravitonGens = [null, 2, 3, 4]; // 5세대 없음, 6세대=Graviton2, 7세대=Graviton3, 8세대=Graviton4
 
         // 메트릭 설정
+        const throughputConfig = {
+            throughput: { label: 'Throughput', key: 'rally_throughput_avg', unit: 'docs/s', divisor: 1 },
+            coldstart: { label: 'Cold Start', key: 'coldstart_avg', unit: 's', divisor: 1000 }
+        };
         const latencyConfig = {
             latency50: { label: 'Latency P50', key: 'rally_latency_50_avg', unit: 'ms' },
             latency99: { label: 'Latency P99', key: 'rally_latency_99_avg', unit: 'ms' }
@@ -972,19 +984,20 @@
             merge: { label: 'Merge Time', key: 'merge_time_avg', unit: 'min' }
         };
 
+        let currentThroughputMetric = 'throughput';
         let currentLatencyMetric = 'latency50';
         let currentResourceMetric = 'gc';
 
         // 세대별 평균 계산
-        function calcArchGenAvg(arch, gen, key) {
+        function calcArchGenAvg(arch, gen, key, divisor = 1) {
             let filtered = benchmarkData.filter(d => d.arch === arch && d.gen === gen);
             if (filtered.length === 0) return null;
             const sum = filtered.reduce((s, d) => s + (d[key] || 0), 0);
-            return parseFloat((sum / filtered.length).toFixed(2));
+            return parseFloat(((sum / filtered.length) / divisor).toFixed(2));
         }
 
         // 데이터셋 생성 헬퍼
-        function createArchGenDatasets(key) {
+        function createArchGenDatasets(key, divisor = 1) {
             const archList = ['Intel', 'AMD', 'Graviton'];
             return archList.map(arch => ({
                 label: arch,
@@ -992,7 +1005,7 @@
                     if (arch === 'AMD' && i !== 0) return null;
                     if (arch === 'Graviton' && i === 0) return null;
                     const gen = arch === 'Graviton' ? esGravitonGens[i] : esIntelGens[i];
-                    return calcArchGenAvg(arch, gen, key);
+                    return calcArchGenAvg(arch, gen, key, divisor);
                 }),
                 backgroundColor: esArchSolidColors[arch],
                 borderColor: esArchSolidColors[arch],
@@ -1003,7 +1016,7 @@
         // 차트 인스턴스
         let throughputChart, latencyChart, resourceChart;
 
-        // 1. 처리량 차트
+        // 1. 처리량 / Cold Start 차트
         function createThroughputChart() {
             throughputChart = new Chart(document.getElementById('archGenThroughputChart'), {
                 type: 'bar',
@@ -1024,6 +1037,18 @@
                     }
                 }
             });
+        }
+
+        function selectThroughputTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentThroughputMetric = btn.dataset.metric;
+            const config = throughputConfig[currentThroughputMetric];
+            throughputChart.data.datasets = createArchGenDatasets(config.key, config.divisor);
+            throughputChart.options.scales.y.title.text = `${config.label} (${config.unit})`;
+            throughputChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${currentThroughputMetric === 'throughput' ? Math.round(ctx.raw).toLocaleString() : ctx.raw.toFixed(2)} ${config.unit}` : null;
+            throughputChart.update();
         }
 
         // 2. Latency 차트
