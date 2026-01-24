@@ -62,6 +62,23 @@
         .tab-btn.active { background: var(--accent); color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .metric-tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .metric-tab .tab-icon { font-size: 1rem; }
 
         /* Summary Cards */
         .summary-cards {
@@ -397,24 +414,25 @@
 
             <div class="chart-section">
                 <h2>아키텍처별 세대별 성능 비교</h2>
-                <p class="description">Intel (5-8세대), AMD (5세대), Graviton (2-4세대) Rally Throughput - 패밀리를 선택하여 비교 (최대 2개)</p>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                    <span style="font-weight: 600; margin-right: 0.5rem;">패밀리 선택:</span>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-family-c" class="es-family-chk" value="C" checked onchange="updateEsArchGenChart()">
-                        <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">C (Compute)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-family-m" class="es-family-chk" value="M" onchange="updateEsArchGenChart()">
-                        <span style="background: #8b5cf6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">M (General)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-family-r" class="es-family-chk" value="R" onchange="updateEsArchGenChart()">
-                        <span style="background: #ec4899; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">R (Memory)</span>
-                    </label>
+                <p class="description">Intel (5-8세대), AMD (5세대), Graviton (2-4세대) - 메트릭 선택</p>
+                <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="metric-tab active" data-metric="throughput" onclick="selectEsMetricTab(this)">
+                        <span class="tab-icon">⚡</span> Throughput
+                    </button>
+                    <button class="metric-tab" data-metric="latency50" onclick="selectEsMetricTab(this)">
+                        <span class="tab-icon">⏱️</span> Latency P50
+                    </button>
+                    <button class="metric-tab" data-metric="latency99" onclick="selectEsMetricTab(this)">
+                        <span class="tab-icon">📊</span> Latency P99
+                    </button>
+                    <button class="metric-tab" data-metric="coldstart" onclick="selectEsMetricTab(this)">
+                        <span class="tab-icon">🚀</span> Cold Start
+                    </button>
                 </div>
-                <div class="chart-container" style="height: 450px;">
-                    <canvas id="archGenChart"></canvas>
+                <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
+                    <div style="height: 450px; position: relative;">
+                        <canvas id="archGenChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -912,24 +930,25 @@
             coldstartChart.update();
         }
 
-        // 아키텍처별 세대별 통합 차트 (패밀리 선택 가능)
-        function calcEsArchGenAvg(arch, gen, family) {
-            let filtered = benchmarkData.filter(d => d.arch === arch && d.gen === gen);
-            if (family) {
-                filtered = filtered.filter(d => d.family === family);
-            }
-            if (filtered.length === 0) return null;
-            return Math.round(filtered.reduce((s, d) => s + d.rally_throughput_avg, 0) / filtered.length);
-        }
-
-        const esFamilyConfig = {
-            C: { label: 'C (Compute)', color: '#3b82f6', lightColor: '#93c5fd' },
-            M: { label: 'M (General)', color: '#8b5cf6', lightColor: '#c4b5fd' },
-            R: { label: 'R (Memory)', color: '#ec4899', lightColor: '#f9a8d4' }
+        // 아키텍처별 세대별 통합 차트 (메트릭 선택 가능)
+        const esMetricConfig = {
+            throughput: { label: 'Throughput', key: 'rally_throughput_avg', unit: 'docs/s', divisor: 1 },
+            latency50: { label: 'Latency P50', key: 'rally_latency_50_avg', unit: 'ms', divisor: 1 },
+            latency99: { label: 'Latency P99', key: 'rally_latency_99_avg', unit: 'ms', divisor: 1 },
+            coldstart: { label: 'Cold Start', key: 'coldstart_avg', unit: 's', divisor: 1000 }
         };
 
+        let currentEsMetric = 'throughput';
+
+        function calcEsArchGenAvg(arch, gen, metricKey) {
+            let filtered = benchmarkData.filter(d => d.arch === arch && d.gen === gen);
+            if (filtered.length === 0) return null;
+            const config = esMetricConfig[metricKey];
+            const sum = filtered.reduce((s, d) => s + d[config.key], 0);
+            return Math.round((sum / filtered.length) / config.divisor);
+        }
+
         const esArchSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
-        const esArchLightColors = { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' };
 
         // Intel: 5,6,7,8세대 / Graviton: 2,3,4세대 (6,7,8세대로 표시)
         const esGenLabels = ['5세대', '6세대', '7세대', '8세대'];
@@ -964,41 +983,35 @@
             updateEsArchGenChart();
         }
 
+        function selectEsMetricTab(btn) {
+            document.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentEsMetric = btn.dataset.metric;
+            updateEsArchGenChart();
+        }
+
         function updateEsArchGenChart() {
-            const checkboxes = document.querySelectorAll('.es-family-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
-
-            // 최대 2개로 제한
-            if (selected.length > 2) {
-                event.target.checked = false;
-                return;
-            }
-
-            const datasets = [];
+            const metric = esMetricConfig[currentEsMetric];
             const archList = ['Intel', 'AMD', 'Graviton'];
 
-            selected.forEach((familyKey, idx) => {
-                const isSecondary = idx === 1;
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: esGenLabels.map((lbl, i) => {
+                    if (arch === 'AMD' && i !== 0) return null; // AMD는 5세대만
+                    if (arch === 'Graviton' && i === 0) return null; // Graviton은 5세대 없음
 
-                archList.forEach(arch => {
-                    datasets.push({
-                        label: `${arch} ${familyKey}`,
-                        data: esGenLabels.map((lbl, i) => {
-                            if (arch === 'AMD' && i !== 0) return null; // AMD는 5세대만
-                            if (arch === 'Graviton' && i === 0) return null; // Graviton은 5세대 없음
-
-                            const gen = arch === 'Graviton' ? esGravitonGens[i] : esIntelGens[i];
-                            return calcEsArchGenAvg(arch, gen, familyKey);
-                        }),
-                        backgroundColor: isSecondary ? esArchLightColors[arch] : esArchSolidColors[arch],
-                        borderColor: esArchSolidColors[arch],
-                        borderWidth: isSecondary ? 2 : 1,
-                        borderDash: isSecondary ? [5, 5] : []
-                    });
-                });
-            });
+                    const gen = arch === 'Graviton' ? esGravitonGens[i] : esIntelGens[i];
+                    return calcEsArchGenAvg(arch, gen, currentEsMetric);
+                }),
+                backgroundColor: esArchSolidColors[arch],
+                borderColor: esArchSolidColors[arch],
+                borderWidth: 1
+            }));
 
             esArchGenChart.data.datasets = datasets;
+            esArchGenChart.options.scales.y.title.text = `${metric.label} (${metric.unit})`;
+            esArchGenChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} ${metric.unit}` : null;
             esArchGenChart.update();
         }
 
