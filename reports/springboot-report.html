@@ -869,9 +869,62 @@
             </div>
         </div>
 
+        <!-- 가격 대비 성능 분석 -->
+        <div class="section" id="price-perf">
+            <h2>7. 가격 대비 성능 (Cost Efficiency)</h2>
+            <p style="color: var(--muted); margin-bottom: 1rem;">시간당 비용 대비 성능 분석 - HTTP 처리량 및 Cold Start 효율</p>
+
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                <button class="tab-btn active" onclick="showSBPriceTab('bubble')">버블 차트</button>
+                <button class="tab-btn" onclick="showSBPriceTab('efficiency')">가성비 순위</button>
+                <button class="tab-btn" onclick="showSBPriceTab('metric')">메트릭별 가성비</button>
+            </div>
+
+            <div id="price-bubble" class="tab-content" style="display: block;">
+                <div class="chart-container tall">
+                    <div class="chart-title">가격 vs 처리량 (RPS@200conn) - 우상단이 고성능, 좌측이 저가격</div>
+                    <canvas id="priceBubbleChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-efficiency" class="tab-content" style="display: none;">
+                <div class="chart-container tall">
+                    <div class="chart-title">가성비 Top 20 (RPS per $/hr - 높을수록 가성비 우수)</div>
+                    <canvas id="costEfficiencyChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-metric" class="tab-content" style="display: none;">
+                <div class="grid-3">
+                    <div class="chart-container">
+                        <div class="chart-title">처리량 가성비 Top 15</div>
+                        <canvas id="rpsEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Cold Start 가성비 Top 15</div>
+                        <canvas id="coldEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">종합 가성비 Top 15</div>
+                        <canvas id="combinedSBEffChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>가성비 인사이트</h4>
+                <ul>
+                    <li><strong>최고 가성비</strong>: c8g.xlarge - Graviton4 + 최저가로 압도적 효율</li>
+                    <li><strong>Flex 모델 강점</strong>: c7i-flex, c8i-flex가 일반 모델 대비 가성비 우수</li>
+                    <li><strong>Graviton 효율</strong>: 낮은 가격 + 안정적 성능으로 가성비 상위권 독점</li>
+                    <li><strong>비용 최적화</strong>: 고성능이 필요하면 c7i-flex, 가성비 우선이면 c8g 권장</li>
+                </ul>
+            </div>
+        </div>
+
         <!-- 전체 결과 -->
         <div class="section" id="full-results">
-            <h2>7. 전체 결과</h2>
+            <h2>8. 전체 결과</h2>
 
             <div class="filter-row">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색...">
@@ -1803,6 +1856,184 @@
             });
             renderTable(sorted);
         }
+
+        // Tab switching for price-performance section
+        function showSBPriceTab(tab) {
+            document.querySelectorAll('#price-perf .tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('#price-perf .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab).style.display = 'block';
+            event.target.classList.add('active');
+        }
+
+        // Price vs Performance Bubble Chart
+        const bubbleData = data.filter(d => d.price > 0).map(d => ({
+            x: d.price,
+            y: d.rps200,
+            r: 8,
+            instance: d.instance,
+            arch: d.arch
+        }));
+
+        new Chart(document.getElementById('priceBubbleChart'), {
+            type: 'bubble',
+            data: {
+                datasets: [
+                    {
+                        label: 'Graviton',
+                        data: bubbleData.filter(d => d.arch === 'graviton'),
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        borderColor: 'rgb(16, 185, 129)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Intel',
+                        data: bubbleData.filter(d => d.arch === 'intel'),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'AMD',
+                        data: bubbleData.filter(d => d.arch === 'amd'),
+                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                        borderColor: 'rgb(239, 68, 68)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const d = ctx.raw;
+                                return [
+                                    d.instance,
+                                    `가격: $${d.x.toFixed(3)}/hr`,
+                                    `처리량: ${d.y.toLocaleString()} req/sec`,
+                                    `가성비: ${Math.round(d.y / d.x).toLocaleString()} req/s per $/hr`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: '시간당 비용 ($/hr)' }, min: 0.14, max: 0.40 },
+                    y: { title: { display: true, text: '처리량 (req/sec @ 200conn)' }, min: 20000, max: 110000 }
+                }
+            }
+        });
+
+        // Cost Efficiency Chart
+        const effData = data.filter(d => d.price > 0)
+            .map(d => ({ instance: d.instance, arch: d.arch, efficiency: d.rps200 / d.price }))
+            .sort((a, b) => b.efficiency - a.efficiency)
+            .slice(0, 20);
+
+        new Chart(document.getElementById('costEfficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: effData.map(d => d.instance),
+                datasets: [{
+                    label: 'RPS per $/hr',
+                    data: effData.map(d => Math.round(d.efficiency)),
+                    backgroundColor: effData.map(d => colors[d.arch]),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, title: { display: true, text: 'req/s per $/hr (높을수록 가성비 우수)' } } }
+            }
+        });
+
+        // RPS Efficiency Chart
+        const rpsEff = data.filter(d => d.price > 0)
+            .map(d => ({ instance: d.instance, arch: d.arch, efficiency: d.rps200 / d.price }))
+            .sort((a, b) => b.efficiency - a.efficiency)
+            .slice(0, 15);
+
+        new Chart(document.getElementById('rpsEffChart'), {
+            type: 'bar',
+            data: {
+                labels: rpsEff.map(d => d.instance),
+                datasets: [{
+                    label: '처리량 가성비',
+                    data: rpsEff.map(d => Math.round(d.efficiency)),
+                    backgroundColor: rpsEff.map(d => colors[d.arch]),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: '처리량 가성비 Top 15' } },
+                scales: { x: { beginAtZero: true, title: { display: true, text: 'req/s per $/hr' } } }
+            }
+        });
+
+        // Cold Start Efficiency Chart
+        const coldEff = data.filter(d => d.price > 0 && d.cold > 0)
+            .map(d => ({ instance: d.instance, arch: d.arch, efficiency: 1000 / (d.cold * d.price) }))
+            .sort((a, b) => b.efficiency - a.efficiency)
+            .slice(0, 15);
+
+        new Chart(document.getElementById('coldEffChart'), {
+            type: 'bar',
+            data: {
+                labels: coldEff.map(d => d.instance),
+                datasets: [{
+                    label: 'Cold Start 가성비',
+                    data: coldEff.map(d => Math.round(d.efficiency)),
+                    backgroundColor: coldEff.map(d => colors[d.arch]),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Cold Start 가성비 Top 15' } },
+                scales: { x: { beginAtZero: true, title: { display: true, text: '1/(초 × $/hr) - 높을수록 우수' } } }
+            }
+        });
+
+        // Combined Efficiency Chart
+        const combinedEff = data.filter(d => d.price > 0 && d.cold > 0)
+            .map(d => {
+                const rpsScore = d.rps200 / d.price / 100000;
+                const coldScore = 1000 / (d.cold * d.price) / 100;
+                return { instance: d.instance, arch: d.arch, combined: rpsScore + coldScore };
+            })
+            .sort((a, b) => b.combined - a.combined)
+            .slice(0, 15);
+
+        new Chart(document.getElementById('combinedSBEffChart'), {
+            type: 'bar',
+            data: {
+                labels: combinedEff.map(d => d.instance),
+                datasets: [{
+                    label: '종합 가성비',
+                    data: combinedEff.map(d => d.combined.toFixed(2)),
+                    backgroundColor: combinedEff.map(d => colors[d.arch]),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: '종합 가성비 Top 15' } },
+                scales: { x: { beginAtZero: true, title: { display: true, text: '종합 점수 (처리량 + Cold Start)' } } }
+            }
+        });
     </script>
 </body>
 </html>

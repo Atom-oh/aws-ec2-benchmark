@@ -138,6 +138,23 @@
         .nav a:hover { background: var(--border); }
         @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
         @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+        .metric-tab {
+            padding: 0.5rem 0.8rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .metric-tab:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .metric-tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .metric-tab .tab-icon { font-size: 0.9rem; }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -239,28 +256,81 @@
             </div>
         </div>
 
-        <nav class="nav">
-            <a href="#cpu-perf">CPU 성능</a>
-            <a href="#memory-perf">메모리 성능</a>
-            <a href="#system-perf">시스템 성능</a>
-            <a href="#price-perf">가격 대비 성능</a>
-            <a href="#gen-compare">세대별 비교</a>
-            <a href="#full-results">전체 결과</a>
-        </nav>
-
-        <div class="insights">
-            <h4>핵심 인사이트</h4>
-            <ul>
-                <li><strong>종합 성능</strong>: r8g.xlarge가 종합 점수 472,629으로 1위 (Graviton 8세대)</li>
-                <li><strong>가성비</strong>: c8g.xlarge가 $0.154/hr로 가격 대비 성능 최고 (3,037 점/$)</li>
-                <li><strong>아키텍처 비교</strong>: Graviton 평균 348,161 vs Intel 247,144 (41% 우위)</li>
-                <li><strong>세대별 향상</strong>: 8세대가 5세대 대비 평균 2.5배 성능 향상</li>
+        <!-- 목차 -->
+        <div class="toc" style="background: var(--card); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <h2 style="margin-bottom: 1rem;">목차</h2>
+            <ul style="list-style: none; columns: 2; padding: 0;">
+                <li style="margin-bottom: 0.5rem;"><a href="#methodology" style="color: #3b82f6; text-decoration: none;">1. 테스트 방법론</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#cpu-perf" style="color: #3b82f6; text-decoration: none;">2. CPU 성능 분석</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#memory-perf" style="color: #3b82f6; text-decoration: none;">3. 메모리 성능 분석</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#system-perf" style="color: #3b82f6; text-decoration: none;">4. 시스템 성능 분석</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#price-perf" style="color: #3b82f6; text-decoration: none;">5. 가격 대비 성능</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#gen-compare" style="color: #3b82f6; text-decoration: none;">6. 아키텍처별 세대별 비교</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#cost-efficiency" style="color: #3b82f6; text-decoration: none;">7. 가성비 Top 20</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#full-results" style="color: #3b82f6; text-decoration: none;">8. 전체 결과</a></li>
             </ul>
+        </div>
+
+        <!-- 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <h2>1. 테스트 방법론</h2>
+
+            <div style="background: #f8fafc; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="margin-top: 0; margin-bottom: 1rem;">테스트 환경</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0; width: 200px;"><strong>벤치마크 도구</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">stress-ng 0.17.05</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>OS</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Ubuntu 22.04 (Docker image)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>플랫폼</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Amazon EKS (Kubernetes 1.34)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 프로비저닝</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Karpenter 1.5.0</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 격리</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">podAntiAffinity로 벤치마크당 단일 노드 보장</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>인스턴스 크기</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">xlarge (4 vCPU) - 51개 인스턴스 타입</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>반복 횟수</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">인스턴스당 5회 실행 후 평균</td></tr>
+                    <tr><td style="padding: 0.5rem;"><strong>리전</strong></td><td style="padding: 0.5rem;">ap-northeast-2 (서울)</td></tr>
+                </table>
+            </div>
+
+            <div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <h3>stress-ng 벤치마크</h3>
+                    <p>CPU, 메모리, 시스템 자원의 종합적인 스트레스 테스트</p>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>CPU Integer</strong>: 정수 연산 (int64, int128)</li>
+                        <li><strong>CPU Float</strong>: 부동소수점 연산 (float, double)</li>
+                        <li><strong>Matrix</strong>: 행렬 연산 (SIMD 최적화)</li>
+                        <li><strong>Memcpy</strong>: 메모리 복사 대역폭</li>
+                        <li><strong>Context Switch</strong>: 컨텍스트 전환 성능</li>
+                        <li><strong>측정 단위</strong>: ops/sec (높을수록 좋음)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>왜 stress-ng인가?</h3>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>종합 벤치마크</strong>: 300+ 스트레서로 다양한 워크로드 시뮬레이션</li>
+                        <li><strong>마이크로 아키텍처 분석</strong>: CPU 파이프라인, 캐시, 분기 예측 특성 파악</li>
+                        <li><strong>실제 스트레스</strong>: 최대 부하 상황에서의 안정성 확인</li>
+                        <li><strong>오픈소스</strong>: Ubuntu 공식 도구, 재현 가능한 결과</li>
+                    </ul>
+                    <div style="background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.85rem; margin-top: 1rem; overflow-x: auto;">
+                        <div style="color: #94a3b8;"># Matrix 스트레서 (4 workers, 60초)</div>
+                        stress-ng --matrix 4 --timeout 60s --metrics
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>종합 성능</strong>: r8g.xlarge가 종합 점수 472,629으로 1위 (Graviton 8세대)</li>
+                    <li><strong>가성비</strong>: c8g.xlarge가 $0.154/hr로 가격 대비 성능 최고 (3,037 점/$)</li>
+                    <li><strong>아키텍처 비교</strong>: Graviton 평균 348,161 vs Intel 247,144 (41% 우위)</li>
+                    <li><strong>세대별 향상</strong>: 8세대가 5세대 대비 평균 2.5배 성능 향상</li>
+                </ul>
+            </div>
         </div>
 
         <!-- CPU 성능 섹션 -->
         <div class="chart-section" id="cpu-perf">
-            <h2>CPU 성능 분석</h2>
+            <h2>2. CPU 성능 분석</h2>
             <p class="description">Integer, Float, Matrix 연산 성능을 선택하여 비교</p>
 
             <div class="tab-buttons">
@@ -314,7 +384,7 @@
 
         <!-- 메모리 성능 섹션 -->
         <div class="chart-section" id="memory-perf">
-            <h2>메모리 성능 분석</h2>
+            <h2>3. 메모리 성능 분석</h2>
             <p class="description">Memcpy (메모리 복사) 및 Cache 성능</p>
 
             <div class="tab-buttons">
@@ -353,7 +423,7 @@
 
         <!-- 시스템 성능 섹션 -->
         <div class="chart-section" id="system-perf">
-            <h2>시스템 성능 분석</h2>
+            <h2>4. 시스템 성능 분석</h2>
             <p class="description">Context Switch 및 Branch Prediction 성능</p>
 
             <div class="tab-buttons">
@@ -392,7 +462,7 @@
 
         <!-- 가격 대비 성능 섹션 -->
         <div class="chart-section" id="price-perf">
-            <h2>가격 대비 성능 (Cost Efficiency)</h2>
+            <h2>5. 가격 대비 성능 (Cost Efficiency)</h2>
             <p class="description">시간당 비용 대비 종합 점수 - 버블 크기는 종합 점수</p>
 
             <div class="tab-buttons">
@@ -440,40 +510,30 @@
 
         <!-- 세대별 비교 -->
         <div class="chart-section" id="gen-compare">
-            <h2>아키텍처별 세대별 성능 비교</h2>
-            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) - 최대 2개 메트릭 동시 비교</p>
-
-            <!-- 메트릭 선택 체크박스 -->
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택 (최대 2개):</span>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-matrix" class="metric-chk" value="matrix" checked onchange="updateCombinedChart()">
-                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Matrix</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-float" class="metric-chk" value="float" onchange="updateCombinedChart()">
-                    <span style="background: #8b5cf6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Float</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-int" class="metric-chk" value="int" onchange="updateCombinedChart()">
-                    <span style="background: #06b6d4; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">CPU Int</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-memcpy" class="metric-chk" value="memcpy" checked onchange="updateCombinedChart()">
-                    <span style="background: #f59e0b; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Memory</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-cache" class="metric-chk" value="cache" onchange="updateCombinedChart()">
-                    <span style="background: #ec4899; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Cache</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-switch" class="metric-chk" value="switch" onchange="updateCombinedChart()">
-                    <span style="background: #14b8a6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Context Switch</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-branch" class="metric-chk" value="branch" onchange="updateCombinedChart()">
-                    <span style="background: #64748b; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Branch</span>
-                </label>
+            <h2>6. 아키텍처별 세대별 성능 비교</h2>
+            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대)</p>
+            <div class="metric-tabs" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="metric-tab active" data-metric="matrix" onclick="selectStressMetricTab(this)">
+                    <span class="tab-icon">🧮</span> Matrix
+                </button>
+                <button class="metric-tab" data-metric="float" onclick="selectStressMetricTab(this)">
+                    <span class="tab-icon">🔢</span> Float
+                </button>
+                <button class="metric-tab" data-metric="int" onclick="selectStressMetricTab(this)">
+                    <span class="tab-icon">💻</span> CPU Int
+                </button>
+                <button class="metric-tab" data-metric="memcpy" onclick="selectStressMetricTab(this)">
+                    <span class="tab-icon">📋</span> Memory
+                </button>
+                <button class="metric-tab" data-metric="cache" onclick="selectStressMetricTab(this)">
+                    <span class="tab-icon">💾</span> Cache
+                </button>
+                <button class="metric-tab" data-metric="switch" onclick="selectStressMetricTab(this)">
+                    <span class="tab-icon">🔄</span> Context Switch
+                </button>
+                <button class="metric-tab" data-metric="branch" onclick="selectStressMetricTab(this)">
+                    <span class="tab-icon">🌿</span> Branch
+                </button>
             </div>
 
             <div class="chart-container" style="height: 500px;">
@@ -515,7 +575,7 @@
 
         <!-- 가성비 Top 20 -->
         <div class="chart-section" id="cost-efficiency">
-            <h2>가성비 Top 20 (효율성 점수)</h2>
+            <h2>7. 가성비 Top 20 (효율성 점수)</h2>
             <p class="description">효율성 = 종합점수 / ($/hr × 1000) | 높을수록 좋음</p>
             <div class="chart-container tall">
                 <canvas id="costEffTop20Chart"></canvas>
@@ -533,7 +593,7 @@
 
         <!-- 전체 결과 테이블 -->
         <div class="chart-section" id="full-results">
-            <h2>전체 결과 테이블</h2>
+            <h2>8. 전체 결과 테이블</h2>
             <div class="filter-bar">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
                 <select id="archFilter" onchange="filterTable()">
@@ -995,14 +1055,16 @@
 
         // 메트릭 설정 (색상, 스케일링 등)
         const metricConfig = {
-            matrix: { label: 'Matrix', divisor: 1000, unit: 'K ops/s', solidColors: ['#3b82f6', '#ef4444', '#10b981'] },
-            float: { label: 'Float', divisor: 1000, unit: 'K ops/s', solidColors: ['#8b5cf6', '#a855f7', '#7c3aed'] },
-            int: { label: 'CPU Int', divisor: 1000, unit: 'K ops/s', solidColors: ['#06b6d4', '#0891b2', '#0e7490'] },
-            memcpy: { label: 'Memory', divisor: 100, unit: '×100 MiB/s', lightColors: ['#93c5fd', '#fca5a5', '#6ee7b7'] },
-            cache: { label: 'Cache', divisor: 1, unit: 'ops/s', lightColors: ['#f9a8d4', '#f472b6', '#ec4899'] },
-            switch: { label: 'Ctx Switch', divisor: 100000, unit: '×100K ops/s', lightColors: ['#5eead4', '#2dd4bf', '#14b8a6'] },
-            branch: { label: 'Branch', divisor: 1000, unit: 'K ops/s', lightColors: ['#94a3b8', '#64748b', '#475569'] }
+            matrix: { label: 'Matrix', divisor: 1000, unit: 'K ops/s' },
+            float: { label: 'Float', divisor: 1000, unit: 'K ops/s' },
+            int: { label: 'CPU Int', divisor: 1000, unit: 'K ops/s' },
+            memcpy: { label: 'Memory', divisor: 100, unit: '×100 MiB/s' },
+            cache: { label: 'Cache', divisor: 1, unit: 'ops/s' },
+            switch: { label: 'Ctx Switch', divisor: 100000, unit: '×100K ops/s' },
+            branch: { label: 'Branch', divisor: 1000, unit: 'K ops/s' }
         };
+        const stressArchColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+        let currentStressMetric = 'matrix';
 
         // 아키텍처별 세대별 통합 차트 (동적 업데이트)
         let combinedChart = new Chart(document.getElementById('archGenCombinedChart'), {
@@ -1038,45 +1100,34 @@
         });
 
         function updateCombinedChart() {
-            const checkboxes = document.querySelectorAll('.metric-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
-
-            // 최대 2개로 제한
-            if (selected.length > 2) {
-                const lastChecked = event.target;
-                lastChecked.checked = false;
-                return;
-            }
-
-            const datasets = [];
+            const cfg = metricConfig[currentStressMetric];
             const archList = ['Intel', 'AMD', 'Graviton'];
-            const archSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
-            const archLightColors = { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' };
 
-            selected.forEach((metric, idx) => {
-                const cfg = metricConfig[metric];
-                const isSecondary = idx === 1;
-
-                archList.forEach(arch => {
-                    datasets.push({
-                        label: `${arch} ${cfg.label}`,
-                        data: generations.map(g => {
-                            if (arch === 'AMD' && g !== 5) return null;
-                            if (arch === 'Graviton' && g < 6) return null;
-                            const v = calcArchGenAvg(arch, g, metric);
-                            return v ? Math.round(v / cfg.divisor) : null;
-                        }),
-                        backgroundColor: isSecondary ? archLightColors[arch] : archSolidColors[arch],
-                        borderColor: archSolidColors[arch],
-                        borderWidth: isSecondary ? 2 : 1,
-                        borderDash: isSecondary ? [5, 5] : []
-                    });
-                });
-            });
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: generations.map(g => {
+                    if (arch === 'AMD' && g !== 5) return null;
+                    if (arch === 'Graviton' && g < 6) return null;
+                    const v = calcArchGenAvg(arch, g, currentStressMetric);
+                    return v ? Math.round(v / cfg.divisor) : null;
+                }),
+                backgroundColor: stressArchColors[arch],
+                borderColor: stressArchColors[arch],
+                borderWidth: 1
+            }));
 
             combinedChart.data.datasets = datasets;
-            combinedChart.options.scales.y.title.text = selected.map(m => metricConfig[m].unit).join(' / ');
+            combinedChart.options.scales.y.title.text = `${cfg.label} (${cfg.unit})`;
+            combinedChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} ${cfg.unit}` : null;
             combinedChart.update();
+        }
+
+        function selectStressMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentStressMetric = btn.dataset.metric;
+            updateCombinedChart();
         }
 
         // 초기 렌더링

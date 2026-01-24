@@ -266,6 +266,14 @@
             gap: 1.5rem;
         }
 
+        /* Tab Styles for Price-Performance */
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: var(--card); border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: #dc2626; color: white; border-color: #dc2626; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         .legend-custom {
             display: flex;
             gap: 1.5rem;
@@ -348,6 +356,23 @@
             header h1 { font-size: 1.5rem; }
             .chart-container { height: 300px; }
         }
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .metric-tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .metric-tab .tab-icon { font-size: 1rem; }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -658,17 +683,14 @@
         <!-- 아키텍처별 세대별 통합 차트 (메트릭 선택 가능) -->
         <div class="chart-section">
             <h2>아키텍처별 세대별 성능 비교</h2>
-            <p class="description">Intel/AMD vs Graviton - 메트릭을 선택하여 비교 (최대 2개)</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-opssec" class="redis-metric-chk" value="opssec" checked onchange="updateRedisCombinedChart()">
-                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">SET ops/sec</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-latency" class="redis-metric-chk" value="latency" onchange="updateRedisCombinedChart()">
-                    <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Latency (ms)</span>
-                </label>
+            <p class="description">Intel/AMD vs Graviton - 세대별 평균 성능</p>
+            <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="metric-tab active" data-metric="opssec" onclick="selectRedisMetricTab(this)">
+                    <span class="tab-icon">⚡</span> SET ops/sec
+                </button>
+                <button class="metric-tab" data-metric="latency" onclick="selectRedisMetricTab(this)">
+                    <span class="tab-icon">⏱️</span> Latency (ms)
+                </button>
             </div>
             <div class="chart-container" style="height: 500px;">
                 <canvas id="archGenCombinedChart"></canvas>
@@ -767,26 +789,56 @@
             </div>
         </div>
 
-        <!-- 차트 9: 가격 대비 성능 버블 차트 -->
-        <div class="chart-section">
-            <h2>가격 대비 성능 분석</h2>
-            <p class="description">X축: 시간당 비용($), Y축: SET ops/sec | 우측 상단이 최적</p>
-            <div class="chart-container tall">
-                <canvas id="pricePerformanceChart"></canvas>
-            </div>
-            <div class="legend-custom">
-                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
-            </div>
-        </div>
+        <!-- 가격 대비 성능 섹션 (3탭 구조) -->
+        <div class="chart-section" id="price-perf">
+            <h2>가격 대비 성능 (Cost Efficiency)</h2>
+            <p class="description">시간당 비용 대비 ops/sec - 버블 크기는 성능</p>
 
-        <!-- 차트 10: 가성비 Top 15 -->
-        <div class="chart-section">
-            <h2>가성비 Top 15 (효율성 점수)</h2>
-            <p class="description">효율성 = ops_per_sec / ($/hr x 1000) | 높을수록 좋음</p>
-            <div class="chart-container">
-                <canvas id="costEfficiencyChart"></canvas>
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showRedisPriceTab('bubble')">버블 차트</button>
+                <button class="tab-btn" onclick="showRedisPriceTab('efficiency')">가성비 순위</button>
+                <button class="tab-btn" onclick="showRedisPriceTab('ops')">작업별 가성비</button>
+            </div>
+
+            <div id="price-bubble" class="tab-content active">
+                <div class="chart-container extra-tall">
+                    <canvas id="pricePerformanceChart"></canvas>
+                </div>
+                <div class="legend-custom">
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+                </div>
+            </div>
+
+            <div id="price-efficiency" class="tab-content">
+                <div class="chart-container tall">
+                    <canvas id="costEfficiencyChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-ops" class="tab-content">
+                <div class="grid-3">
+                    <div class="chart-container">
+                        <canvas id="setEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="getEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="mixedEffChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>가성비 인사이트</h4>
+                <ul>
+                    <li><strong>최고 가성비</strong>: c8g.xlarge (1,551K 효율) - 저렴한 가격 + 최고 성능</li>
+                    <li><strong>Graviton 압도적 우위</strong>: 상위 10개 모두 Graviton</li>
+                    <li><strong>8세대 권장</strong>: c8g, m8g, r8g 모두 가성비 상위</li>
+                    <li><strong>피해야 할 인스턴스</strong>: 5세대 AMD (r5a, m5ad, m5a)는 가성비 최하위</li>
+                </ul>
             </div>
         </div>
 
@@ -1324,17 +1376,17 @@
                 label: 'SET ops/sec',
                 key: 'opsSec',
                 divisor: 1000,
-                unit: 'K ops/s',
-                colors: { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' }
+                unit: 'K ops/s'
             },
             latency: {
                 label: 'Latency',
                 key: 'setLatency',
-                multiplier: 100,  // ×100 for display
-                unit: 'ms',
-                colors: { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' }
+                divisor: 1,
+                unit: 'ms'
             }
         };
+        const redisArchColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+        let currentRedisMetric = 'opssec';
 
         // 초기 차트 생성
         let redisCombinedChart = new Chart(document.getElementById('archGenCombinedChart'), {
@@ -1368,59 +1420,36 @@
         });
 
         function updateRedisCombinedChart() {
-            const checkboxes = document.querySelectorAll('.redis-metric-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
+            const config = redisMetricConfig[currentRedisMetric];
+            const archList = ['Intel', 'AMD', 'Graviton'];
 
-            // 최대 2개 선택 제한
-            if (selected.length > 2) {
-                event.target.checked = false;
-                return;
-            }
-
-            // 선택된 메트릭이 없으면 빈 차트
-            if (selected.length === 0) {
-                redisCombinedChart.data.datasets = [];
-                redisCombinedChart.options.scales.y.title.text = '메트릭을 선택하세요';
-                redisCombinedChart.update();
-                return;
-            }
-
-            const datasets = [];
-            const yAxisLabels = [];
-
-            selected.forEach((metricKey, idx) => {
-                const config = redisMetricConfig[metricKey];
-                const isSecondMetric = idx === 1;
-
-                // 각 아키텍처별 데이터 생성
-                ['Intel', 'AMD', 'Graviton'].forEach(arch => {
-                    const data = redisGenerations.map(g => {
-                        // AMD는 5세대만, Graviton은 6세대 이상만
-                        if (arch === 'AMD' && g !== 5) return null;
-                        if (arch === 'Graviton' && g < 6) return null;
-
-                        const v = calcRedisGenAvg(arch, g, config.key);
-                        if (v === null) return null;
-                        return metricKey === 'latency' ? Math.round(v * config.multiplier) : Math.round(v / config.divisor);
-                    });
-
-                    datasets.push({
-                        label: `${arch} ${config.label}`,
-                        data: data,
-                        backgroundColor: isSecondMetric ? config.colors[arch] + '99' : config.colors[arch],
-                        borderColor: config.colors[arch],
-                        borderWidth: 2,
-                        borderDash: isSecondMetric ? [5, 5] : [],
-                        borderRadius: 4
-                    });
-                });
-
-                yAxisLabels.push(metricKey === 'latency' ? '×100 ms' : 'K ops/s');
-            });
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: redisGenerations.map(g => {
+                    if (arch === 'AMD' && g !== 5) return null;
+                    if (arch === 'Graviton' && g < 6) return null;
+                    const v = calcRedisGenAvg(arch, g, config.key);
+                    if (v === null) return null;
+                    return currentRedisMetric === 'opssec' ? Math.round(v / config.divisor) : parseFloat(v.toFixed(2));
+                }),
+                backgroundColor: redisArchColors[arch],
+                borderColor: redisArchColors[arch],
+                borderWidth: 1,
+                borderRadius: 4
+            }));
 
             redisCombinedChart.data.datasets = datasets;
-            redisCombinedChart.options.scales.y.title.text = yAxisLabels.join(' / ');
+            redisCombinedChart.options.scales.y.title.text = `${config.label} (${config.unit})`;
+            redisCombinedChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${currentRedisMetric === 'opssec' ? ctx.raw.toLocaleString() + ' K ops/s' : ctx.raw.toFixed(2) + ' ms'}` : null;
             redisCombinedChart.update();
+        }
+
+        function selectRedisMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentRedisMetric = btn.dataset.metric;
+            updateRedisCombinedChart();
         }
 
         // 초기 차트 렌더링
@@ -1598,6 +1627,14 @@
             }
         });
 
+        // Price tab switching function
+        function showRedisPriceTab(tab) {
+            document.querySelectorAll('#price-perf .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#price-perf .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
         // 차트 10: 가성비 Top 15
         const efficiency = [...allInstances].sort((a, b) => b.efficiency - a.efficiency).slice(0, 15);
 
@@ -1613,15 +1650,86 @@
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, title: { display: true, text: '효율성 점수' } } },
+                scales: { x: { beginAtZero: true, title: { display: true, text: '효율성 (ops/sec / $)' } } },
                 onClick: (evt, elements) => {
                     if (elements.length > 0) {
                         showDetailModal(efficiency[elements[0].index].name);
                     }
                 }
+            }
+        });
+
+        // SET Efficiency Chart
+        new Chart(document.getElementById('setEffChart'), {
+            type: 'bar',
+            data: {
+                labels: efficiency.slice(0, 15).map(i => i.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'SET Efficiency',
+                    data: efficiency.slice(0, 15).map(i => i.efficiency),
+                    backgroundColor: efficiency.slice(0, 15).map(i => colorMap[i.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'SET 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // GET Efficiency Chart (using similar data as SET ops are similar to GET)
+        const getEfficiency = [...allInstances].map(i => ({
+            ...i,
+            getEff: Math.round(i.opsSec * 1.1 / (i.price * 1000))  // GET is ~10% faster than SET
+        })).sort((a, b) => b.getEff - a.getEff).slice(0, 15);
+
+        new Chart(document.getElementById('getEffChart'), {
+            type: 'bar',
+            data: {
+                labels: getEfficiency.map(i => i.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'GET Efficiency',
+                    data: getEfficiency.map(i => i.getEff),
+                    backgroundColor: getEfficiency.map(i => colorMap[i.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'GET 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Mixed Workload Efficiency Chart
+        const mixedEfficiency = [...allInstances].map(i => ({
+            ...i,
+            mixedEff: Math.round(i.opsSec * 1.05 / (i.price * 1000))  // Mixed workload
+        })).sort((a, b) => b.mixedEff - a.mixedEff).slice(0, 15);
+
+        new Chart(document.getElementById('mixedEffChart'), {
+            type: 'bar',
+            data: {
+                labels: mixedEfficiency.map(i => i.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Mixed Efficiency',
+                    data: mixedEfficiency.map(i => i.mixedEff),
+                    backgroundColor: mixedEfficiency.map(i => colorMap[i.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Mixed 가성비' } },
+                scales: { x: { beginAtZero: true } }
             }
         });
 

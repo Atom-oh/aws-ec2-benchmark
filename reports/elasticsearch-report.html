@@ -331,6 +331,75 @@
             </div>
         </header>
 
+        <!-- 목차 -->
+        <div class="toc" style="background: var(--card); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <h2 style="margin-bottom: 1rem;">목차</h2>
+            <ul style="list-style: none; columns: 2; padding: 0;">
+                <li style="margin-bottom: 0.5rem;"><a href="#methodology" style="color: #3b82f6; text-decoration: none;">1. 테스트 방법론</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#rally-tab" style="color: #3b82f6; text-decoration: none;">2. Rally 벤치마크</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#coldstart-tab" style="color: #3b82f6; text-decoration: none;">3. 콜드 스타트</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#combined-tab" style="color: #3b82f6; text-decoration: none;">4. 종합 분석</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#full-results" style="color: #3b82f6; text-decoration: none;">5. 전체 결과</a></li>
+            </ul>
+        </div>
+
+        <!-- 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <h2>1. 테스트 방법론</h2>
+
+            <div style="background: #f8fafc; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="margin-top: 0; margin-bottom: 1rem;">테스트 환경</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0; width: 200px;"><strong>벤치마크 도구</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">esrally 2.9.0 + Elasticsearch 8.11.0</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>OS</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Ubuntu 22.04 (Docker image)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>플랫폼</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Amazon EKS (Kubernetes 1.34)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 프로비저닝</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Karpenter 1.5.0</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 격리</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">podAntiAffinity로 벤치마크당 단일 노드 보장</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>JVM Heap</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">가용 메모리의 60% 동적 할당</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>인스턴스 크기</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">xlarge (4 vCPU) - 51개 인스턴스 타입</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>반복 횟수</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">인스턴스당 5회 실행 후 평균</td></tr>
+                    <tr><td style="padding: 0.5rem;"><strong>리전</strong></td><td style="padding: 0.5rem;">ap-northeast-2 (서울)</td></tr>
+                </table>
+            </div>
+
+            <div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <h3>Rally 벤치마크</h3>
+                    <p>Elasticsearch 공식 벤치마크 도구로 인덱싱/검색 성능 측정</p>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>인덱싱 처리량</strong>: docs/sec (문서 인덱싱 속도)</li>
+                        <li><strong>Latency p50/p99</strong>: 검색 응답 시간</li>
+                        <li><strong>Bulk Indexing</strong>: 대량 인덱싱 처리량</li>
+                        <li><strong>Search match_all</strong>: 전체 검색 성능</li>
+                        <li><strong>측정 단위</strong>: docs/sec, ms (높은 처리량, 낮은 지연)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>콜드 스타트 벤치마크</h3>
+                    <p>Elasticsearch 노드 시작 시간 측정</p>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>측정 방식</strong>: 컨테이너 시작 → "started" 로그까지</li>
+                        <li><strong>중요성</strong>: 노드 재시작, 스케일 아웃 시나리오</li>
+                        <li><strong>영향 요소</strong>: CPU 성능, 메모리 크기, 디스크 I/O</li>
+                        <li><strong>측정 단위</strong>: 초 (낮을수록 좋음)</li>
+                    </ul>
+                    <div style="background: #fef3c7; border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem; font-size: 0.875rem;">
+                        <strong>JVM Heap 60%:</strong> C(8GB)→4.8GB, M(16GB)→9.6GB, R(32GB)→19.2GB로 패밀리별 메모리 차이 반영
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>Rally 처리량</strong>: Graviton4(m8g)가 76,141 docs/s로 1위, Intel 8세대 대비 12% 우위</li>
+                    <li><strong>Flex 모델</strong>: c7i-flex가 c7i 대비 25% 빠름 - burst 성능 활용</li>
+                    <li><strong>콜드 스타트</strong>: Graviton4가 Intel 8세대 대비 15% 빠른 시작</li>
+                    <li><strong>메모리 패밀리</strong>: R 패밀리가 대용량 힙으로 인덱싱 성능 우수</li>
+                </ul>
+            </div>
+        </div>
+
         <!-- Tab Navigation -->
         <div class="tab-nav">
             <button class="tab-btn active" onclick="showTab('rally')">Rally 벤치마크</button>
@@ -566,19 +635,51 @@
                 </ul>
             </div>
 
-            <div class="chart-section">
-                <h2>비용 효율 분석 (Performance per Dollar)</h2>
-                <p class="description">시간당 비용 대비 Rally 처리량 - 높을수록 가성비 우수</p>
-                <div class="chart-container tall">
-                    <canvas id="costEfficiencyChart"></canvas>
-                </div>
-            </div>
+            <!-- 가격 대비 성능 (3탭 구조) -->
+            <div class="chart-section" id="price-perf">
+                <h2>가격 대비 성능 (Cost Efficiency)</h2>
+                <p class="description">시간당 비용 대비 성능 분석 - Rally 처리량 및 Cold Start 효율</p>
 
-            <div class="chart-section">
-                <h2>가격 대비 성능 분석</h2>
-                <p class="description">X축: 시간당 비용 ($/hr), Y축: Rally 처리량 (docs/s) - 우상단이 고성능/고가, 좌상단이 가성비 우수</p>
-                <div class="chart-container tall">
-                    <canvas id="pricePerformanceChart"></canvas>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <button class="tab-btn active" onclick="showESPriceTab('bubble')">버블 차트</button>
+                    <button class="tab-btn" onclick="showESPriceTab('efficiency')">가성비 순위</button>
+                    <button class="tab-btn" onclick="showESPriceTab('metric')">메트릭별 가성비</button>
+                </div>
+
+                <div id="price-bubble" class="tab-content active" style="display: block;">
+                    <div class="chart-container tall">
+                        <canvas id="pricePerformanceChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="price-efficiency" class="tab-content">
+                    <div class="chart-container tall">
+                        <canvas id="costEfficiencyChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="price-metric" class="tab-content">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                        <div class="chart-container">
+                            <canvas id="rallyEffChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="coldstartEffChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="combinedEffChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="insights" style="margin-top: 1rem;">
+                    <h4>가성비 인사이트</h4>
+                    <ul>
+                        <li><strong>최고 가성비</strong>: c7i-flex.xlarge - Intel 7세대 중 최고 효율</li>
+                        <li><strong>Graviton 우위</strong>: 상위 가성비 중 다수가 Graviton</li>
+                        <li><strong>Flex 모델</strong>: Intel flex 변형이 일반 모델보다 가성비 우수</li>
+                        <li><strong>8세대 권장</strong>: 성능 대비 가격이 합리적</li>
+                    </ul>
                 </div>
             </div>
 
@@ -613,8 +714,8 @@
         </div>
 
         <!-- Full Data Table -->
-        <div class="chart-section">
-            <h2>전체 결과 테이블</h2>
+        <div class="chart-section" id="full-results">
+            <h2>5. 전체 결과 테이블</h2>
             <div class="filter-row">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
                 <select id="archFilter" onchange="filterTable()">
@@ -1446,6 +1547,137 @@
             renderTable(sorted);
         }
 
+        // Tab switching for price-performance section
+        function showESPriceTab(tab) {
+            document.querySelectorAll('#price-perf .tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('#price-perf .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab).style.display = 'block';
+            event.target.classList.add('active');
+        }
+
+        // Rally Efficiency Chart (Performance per Dollar)
+        function createRallyEffChart() {
+            const data = benchmarkData
+                .filter(d => instancePricing[d.instance])
+                .map(d => ({
+                    instance: d.instance,
+                    arch: d.arch,
+                    efficiency: d.rally_throughput_avg / instancePricing[d.instance]
+                }))
+                .sort((a, b) => b.efficiency - a.efficiency)
+                .slice(0, 15);
+
+            new Chart(document.getElementById('rallyEffChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.instance),
+                    datasets: [{
+                        label: 'Rally 처리량 가성비',
+                        data: data.map(d => Math.round(d.efficiency)),
+                        backgroundColor: data.map(d => getColor(d.arch)),
+                        borderColor: data.map(d => getBorderColor(d.arch)),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Rally 처리량 가성비 Top 15' }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, title: { display: true, text: 'docs/s per $/hr' } }
+                    }
+                }
+            });
+        }
+
+        // Coldstart Efficiency Chart (Inverse - lower coldstart is better)
+        function createColdstartEffChart() {
+            const data = benchmarkData
+                .filter(d => instancePricing[d.instance])
+                .map(d => ({
+                    instance: d.instance,
+                    arch: d.arch,
+                    // Higher efficiency = faster start for lower price
+                    efficiency: 1000 / (d.coldstart_avg / 1000 * instancePricing[d.instance])
+                }))
+                .sort((a, b) => b.efficiency - a.efficiency)
+                .slice(0, 15);
+
+            new Chart(document.getElementById('coldstartEffChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.instance),
+                    datasets: [{
+                        label: 'Cold Start 가성비',
+                        data: data.map(d => Math.round(d.efficiency)),
+                        backgroundColor: data.map(d => getColor(d.arch)),
+                        borderColor: data.map(d => getBorderColor(d.arch)),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Cold Start 가성비 Top 15' }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, title: { display: true, text: '1/(s × $/hr) - 높을수록 우수' } }
+                    }
+                }
+            });
+        }
+
+        // Combined Efficiency Chart
+        function createCombinedEffChart() {
+            const data = benchmarkData
+                .filter(d => instancePricing[d.instance])
+                .map(d => {
+                    const rallyEff = d.rally_throughput_avg / instancePricing[d.instance];
+                    const coldstartEff = 1000 / (d.coldstart_avg / 1000 * instancePricing[d.instance]);
+                    // Normalize and combine
+                    return {
+                        instance: d.instance,
+                        arch: d.arch,
+                        combined: (rallyEff / 100000) + (coldstartEff / 100)
+                    };
+                })
+                .sort((a, b) => b.combined - a.combined)
+                .slice(0, 15);
+
+            new Chart(document.getElementById('combinedEffChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.instance),
+                    datasets: [{
+                        label: '종합 가성비',
+                        data: data.map(d => d.combined.toFixed(2)),
+                        backgroundColor: data.map(d => getColor(d.arch)),
+                        borderColor: data.map(d => getBorderColor(d.arch)),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: '종합 가성비 Top 15' }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, title: { display: true, text: '종합 점수 (Rally + Cold Start)' } }
+                    }
+                }
+            });
+        }
+
         // Initialize all charts
         createRallyChart();
         createColdstartChart();
@@ -1456,6 +1688,9 @@
         createPricePerformanceChart();
         createScatterChart();
         createCombinedGenChart();
+        createRallyEffChart();
+        createColdstartEffChart();
+        createCombinedEffChart();
         renderTable(benchmarkData);
     </script>
 </body>

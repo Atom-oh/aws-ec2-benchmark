@@ -34,6 +34,7 @@
             padding: 3rem 2rem;
             margin-bottom: 2rem;
             border-radius: 1rem;
+            text-align: center;
         }
 
         header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
@@ -112,6 +113,16 @@
 
         .chart-container.tall { height: 600px; }
         .chart-container.extra-tall { height: 900px; }
+
+        /* Tab Styles for Price-Performance */
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: var(--card); border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: var(--intel); color: white; border-color: var(--intel); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
 
         .chart-title {
             font-size: 1.1rem;
@@ -209,6 +220,23 @@
             .chart-grid { grid-template-columns: 1fr; }
             .toc ul { columns: 1; }
         }
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .metric-tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .metric-tab .tab-icon { font-size: 1rem; }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -464,17 +492,14 @@
         <!-- 세대별 아키텍처별 성능 비교 -->
         <section class="section" id="generation">
             <h2>아키텍처별 세대별 성능 비교</h2>
-            <p style="color: var(--muted); margin-bottom: 1rem;">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) - 메트릭을 선택하여 비교 (최대 2개)</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-cpu" class="sysbench-metric-chk" value="cpu" checked onchange="updateSysbenchArchGenChart()">
-                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">CPU Multi-thread</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-memory" class="sysbench-metric-chk" value="memory" onchange="updateSysbenchArchGenChart()">
-                    <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Memory Large Block</span>
-                </label>
+            <p style="color: var(--muted); margin-bottom: 1rem;">Intel (5-8세대), AMD (5세대), Graviton (6-8세대)</p>
+            <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="metric-tab active" data-metric="cpu" onclick="selectSysbenchMetricTab(this)">
+                    <span class="tab-icon">💻</span> CPU Multi-thread
+                </button>
+                <button class="metric-tab" data-metric="memory" onclick="selectSysbenchMetricTab(this)">
+                    <span class="tab-icon">📋</span> Memory Large Block
+                </button>
             </div>
             <div class="chart-container" style="height: 500px;">
                 <canvas id="archGenChart"></canvas>
@@ -511,27 +536,56 @@
             </div>
         </section>
 
-        <!-- 가격 대비 성능 -->
+        <!-- 가격 대비 성능 (3탭 구조) -->
         <section class="section" id="price-performance">
-            <h2>가격 대비 성능</h2>
-            <div class="chart-grid">
+            <h2>가격 대비 성능 (Cost Efficiency)</h2>
+            <p class="description" style="color: #64748b; margin-bottom: 1rem;">시간당 비용 대비 CPU/Memory 성능 - 버블 크기는 메모리 대역폭</p>
+
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showSysbenchPriceTab('bubble')">버블 차트</button>
+                <button class="tab-btn" onclick="showSysbenchPriceTab('efficiency')">가성비 순위</button>
+                <button class="tab-btn" onclick="showSysbenchPriceTab('metric')">메트릭별 가성비</button>
+            </div>
+
+            <div id="price-bubble" class="tab-content active">
+                <div class="chart-container extra-tall">
+                    <canvas id="pricePerformanceChart"></canvas>
+                </div>
+                <div class="legend-custom">
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+                </div>
+            </div>
+
+            <div id="price-efficiency" class="tab-content">
                 <div class="chart-container tall">
-                    <div class="chart-title">CPU 가성비 (events per $/hr) Top 20</div>
                     <canvas id="cpuEfficiencyChart"></canvas>
                 </div>
-                <div class="chart-container tall">
-                    <div class="chart-title">메모리 가성비 (MiB/sec per $/hr) Top 20</div>
-                    <canvas id="memEfficiencyChart"></canvas>
+            </div>
+
+            <div id="price-metric" class="tab-content">
+                <div class="grid-3">
+                    <div class="chart-container">
+                        <canvas id="cpuEffChart2"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="memEfficiencyChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="combinedEffChart"></canvas>
+                    </div>
                 </div>
             </div>
-            <div class="chart-container" style="height: 500px; margin-top: 2rem;">
-                <div class="chart-title">가격 vs CPU 성능 (버블 크기 = 메모리 대역폭)</div>
-                <canvas id="pricePerformanceChart"></canvas>
-            </div>
-            <div class="legend-custom">
-                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4 style="color: #92400e; margin-bottom: 0.5rem;">가성비 인사이트</h4>
+                <ul style="margin-left: 1.5rem; color: #78350f;">
+                    <li><strong>최고 가성비</strong>: c8g.xlarge - 저렴한 가격 + 최고 CPU 성능</li>
+                    <li><strong>Graviton 우위</strong>: 상위 10개 중 대부분이 Graviton</li>
+                    <li><strong>8세대 권장</strong>: c8g, m8g 모두 가성비 상위</li>
+                    <li><strong>메모리 가성비</strong>: Graviton이 Intel 대비 2-3배 높은 가성비</li>
+                </ul>
             </div>
         </section>
 
@@ -832,13 +886,13 @@
 
         // 아키텍처별 세대별 통합 차트 (메트릭 선택 가능)
         const sysbenchMetricConfig = {
-            cpu: { label: 'CPU', dataSource: genArchData, divisor: 1, unit: 'events/sec' },
-            memory: { label: 'Memory', dataSource: genArchMemData, divisor: 10, unit: 'MiB/s (÷10)' }
+            cpu: { label: 'CPU Multi-thread', dataSource: genArchData, divisor: 1, unit: 'events/sec' },
+            memory: { label: 'Memory Large Block', dataSource: genArchMemData, divisor: 10, unit: 'MiB/s (÷10)' }
         };
 
         const sysbenchArchSolidColors = { intel: '#3b82f6', amd: '#ef4444', graviton: '#10b981' };
-        const sysbenchArchLightColors = { intel: '#93c5fd', amd: '#fca5a5', graviton: '#6ee7b7' };
         const sysbenchArchLabels = { intel: 'Intel', amd: 'AMD', graviton: 'Graviton' };
+        let currentSysbenchMetric = 'cpu';
 
         let sysbenchArchGenChart = new Chart(document.getElementById('archGenChart'), {
             type: 'bar',
@@ -875,43 +929,35 @@
         });
 
         function updateSysbenchArchGenChart() {
-            const checkboxes = document.querySelectorAll('.sysbench-metric-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
-
-            // 최대 2개로 제한
-            if (selected.length > 2) {
-                event.target.checked = false;
-                return;
-            }
-
-            const datasets = [];
+            const cfg = sysbenchMetricConfig[currentSysbenchMetric];
             const archList = ['intel', 'amd', 'graviton'];
             const generations = ['5', '6', '7', '8'];
 
-            selected.forEach((metricKey, idx) => {
-                const cfg = sysbenchMetricConfig[metricKey];
-                const isSecondary = idx === 1;
-
-                archList.forEach(arch => {
-                    datasets.push({
-                        label: `${sysbenchArchLabels[arch]} ${cfg.label}`,
-                        data: generations.map(g => {
-                            if (arch === 'amd' && g !== '5') return null;
-                            if (arch === 'graviton' && g === '5') return null;
-                            const vals = cfg.dataSource[g][arch];
-                            return vals.length > 0 ? Math.round(avg(vals) / cfg.divisor) : null;
-                        }),
-                        backgroundColor: isSecondary ? sysbenchArchLightColors[arch] : sysbenchArchSolidColors[arch],
-                        borderColor: sysbenchArchSolidColors[arch],
-                        borderWidth: isSecondary ? 2 : 1,
-                        borderDash: isSecondary ? [5, 5] : []
-                    });
-                });
-            });
+            const datasets = archList.map(arch => ({
+                label: sysbenchArchLabels[arch],
+                data: generations.map(g => {
+                    if (arch === 'amd' && g !== '5') return null;
+                    if (arch === 'graviton' && g === '5') return null;
+                    const vals = cfg.dataSource[g][arch];
+                    return vals.length > 0 ? Math.round(avg(vals) / cfg.divisor) : null;
+                }),
+                backgroundColor: sysbenchArchSolidColors[arch],
+                borderColor: sysbenchArchSolidColors[arch],
+                borderWidth: 1
+            }));
 
             sysbenchArchGenChart.data.datasets = datasets;
-            sysbenchArchGenChart.options.scales.y.title.text = selected.map(m => sysbenchMetricConfig[m].unit).join(' / ');
+            sysbenchArchGenChart.options.scales.y.title.text = `${cfg.label} (${cfg.unit})`;
+            sysbenchArchGenChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} ${cfg.unit}` : null;
             sysbenchArchGenChart.update();
+        }
+
+        function selectSysbenchMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentSysbenchMetric = btn.dataset.metric;
+            updateSysbenchArchGenChart();
         }
 
         // 초기 렌더링
@@ -1067,6 +1113,14 @@
             }
         });
 
+        // Price tab switching function
+        function showSysbenchPriceTab(tab) {
+            document.querySelectorAll('#price-performance .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#price-performance .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
         // CPU 가성비 Top 20
         const cpuEffTop = [...data].filter(d => d.cpu_efficiency > 0).sort((a, b) => b.cpu_efficiency - a.cpu_efficiency).slice(0, 20);
         new Chart(document.getElementById('cpuEfficiencyChart'), {
@@ -1108,6 +1162,48 @@
                 scales: {
                     x: { title: { display: true, text: 'MiB/sec per $/hr' } }
                 }
+            }
+        });
+
+        // CPU Efficiency Chart 2 (for metric tab)
+        new Chart(document.getElementById('cpuEffChart2'), {
+            type: 'bar',
+            data: {
+                labels: cpuEffTop.slice(0, 15).map(d => d.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'CPU Efficiency',
+                    data: cpuEffTop.slice(0, 15).map(d => d.cpu_efficiency),
+                    backgroundColor: cpuEffTop.slice(0, 15).map(d => getColor(d.arch))
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                plugins: { legend: { display: false }, title: { display: true, text: 'CPU 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Combined Efficiency Chart (CPU + Memory weighted)
+        const combinedEff = [...data].filter(d => d.cpu_efficiency > 0 && d.mem_efficiency > 0)
+            .map(d => ({ ...d, combined: Math.round(d.cpu_efficiency * 0.6 + d.mem_efficiency * 0.4) }))
+            .sort((a, b) => b.combined - a.combined).slice(0, 15);
+
+        new Chart(document.getElementById('combinedEffChart'), {
+            type: 'bar',
+            data: {
+                labels: combinedEff.map(d => d.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Combined Efficiency',
+                    data: combinedEff.map(d => d.combined),
+                    backgroundColor: combinedEff.map(d => getColor(d.arch))
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                plugins: { legend: { display: false }, title: { display: true, text: '종합 가성비 (CPU 60% + Mem 40%)' } },
+                scales: { x: { beginAtZero: true } }
             }
         });
 

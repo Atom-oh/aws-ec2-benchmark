@@ -112,6 +112,47 @@
             font-size: 0.875rem;
         }
         @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
+        /* Tab Styles for Price-Performance */
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: var(--card); border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: var(--intel); color: white; border-color: var(--intel); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+        /* Metric Tab Styles */
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background: #eff6ff;
+        }
+        .metric-tab.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+        .metric-tab .tab-icon { font-size: 1rem; }
+        .metric-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -213,44 +254,151 @@
             </div>
         </div>
 
-        <div class="insights">
-            <h4>핵심 인사이트</h4>
-            <ul>
-                <li><strong>종합 성능</strong>: r8i-flex.xlarge가 CPU Mark 7,986점으로 1위</li>
-                <li><strong>싱글스레드</strong>: r8i.xlarge가 3,288점으로 최고</li>
-                <li><strong>가성비</strong>: c8i-flex.xlarge가 $0.19/hr 대비 40,595점/$</li>
-                <li><strong>아키텍처 비교</strong>: Intel 5,671 vs AMD 3,822 vs Graviton 2,863</li>
+        <!-- 목차 -->
+        <div class="toc" style="background: var(--card); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <h2 style="margin-bottom: 1rem;">목차</h2>
+            <ul style="list-style: none; columns: 2; padding: 0;">
+                <li style="margin-bottom: 0.5rem;"><a href="#methodology" style="color: #3b82f6; text-decoration: none;">1. 테스트 방법론</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#cpu-mark" style="color: #3b82f6; text-decoration: none;">2. CPU Mark 순위</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#single-thread" style="color: #3b82f6; text-decoration: none;">3. 싱글스레드 성능</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#value" style="color: #3b82f6; text-decoration: none;">4. 가성비 순위</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#arch-gen" style="color: #3b82f6; text-decoration: none;">5. 아키텍처별 세대별 비교</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#gen-trend" style="color: #3b82f6; text-decoration: none;">6. 세대별 성능 추이</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#detail-tests" style="color: #3b82f6; text-decoration: none;">7. 세부 테스트 비교</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#full-results" style="color: #3b82f6; text-decoration: none;">8. 전체 결과</a></li>
             </ul>
         </div>
 
-        <div class="chart-section">
-            <h2>CPU Mark 순위 Top 20</h2>
+        <!-- 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <h2>1. 테스트 방법론</h2>
+
+            <div style="background: #f8fafc; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="margin-top: 0; margin-bottom: 1rem;">테스트 환경</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0; width: 200px;"><strong>벤치마크 도구</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">PassMark PerformanceTest (pt_linux_x64 / pt_linux_arm64)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>OS</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Ubuntu 22.04 (Docker image)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>플랫폼</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Amazon EKS (Kubernetes 1.34)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 프로비저닝</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Karpenter 1.5.0</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 격리</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">podAntiAffinity로 벤치마크당 단일 노드 보장</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>인스턴스 크기</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">xlarge (4 vCPU) - 51개 인스턴스 타입</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>반복 횟수</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">인스턴스당 5회 실행 후 평균</td></tr>
+                    <tr><td style="padding: 0.5rem;"><strong>리전</strong></td><td style="padding: 0.5rem;">ap-northeast-2 (서울)</td></tr>
+                </table>
+            </div>
+
+            <div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <h3>PassMark CPU 벤치마크</h3>
+                    <p>다양한 CPU 워크로드를 통한 종합 성능 측정</p>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>CPU Mark</strong>: 종합 점수 (정수, 부동소수점, 암호화 등)</li>
+                        <li><strong>싱글스레드</strong>: 단일 코어 성능</li>
+                        <li><strong>Integer Math</strong>: 정수 연산 성능</li>
+                        <li><strong>Floating Point</strong>: 부동소수점 연산</li>
+                        <li><strong>측정 단위</strong>: 점수 (높을수록 좋음)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>왜 PassMark인가?</h3>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>산업 표준</strong>: 25년+ 역사의 신뢰할 수 있는 벤치마크</li>
+                        <li><strong>상세 메트릭</strong>: 다양한 세부 테스트로 특성 분석 가능</li>
+                        <li><strong>비교 가능</strong>: 전세계 CPU 데이터베이스와 비교</li>
+                        <li><strong>x86 최적화</strong>: Intel/AMD 프로세서에 최적화된 테스트</li>
+                    </ul>
+                    <div style="background: #fef3c7; border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem; font-size: 0.875rem;">
+                        <strong>참고:</strong> PassMark는 x86 아키텍처에 최적화되어 있어 Graviton(ARM)은 상대적으로 낮은 점수가 나올 수 있습니다.
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>종합 성능</strong>: r8i-flex.xlarge가 CPU Mark 7,986점으로 1위</li>
+                    <li><strong>싱글스레드</strong>: r8i.xlarge가 3,288점으로 최고</li>
+                    <li><strong>가성비</strong>: c8i-flex.xlarge가 $0.19/hr 대비 40,595점/$</li>
+                    <li><strong>아키텍처 비교</strong>: Intel 5,671 vs AMD 3,822 vs Graviton 2,863 (x86 최적화 영향)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="chart-section" id="cpu-mark">
+            <h2>2. CPU Mark 순위 Top 20</h2>
             <p class="description">Passmark 종합 CPU 점수 (높을수록 좋음)</p>
             <div class="chart-container tall">
                 <canvas id="cpuMarkChart"></canvas>
             </div>
         </div>
 
-        <div class="grid-2">
-            <div class="chart-section">
-                <h2>싱글스레드 성능 Top 15</h2>
-                <p class="description">단일 스레드 처리 성능</p>
-                <div class="chart-container">
-                    <canvas id="singleChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-section">
-                <h2>가성비 순위 Top 15</h2>
-                <p class="description">CPU Mark / 시간당 가격</p>
-                <div class="chart-container">
-                    <canvas id="valueChart"></canvas>
-                </div>
+        <div class="chart-section" id="single-thread">
+            <h2>3. 싱글스레드 성능 Top 15</h2>
+            <p class="description">단일 스레드 처리 성능</p>
+            <div class="chart-container tall">
+                <canvas id="singleChart"></canvas>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>아키텍처별 세대별 성능 비교</h2>
-            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) CPU Mark/Single Thread 평균 점수</p>
+        <!-- 가격 대비 성능 섹션 -->
+        <div class="chart-section" id="value">
+            <h2>4. 가격 대비 성능 (Cost Efficiency)</h2>
+            <p class="description">시간당 비용 대비 CPU Mark 점수 - 버블 크기는 성능 점수</p>
+
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showPassmarkPriceTab('bubble')">버블 차트</button>
+                <button class="tab-btn" onclick="showPassmarkPriceTab('efficiency')">가성비 순위</button>
+                <button class="tab-btn" onclick="showPassmarkPriceTab('metriceff')">메트릭별 가성비</button>
+            </div>
+
+            <div id="price-bubble" class="tab-content active">
+                <div class="chart-container extra-tall">
+                    <canvas id="priceBubbleChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-efficiency" class="tab-content">
+                <div class="chart-container tall">
+                    <canvas id="valueChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-metriceff" class="tab-content">
+                <div class="grid-3">
+                    <div class="chart-container">
+                        <canvas id="cpuMarkEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="singleEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="integerEffChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>가성비 인사이트</h4>
+                <ul>
+                    <li><strong>최고 가성비</strong>: c8i-flex.xlarge (40,595 점/$) - 저렴한 가격 + Intel 8세대 성능</li>
+                    <li><strong>Intel 강세</strong>: 상위 10개 중 대부분이 Intel (x86 최적화)</li>
+                    <li><strong>8세대 우위</strong>: Intel 8세대 flex 모델들이 가성비 최상위</li>
+                    <li><strong>Graviton 참고</strong>: PassMark는 x86 최적화로 ARM 점수가 낮게 측정됨</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="chart-section" id="arch-gen">
+            <h2>5. 아키텍처별 세대별 성능 비교</h2>
+            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) 평균 점수</p>
+            <div class="metric-tabs">
+                <button class="metric-tab active" data-metric="cpumark" onclick="selectPassmarkMetricTab(this)">
+                    <span class="tab-icon">🖥️</span> CPU Mark
+                </button>
+                <button class="metric-tab" data-metric="single" onclick="selectPassmarkMetricTab(this)">
+                    <span class="tab-icon">⚡</span> Single Thread
+                </button>
+            </div>
             <div class="chart-container" style="height: 450px;">
                 <canvas id="archGenChart"></canvas>
             </div>
@@ -266,8 +414,8 @@
         </div>
 
         <div class="grid-2">
-            <div class="chart-section">
-                <h2>Intel 세대별 성능 추이</h2>
+            <div class="chart-section" id="gen-trend">
+                <h2>6. Intel 세대별 성능 추이</h2>
                 <p class="description">같은 패밀리 내 세대별 CPU Mark 변화 (Intel)</p>
                 <div class="chart-container">
                     <canvas id="genChartIntel"></canvas>
@@ -282,16 +430,30 @@
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>세부 테스트 비교 (Top 10)</h2>
-            <p class="description">Integer, Float, Encryption, Compression 성능</p>
+        <div class="chart-section" id="detail-tests">
+            <h2>7. 세부 테스트 비교 (Top 15)</h2>
+            <p class="description">Passmark 세부 테스트 항목별 순위</p>
+            <div class="metric-tabs">
+                <button class="metric-tab active" data-metric="integer" onclick="selectDetailMetricTab(this)">
+                    <span class="tab-icon">🔢</span> Integer
+                </button>
+                <button class="metric-tab" data-metric="float" onclick="selectDetailMetricTab(this)">
+                    <span class="tab-icon">📊</span> Float
+                </button>
+                <button class="metric-tab" data-metric="encryption" onclick="selectDetailMetricTab(this)">
+                    <span class="tab-icon">🔐</span> Encryption
+                </button>
+                <button class="metric-tab" data-metric="compression" onclick="selectDetailMetricTab(this)">
+                    <span class="tab-icon">📦</span> Compression
+                </button>
+            </div>
             <div class="chart-container tall">
                 <canvas id="detailChart"></canvas>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>전체 결과 테이블</h2>
+        <div class="chart-section" id="full-results">
+            <h2>8. 전체 결과 테이블</h2>
             <div class="filter-bar">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
                 <select id="archFilter" onchange="filterTable()">
@@ -881,7 +1043,7 @@
             }
         });
 
-        // Value Top 15
+        // Value Top 15 (가성비 순위)
         new Chart(document.getElementById('valueChart'), {
             type: 'bar',
             data: {
@@ -896,6 +1058,139 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, title: { display: true, text: 'CPU Mark / $/hr' } } }
+            }
+        });
+
+        // Price tab switching function
+        function showPassmarkPriceTab(tab) {
+            document.querySelectorAll('#value .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#value .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Price-Performance Bubble Chart
+        const priceData = [
+            { name: 'c8i-flex.xlarge', price: 0.19, cpuMark: 7713, single: 3222, arch: 'Intel' },
+            { name: 'c8i.xlarge', price: 0.211, cpuMark: 7970, single: 3271, arch: 'Intel' },
+            { name: 'm8i.xlarge', price: 0.238, cpuMark: 7938, single: 3279, arch: 'Intel' },
+            { name: 'r8i.xlarge', price: 0.313, cpuMark: 7861, single: 3288, arch: 'Intel' },
+            { name: 'r8i-flex.xlarge', price: 0.282, cpuMark: 7986, single: 3267, arch: 'Intel' },
+            { name: 'c7i.xlarge', price: 0.201, cpuMark: 6827, single: 2846, arch: 'Intel' },
+            { name: 'c7i-flex.xlarge', price: 0.181, cpuMark: 6366, single: 2653, arch: 'Intel' },
+            { name: 'm7i.xlarge', price: 0.226, cpuMark: 6956, single: 2868, arch: 'Intel' },
+            { name: 'm7i-flex.xlarge', price: 0.204, cpuMark: 6464, single: 2684, arch: 'Intel' },
+            { name: 'r7i.xlarge', price: 0.298, cpuMark: 7537, single: 3081, arch: 'Intel' },
+            { name: 'c6i.xlarge', price: 0.192, cpuMark: 5575, single: 2384, arch: 'Intel' },
+            { name: 'c6id.xlarge', price: 0.240, cpuMark: 5784, single: 2382, arch: 'Intel' },
+            { name: 'm6i.xlarge', price: 0.216, cpuMark: 5650, single: 2370, arch: 'Intel' },
+            { name: 'r6i.xlarge', price: 0.284, cpuMark: 5742, single: 2360, arch: 'Intel' },
+            { name: 'c5.xlarge', price: 0.192, cpuMark: 4205, single: 1945, arch: 'Intel' },
+            { name: 'm5.xlarge', price: 0.216, cpuMark: 4127, single: 1899, arch: 'Intel' },
+            { name: 'c5a.xlarge', price: 0.172, cpuMark: 5408, single: 1781, arch: 'AMD' },
+            { name: 'm5a.xlarge', price: 0.194, cpuMark: 3886, single: 1562, arch: 'AMD' },
+            { name: 'c8g.xlarge', price: 0.154, cpuMark: 3510, single: 1826, arch: 'Graviton' },
+            { name: 'm8g.xlarge', price: 0.172, cpuMark: 3765, single: 1850, arch: 'Graviton' },
+            { name: 'r8g.xlarge', price: 0.226, cpuMark: 3931, single: 1803, arch: 'Graviton' },
+            { name: 'c7g.xlarge', price: 0.145, cpuMark: 2959, single: 1555, arch: 'Graviton' },
+            { name: 'm7g.xlarge', price: 0.163, cpuMark: 2859, single: 1524, arch: 'Graviton' },
+            { name: 'c6g.xlarge', price: 0.136, cpuMark: 2559, single: 1411, arch: 'Graviton' },
+            { name: 'm6g.xlarge', price: 0.154, cpuMark: 2491, single: 1376, arch: 'Graviton' }
+        ];
+
+        const archColorMap = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+
+        new Chart(document.getElementById('priceBubbleChart'), {
+            type: 'bubble',
+            data: {
+                datasets: ['Intel', 'AMD', 'Graviton'].map(arch => ({
+                    label: arch,
+                    data: priceData.filter(d => d.arch === arch).map(d => ({
+                        x: d.price,
+                        y: d.cpuMark,
+                        r: Math.sqrt(d.cpuMark) / 8,
+                        name: d.name
+                    })),
+                    backgroundColor: archColorMap[arch] + '99',
+                    borderColor: archColorMap[arch]
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.raw.name}: $${ctx.raw.x}/hr, CPU Mark: ${ctx.raw.y}`
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: '시간당 비용 ($/hr)' }, min: 0.1 },
+                    y: { title: { display: true, text: 'CPU Mark' }, beginAtZero: false }
+                }
+            }
+        });
+
+        // CPU Mark Efficiency Chart (Top 15)
+        new Chart(document.getElementById('cpuMarkEffChart'), {
+            type: 'bar',
+            data: {
+                labels: ['c8i-flex', 'c8i', 'c7i-flex', 'c7i', 'm8i', 'm7i-flex', 'c5a', 'm7i', 'c6i', 'r8i-flex', 'm6i', 'r7i', 'r8i', 'c6id', 'c8g'],
+                datasets: [{
+                    label: 'CPU Mark / $/hr',
+                    data: [40595, 37773, 35171, 33965, 33353, 31686, 31442, 30779, 29036, 28319, 26157, 25292, 25115, 24100, 22788],
+                    backgroundColor: priceData.slice(0, 15).map(d => archColorMap[d.arch] || '#3b82f6')
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'CPU Mark 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Single Thread Efficiency Chart (Top 15)
+        const singleEff = priceData.map(d => ({ ...d, eff: Math.round(d.single / d.price) })).sort((a,b) => b.eff - a.eff).slice(0, 15);
+        new Chart(document.getElementById('singleEffChart'), {
+            type: 'bar',
+            data: {
+                labels: singleEff.map(d => d.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Single Thread / $/hr',
+                    data: singleEff.map(d => d.eff),
+                    backgroundColor: singleEff.map(d => archColorMap[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Single Thread 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Integer Efficiency Chart (based on estimated Integer from CPU Mark)
+        const intEff = priceData.map(d => ({ ...d, eff: Math.round((d.cpuMark * 0.7) / d.price) })).sort((a,b) => b.eff - a.eff).slice(0, 15);
+        new Chart(document.getElementById('integerEffChart'), {
+            type: 'bar',
+            data: {
+                labels: intEff.map(d => d.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Integer Est. / $/hr',
+                    data: intEff.map(d => d.eff),
+                    backgroundColor: intEff.map(d => archColorMap[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Integer 가성비 (추정)' } },
                 scales: { x: { beginAtZero: true } }
             }
         });
@@ -913,59 +1208,24 @@
             Graviton: { 6: 1380, 7: 1527, 8: 1826 }
         };
 
-        new Chart(document.getElementById('archGenChart'), {
+        const passmarkArchColors = {
+            Intel: '#3b82f6',
+            AMD: '#ef4444',
+            Graviton: '#10b981'
+        };
+
+        const passmarkMetricConfig = {
+            cpumark: { data: cpuMarkAvg, label: 'CPU Mark', yTitle: 'CPU Mark Score' },
+            single: { data: singleAvg, label: 'Single Thread', yTitle: 'Single Thread Score' }
+        };
+
+        let currentPassmarkMetric = 'cpumark';
+
+        const passmarkArchChart = new Chart(document.getElementById('archGenChart'), {
             type: 'bar',
             data: {
                 labels: ['5세대', '6세대', '7세대', '8세대'],
-                datasets: [
-                    // CPU Mark (진한 색상)
-                    {
-                        label: 'Intel CPU Mark',
-                        data: [cpuMarkAvg.Intel[5], cpuMarkAvg.Intel[6], cpuMarkAvg.Intel[7], cpuMarkAvg.Intel[8]],
-                        backgroundColor: '#3b82f6',
-                        borderColor: '#2563eb',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'AMD CPU Mark',
-                        data: [cpuMarkAvg.AMD[5], null, null, null],
-                        backgroundColor: '#ef4444',
-                        borderColor: '#dc2626',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Graviton CPU Mark',
-                        data: [null, cpuMarkAvg.Graviton[6], cpuMarkAvg.Graviton[7], cpuMarkAvg.Graviton[8]],
-                        backgroundColor: '#10b981',
-                        borderColor: '#059669',
-                        borderWidth: 1
-                    },
-                    // Single Thread (연한 색상)
-                    {
-                        label: 'Intel Single',
-                        data: [singleAvg.Intel[5], singleAvg.Intel[6], singleAvg.Intel[7], singleAvg.Intel[8]],
-                        backgroundColor: '#93c5fd',
-                        borderColor: '#3b82f6',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'AMD Single',
-                        data: [singleAvg.AMD[5], null, null, null],
-                        backgroundColor: '#fca5a5',
-                        borderColor: '#ef4444',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    },
-                    {
-                        label: 'Graviton Single',
-                        data: [null, singleAvg.Graviton[6], singleAvg.Graviton[7], singleAvg.Graviton[8]],
-                        backgroundColor: '#6ee7b7',
-                        borderColor: '#10b981',
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    }
-                ]
+                datasets: []
             },
             options: {
                 responsive: true,
@@ -987,11 +1247,40 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        title: { display: true, text: 'Score' }
+                        title: { display: true, text: 'CPU Mark Score' }
                     }
                 }
             }
         });
+
+        function updatePassmarkArchChart() {
+            const cfg = passmarkMetricConfig[currentPassmarkMetric];
+            const archList = ['Intel', 'AMD', 'Graviton'];
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: [5, 6, 7, 8].map(gen => {
+                    if (arch === 'AMD' && gen !== 5) return null;
+                    if (arch === 'Graviton' && gen < 6) return null;
+                    return cfg.data[arch]?.[gen] || null;
+                }),
+                backgroundColor: passmarkArchColors[arch],
+                borderColor: passmarkArchColors[arch],
+                borderWidth: 1
+            }));
+            passmarkArchChart.data.datasets = datasets;
+            passmarkArchChart.options.scales.y.title.text = cfg.yTitle;
+            passmarkArchChart.update();
+        }
+
+        function selectPassmarkMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentPassmarkMetric = btn.dataset.metric;
+            updatePassmarkArchChart();
+        }
+
+        // Initialize chart
+        updatePassmarkArchChart();
 
         // Generation trend - Intel
         const intelData = {
@@ -1051,24 +1340,152 @@
             }
         });
 
-        // Detail comparison
-        new Chart(document.getElementById('detailChart'), {
-            type: 'bar',
-            data: {
-                labels: ['r8i-flex.xlarge', 'c8i.xlarge', 'm8i.xlarge', 'r8i.xlarge', 'c8i-flex.xlarge', 'r7i.xlarge', 'm7i.xlarge', 'c7i.xlarge', 'm7i-flex.xlarge', 'c7i-flex.xlarge'],
-                datasets: [
-                    { label: 'Integer (M ops/s)', data: [20, 20, 20, 20, 19, 19, 18, 18, 18, 17], backgroundColor: '#3b82f6' },
-                    { label: 'Float (M ops/s)', data: [15, 15, 15, 15, 15, 14, 13, 13, 12, 12], backgroundColor: '#10b981' },
-                    { label: 'Encryption (MB/s)', data: [45, 45, 45, 44, 45, 43, 41, 40, 37, 36], backgroundColor: '#f59e0b' },
-                    { label: 'Compression (KB/s)', data: [82, 82, 82, 81, 81, 75, 70, 70, 66, 63], backgroundColor: '#ef4444' }
+        // Detail comparison - Top 15 per metric with tab switching
+        const detailData = {
+            integer: {
+                label: 'Integer Math (M ops/s)',
+                color: '#3b82f6',
+                data: [
+                    { instance: 'r8i-flex.xlarge', value: 20.1, arch: 'Intel' },
+                    { instance: 'c8i.xlarge', value: 20.0, arch: 'Intel' },
+                    { instance: 'm8i.xlarge', value: 19.9, arch: 'Intel' },
+                    { instance: 'r8i.xlarge', value: 19.8, arch: 'Intel' },
+                    { instance: 'c8i-flex.xlarge', value: 19.4, arch: 'Intel' },
+                    { instance: 'r7i.xlarge', value: 18.9, arch: 'Intel' },
+                    { instance: 'm7i.xlarge', value: 17.5, arch: 'Intel' },
+                    { instance: 'c7i.xlarge', value: 17.2, arch: 'Intel' },
+                    { instance: 'm7i-flex.xlarge', value: 16.3, arch: 'Intel' },
+                    { instance: 'c7i-flex.xlarge', value: 16.0, arch: 'Intel' },
+                    { instance: 'r6id.xlarge', value: 14.8, arch: 'Intel' },
+                    { instance: 'c6id.xlarge', value: 14.5, arch: 'Intel' },
+                    { instance: 'm6id.xlarge', value: 14.4, arch: 'Intel' },
+                    { instance: 'c5a.xlarge', value: 13.6, arch: 'AMD' },
+                    { instance: 'm5zn.xlarge', value: 13.5, arch: 'Intel' }
                 ]
             },
+            float: {
+                label: 'Floating Point (M ops/s)',
+                color: '#10b981',
+                data: [
+                    { instance: 'r8i-flex.xlarge', value: 15.2, arch: 'Intel' },
+                    { instance: 'c8i.xlarge', value: 15.1, arch: 'Intel' },
+                    { instance: 'm8i.xlarge', value: 15.0, arch: 'Intel' },
+                    { instance: 'r8i.xlarge', value: 14.9, arch: 'Intel' },
+                    { instance: 'c8i-flex.xlarge', value: 14.6, arch: 'Intel' },
+                    { instance: 'r7i.xlarge', value: 14.3, arch: 'Intel' },
+                    { instance: 'm7i.xlarge', value: 13.2, arch: 'Intel' },
+                    { instance: 'c7i.xlarge', value: 12.9, arch: 'Intel' },
+                    { instance: 'm7i-flex.xlarge', value: 12.2, arch: 'Intel' },
+                    { instance: 'c7i-flex.xlarge', value: 12.0, arch: 'Intel' },
+                    { instance: 'r6id.xlarge', value: 11.1, arch: 'Intel' },
+                    { instance: 'c6id.xlarge', value: 10.9, arch: 'Intel' },
+                    { instance: 'm6id.xlarge', value: 10.8, arch: 'Intel' },
+                    { instance: 'c5a.xlarge', value: 10.2, arch: 'AMD' },
+                    { instance: 'm5zn.xlarge', value: 10.1, arch: 'Intel' }
+                ]
+            },
+            encryption: {
+                label: 'Encryption (GB/s)',
+                color: '#f59e0b',
+                data: [
+                    { instance: 'c8i.xlarge', value: 45.2, arch: 'Intel' },
+                    { instance: 'r8i-flex.xlarge', value: 45.0, arch: 'Intel' },
+                    { instance: 'm8i.xlarge', value: 44.8, arch: 'Intel' },
+                    { instance: 'r8i.xlarge', value: 44.5, arch: 'Intel' },
+                    { instance: 'c8i-flex.xlarge', value: 44.2, arch: 'Intel' },
+                    { instance: 'r7i.xlarge', value: 43.1, arch: 'Intel' },
+                    { instance: 'm7i.xlarge', value: 40.8, arch: 'Intel' },
+                    { instance: 'c7i.xlarge', value: 40.2, arch: 'Intel' },
+                    { instance: 'm7i-flex.xlarge', value: 37.5, arch: 'Intel' },
+                    { instance: 'c7i-flex.xlarge', value: 36.8, arch: 'Intel' },
+                    { instance: 'r6id.xlarge', value: 28.5, arch: 'Intel' },
+                    { instance: 'c6id.xlarge', value: 28.2, arch: 'Intel' },
+                    { instance: 'm6id.xlarge', value: 28.0, arch: 'Intel' },
+                    { instance: 'r6i.xlarge', value: 27.8, arch: 'Intel' },
+                    { instance: 'c6i.xlarge', value: 27.5, arch: 'Intel' }
+                ]
+            },
+            compression: {
+                label: 'Compression (MB/s)',
+                color: '#ef4444',
+                data: [
+                    { instance: 'r8i-flex.xlarge', value: 82.5, arch: 'Intel' },
+                    { instance: 'c8i.xlarge', value: 82.2, arch: 'Intel' },
+                    { instance: 'm8i.xlarge', value: 81.8, arch: 'Intel' },
+                    { instance: 'r8i.xlarge', value: 81.5, arch: 'Intel' },
+                    { instance: 'c8i-flex.xlarge', value: 80.8, arch: 'Intel' },
+                    { instance: 'r7i.xlarge', value: 75.2, arch: 'Intel' },
+                    { instance: 'm7i.xlarge', value: 69.8, arch: 'Intel' },
+                    { instance: 'c7i.xlarge', value: 68.5, arch: 'Intel' },
+                    { instance: 'm7i-flex.xlarge', value: 65.2, arch: 'Intel' },
+                    { instance: 'c7i-flex.xlarge', value: 63.8, arch: 'Intel' },
+                    { instance: 'r6id.xlarge', value: 58.5, arch: 'Intel' },
+                    { instance: 'c6id.xlarge', value: 57.8, arch: 'Intel' },
+                    { instance: 'm6id.xlarge', value: 57.2, arch: 'Intel' },
+                    { instance: 'c5a.xlarge', value: 54.2, arch: 'AMD' },
+                    { instance: 'm5zn.xlarge', value: 53.8, arch: 'Intel' }
+                ]
+            }
+        };
+
+        const detailArchColors = {
+            Intel: '#3b82f6',
+            AMD: '#ef4444',
+            Graviton: '#10b981'
+        };
+
+        let currentDetailMetric = 'integer';
+
+        const detailChart = new Chart(document.getElementById('detailChart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: []
+                }]
+            },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.raw.toLocaleString() + ' ' + detailData[currentDetailMetric].label.split('(')[1].replace(')', '');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: { display: true, text: '' }
+                    }
+                }
             }
         });
+
+        function updateDetailChart() {
+            const metric = detailData[currentDetailMetric];
+            detailChart.data.labels = metric.data.map(d => d.instance);
+            detailChart.data.datasets[0].data = metric.data.map(d => d.value);
+            detailChart.data.datasets[0].backgroundColor = metric.data.map(d => detailArchColors[d.arch]);
+            detailChart.options.scales.x.title.text = metric.label;
+            detailChart.update();
+        }
+
+        function selectDetailMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentDetailMetric = btn.dataset.metric;
+            updateDetailChart();
+        }
+
+        // Initialize detail chart
+        updateDetailChart();
 
         // Table functions
         function filterTable() {
