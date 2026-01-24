@@ -145,6 +145,10 @@
             font-weight: 600;
         }
 
+        .stat-value.intel {
+            color: #3b82f6;
+        }
+
         .card-arrow {
             position: absolute;
             right: 20px;
@@ -298,7 +302,7 @@
 
         .insights-list {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 10px;
         }
 
@@ -314,6 +318,14 @@
             position: absolute;
             left: 0;
             color: #10b981;
+        }
+
+        .section-title {
+            color: #fff;
+            font-size: 1.2rem;
+            margin: 40px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
     </style>
 </head>
@@ -334,51 +346,53 @@
             <h3>📈 종합 벤치마크 결과</h3>
             <div class="summary-grid">
                 <div class="summary-card graviton">
-                    <div class="summary-card-title">CPU 최고 성능 (Multi-core)</div>
-                    <div class="summary-card-value">Graviton4 (c8g)</div>
-                    <div class="summary-card-detail">Geekbench 5,804 / Sysbench 4,947 events/sec</div>
+                    <div class="summary-card-title">CPU 멀티코어 최강</div>
+                    <div class="summary-card-value">Graviton4 (r8g)</div>
+                    <div class="summary-card-detail">Geekbench 5,843 / Sysbench 4,947 events/s</div>
                 </div>
                 <div class="summary-card intel">
-                    <div class="summary-card-title">CPU 최고 성능 (Single-core)</div>
+                    <div class="summary-card-title">CPU 싱글코어 최강</div>
                     <div class="summary-card-value">Intel 8세대 (c8i)</div>
-                    <div class="summary-card-detail">Geekbench Single 2,199 / 고클럭 워크로드 최적</div>
+                    <div class="summary-card-detail">Geekbench Single 2,199 (+20% vs Graviton)</div>
                 </div>
                 <div class="summary-card graviton">
-                    <div class="summary-card-title">최고 가성비</div>
-                    <div class="summary-card-value">c7i-flex / c8g</div>
-                    <div class="summary-card-detail">Intel flex: 저렴한 가격 / Graviton: 높은 성능</div>
+                    <div class="summary-card-title">Cold Start 최강</div>
+                    <div class="summary-card-value">Graviton4 (c8g/m8g)</div>
+                    <div class="summary-card-detail">SpringBoot 4.29s / ES 10.69s (Intel 대비 2-36% 빠름)</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-title">네트워크 최고 성능</div>
-                    <div class="summary-card-value">c6in.xlarge</div>
-                    <div class="summary-card-detail">TCP 24.2 Gbps / 네트워크 최적화 인스턴스</div>
+                    <div class="summary-card-value">m6idn.xlarge</div>
+                    <div class="summary-card-detail">29.8 Gbps / 'n' suffix = 네트워크 최적화</div>
                 </div>
             </div>
             <div class="key-insights">
                 <h4>💡 핵심 인사이트</h4>
                 <div class="insights-list">
-                    <div class="insight-item">Graviton4는 멀티코어에서 Intel 8세대 대비 16% 빠르고 20% 저렴</div>
-                    <div class="insight-item">Intel 8세대는 싱글코어 성능 최강 (레거시 앱, 고클럭 필요 워크로드)</div>
-                    <div class="insight-item">flex 인스턴스는 일반 대비 25% 저렴하면서 90% 이상 성능 유지</div>
-                    <div class="insight-item">Cold Start가 중요한 서버리스는 Intel 8세대, 처리량은 Graviton 권장</div>
+                    <div class="insight-item"><strong>Graviton4가 대부분 워크로드에서 승리</strong> - 멀티코어, 메모리, Redis, Nginx, Cold Start 모두 1위</div>
+                    <div class="insight-item"><strong>Intel 8세대는 싱글코어만 강점</strong> - 레거시 앱, 고클럭 필요 시에만 선택</div>
+                    <div class="insight-item"><strong>Cold Start = Graviton 압승</strong> - SpringBoot/ES 모두 Graviton4가 Intel 8세대보다 빠름</div>
+                    <div class="insight-item"><strong>flex 인스턴스 가성비 최고</strong> - c7i-flex는 처리량 1위, c8i-flex는 가성비 우수</div>
+                    <div class="insight-item"><strong>AMD EPYC 5세대 피해야 함</strong> - 모든 벤치마크에서 최하위권 (2-4배 느림)</div>
+                    <div class="insight-item"><strong>네트워크 = 'n' suffix 필수</strong> - c6in/m6idn 등 23-30 Gbps, 일반 인스턴스는 12 Gbps 제한</div>
                 </div>
             </div>
         </div>
 
+        <h3 class="section-title">🖥️ System Benchmarks</h3>
         <div class="cards">
-            <!-- System Benchmarks -->
             <a href="reports/geekbench-report.html" class="card">
                 <div class="card-icon">🏆</div>
                 <h2>Geekbench 6</h2>
-                <p>업계 표준 크로스 플랫폼 벤치마크. 실제 워크로드(이미지 처리, 머신러닝, 암호화)를 시뮬레이션하여 싱글/멀티코어 성능을 측정합니다.</p>
+                <p>업계 표준 크로스 플랫폼 벤치마크. 실제 워크로드를 시뮬레이션하여 싱글/멀티코어 성능을 측정합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
-                        <span class="stat-label">최고 싱글</span>
-                        <span class="stat-value">c8i</span>
+                        <span class="stat-label">싱글코어</span>
+                        <span class="stat-value intel">c8i 2,199</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">최고 멀티</span>
-                        <span class="stat-value">c8g</span>
+                        <span class="stat-label">멀티코어</span>
+                        <span class="stat-value">r8g 5,843</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -387,15 +401,15 @@
             <a href="reports/passmark-report.html" class="card">
                 <div class="card-icon">📊</div>
                 <h2>PassMark</h2>
-                <p>종합 CPU 성능 측정 도구. 정수/부동소수점 연산, 압축, 물리 시뮬레이션 등 다양한 테스트로 실제 컴퓨팅 성능을 평가합니다.</p>
+                <p>종합 CPU 성능 측정 도구. 정수/부동소수점, 압축, 물리 시뮬레이션 등 다양한 테스트로 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">c8g</span>
+                        <span class="stat-value intel">r8i-flex 7,986</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">CPU Mark</span>
+                        <span class="stat-label">가성비</span>
+                        <span class="stat-value intel">c8i-flex</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -404,15 +418,15 @@
             <a href="reports/sysbench-report.html" class="card">
                 <div class="card-icon">⚙️</div>
                 <h2>Sysbench</h2>
-                <p>오픈소스 멀티스레드 벤치마크. CPU 소수 계산과 메모리 순차/랜덤 접근 성능을 측정하여 데이터베이스 워크로드 적합성을 평가합니다.</p>
+                <p>오픈소스 멀티스레드 벤치마크. CPU 소수 계산과 메모리 순차/랜덤 접근 성능을 측정합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
-                        <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">c8g</span>
+                        <span class="stat-label">CPU</span>
+                        <span class="stat-value">c8g 4,947/s</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">events/sec</span>
+                        <span class="stat-label">Memory</span>
+                        <span class="stat-value">c8g 102GB/s</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -421,15 +435,15 @@
             <a href="reports/stress-ng-report.html" class="card">
                 <div class="card-icon">🔥</div>
                 <h2>stress-ng</h2>
-                <p>300+ 스트레스 테스트 지원. CPU 연산(정수, 부동소수점), 메모리 대역폭, L1/L2/L3 캐시 성능을 종합적으로 측정합니다.</p>
+                <p>300+ 스트레스 테스트 지원. CPU 연산, 메모리 대역폭, 캐시 성능을 종합 측정합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">c8g</span>
+                        <span class="stat-value">m8g 526K</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">bogo ops/s</span>
+                        <span class="stat-label">가성비</span>
+                        <span class="stat-value">c8g</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -438,33 +452,35 @@
             <a href="reports/iperf3-report.html" class="card">
                 <div class="card-icon">🌐</div>
                 <h2>iperf3 Network</h2>
-                <p>네트워크 대역폭 측정 표준 도구. 동일 VPC 내 TCP 처리량과 지연시간을 측정하여 네트워크 집약적 워크로드 성능을 평가합니다.</p>
+                <p>네트워크 대역폭 측정 표준 도구. VPC 내 TCP 처리량을 측정하여 네트워크 성능을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">c6in</span>
+                        <span class="stat-value intel">m6idn 29.8Gbps</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">Gbits/sec</span>
+                        <span class="stat-label">가성비</span>
+                        <span class="stat-value intel">c5n</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
             </a>
+        </div>
 
-            <!-- Application Benchmarks -->
+        <h3 class="section-title">📦 Application Benchmarks</h3>
+        <div class="cards">
             <a href="reports/redis-report.html" class="card">
                 <div class="card-icon">⚡</div>
                 <h2>Redis</h2>
-                <p>인메모리 데이터베이스 벤치마크. SET/GET 등 주요 명령어의 초당 처리량을 측정하여 캐싱, 세션 저장소 성능을 평가합니다.</p>
+                <p>인메모리 데이터베이스 벤치마크. SET/GET 초당 처리량을 측정하여 캐싱 성능을 평가합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">r8g</span>
+                        <span class="stat-value">r8g 246K/s</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">235K ops/s</span>
+                        <span class="stat-label">가성비</span>
+                        <span class="stat-value">c8g</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -473,15 +489,15 @@
             <a href="reports/nginx-report.html" class="card">
                 <div class="card-icon">🚀</div>
                 <h2>Nginx</h2>
-                <p>웹 서버/리버스 프록시 성능 측정. wrk 부하 테스트로 초당 요청 처리량과 지연 시간을 측정하여 웹 서비스 성능을 평가합니다.</p>
+                <p>웹 서버 성능 측정. wrk 부하 테스트로 초당 요청 처리량과 지연 시간을 측정합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
                         <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">r8g</span>
+                        <span class="stat-value">r8g 266K/s</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">req/sec</span>
+                        <span class="stat-label">가성비</span>
+                        <span class="stat-value">c8g</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -490,15 +506,15 @@
             <a href="reports/springboot-report.html" class="card">
                 <div class="card-icon">☕</div>
                 <h2>Spring Boot</h2>
-                <p>Java/JVM 워크로드 성능 측정. PetClinic 앱의 Cold Start 시간과 HTTP 처리량을 분석하여 서버리스/컨테이너 환경 적합성을 평가합니다.</p>
+                <p>JVM 워크로드 성능 측정. PetClinic Cold Start 시간과 HTTP 처리량을 분석합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
-                        <span class="stat-label">최고 처리량</span>
-                        <span class="stat-value">c7i-flex</span>
+                        <span class="stat-label">Cold Start</span>
+                        <span class="stat-value">c8g 4.29s</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">req/sec</span>
+                        <span class="stat-label">처리량</span>
+                        <span class="stat-value intel">c7i-flex 102K</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
@@ -507,15 +523,15 @@
             <a href="reports/elasticsearch-report.html" class="card">
                 <div class="card-icon">🔍</div>
                 <h2>Elasticsearch</h2>
-                <p>분산 검색 엔진 Cold Start 성능 측정. 노드 시작 시간을 분석하여 클러스터 스케일링, 장애 복구 시나리오에서의 성능을 평가합니다.</p>
+                <p>분산 검색 엔진 성능 측정. Cold Start 시간과 Rally 인덱싱 처리량을 분석합니다.</p>
                 <div class="card-stats">
                     <div class="stat">
-                        <span class="stat-label">최고 성능</span>
-                        <span class="stat-value">c8i-flex</span>
+                        <span class="stat-label">Cold Start</span>
+                        <span class="stat-value">m8g 10.69s</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-label">메트릭</span>
-                        <span class="stat-value">Cold Start (s)</span>
+                        <span class="stat-label">Rally</span>
+                        <span class="stat-value">m8g 76K docs/s</span>
                     </div>
                 </div>
                 <span class="card-arrow">→</span>
