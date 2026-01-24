@@ -109,6 +109,15 @@
             gap: 1.5rem;
         }
 
+        /* Tab Styles for Price-Performance */
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: var(--card); border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: var(--graviton); color: white; border-color: var(--graviton); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+
         .legend-custom {
             display: flex;
             gap: 1.5rem;
@@ -184,6 +193,23 @@
             header h1 { font-size: 1.5rem; }
             .chart-container { height: 300px; }
         }
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .metric-tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .metric-tab .tab-icon { font-size: 1rem; }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -421,17 +447,14 @@
         <!-- 아키텍처별 세대별 통합 차트 (메트릭 선택 가능) -->
         <div class="chart-section">
             <h2>아키텍처별 세대별 성능 비교</h2>
-            <p class="description">Intel/AMD vs Graviton - 메트릭을 선택하여 비교 (최대 2개)</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-reqsec" class="nginx-metric-chk" value="reqsec" checked onchange="updateNginxCombinedChart()">
-                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Requests/sec</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-latency" class="nginx-metric-chk" value="latency" onchange="updateNginxCombinedChart()">
-                    <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Latency (ms)</span>
-                </label>
+            <p class="description">Intel/AMD vs Graviton - 세대별 평균 성능</p>
+            <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="metric-tab active" data-metric="reqsec" onclick="selectNginxMetricTab(this)">
+                    <span class="tab-icon">⚡</span> Requests/sec
+                </button>
+                <button class="metric-tab" data-metric="latency" onclick="selectNginxMetricTab(this)">
+                    <span class="tab-icon">⏱️</span> Latency (ms)
+                </button>
             </div>
             <div class="chart-container" style="height: 500px;">
                 <canvas id="archGenCombinedChart"></canvas>
@@ -530,26 +553,56 @@
             </div>
         </div>
 
-        <!-- 차트 9: 가격 대비 성능 버블 차트 -->
-        <div class="chart-section">
-            <h2>가격 대비 성능 분석</h2>
-            <p class="description">X축: 시간당 비용($), Y축: Requests/sec | 우측 상단이 최적</p>
-            <div class="chart-container tall">
-                <canvas id="pricePerformanceChart"></canvas>
-            </div>
-            <div class="legend-custom">
-                <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
-            </div>
-        </div>
+        <!-- 가격 대비 성능 섹션 (3탭 구조) -->
+        <div class="chart-section" id="price-perf">
+            <h2>가격 대비 성능 (Cost Efficiency)</h2>
+            <p class="description">시간당 비용 대비 Requests/sec - 버블 크기는 성능</p>
 
-        <!-- 차트 10: 가성비 Top 15 -->
-        <div class="chart-section">
-            <h2>가성비 Top 15 (효율성 점수)</h2>
-            <p class="description">효율성 = requests_per_sec / ($/hr x 1000) | 높을수록 좋음</p>
-            <div class="chart-container">
-                <canvas id="costEfficiencyChart"></canvas>
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showNginxPriceTab('bubble')">버블 차트</button>
+                <button class="tab-btn" onclick="showNginxPriceTab('efficiency')">가성비 순위</button>
+                <button class="tab-btn" onclick="showNginxPriceTab('latency')">레이턴시별 가성비</button>
+            </div>
+
+            <div id="price-bubble" class="tab-content active">
+                <div class="chart-container extra-tall">
+                    <canvas id="pricePerformanceChart"></canvas>
+                </div>
+                <div class="legend-custom">
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+                </div>
+            </div>
+
+            <div id="price-efficiency" class="tab-content">
+                <div class="chart-container tall">
+                    <canvas id="costEfficiencyChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-latency" class="tab-content">
+                <div class="grid-3">
+                    <div class="chart-container">
+                        <canvas id="reqsEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="latencyEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="throughputEffChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>가성비 인사이트</h4>
+                <ul>
+                    <li><strong>최고 가성비</strong>: c8g.xlarge (1,698K 효율) - 저렴한 가격 + 최고 성능</li>
+                    <li><strong>Graviton 압도적 우위</strong>: 상위 10개 모두 Graviton</li>
+                    <li><strong>8세대 권장</strong>: c8g, m8g, r8g 모두 가성비 상위</li>
+                    <li><strong>피해야 할 인스턴스</strong>: 5세대 AMD (r5a, r5ad, m5ad)는 가성비 최하위</li>
+                </ul>
             </div>
         </div>
 
@@ -885,17 +938,17 @@
                 label: 'Requests/sec',
                 key: 'reqSec',
                 divisor: 1000,
-                unit: 'K req/sec',
-                colors: { intel: '#3b82f6', amd: '#ef4444', graviton: '#10b981' }
+                unit: 'K req/sec'
             },
             latency: {
                 label: 'Latency',
                 key: 'latency',
-                divisor: 0.1,  // multiply by 10 for display
-                unit: 'ms',
-                colors: { intel: '#93c5fd', amd: '#fca5a5', graviton: '#6ee7b7' }
+                divisor: 1,
+                unit: 'ms'
             }
         };
+        const nginxArchColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+        let currentNginxMetric = 'reqsec';
 
         // 초기 차트 생성
         let nginxCombinedChart = new Chart(document.getElementById('archGenCombinedChart'), {
@@ -929,56 +982,36 @@
         });
 
         function updateNginxCombinedChart() {
-            const checkboxes = document.querySelectorAll('.nginx-metric-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
+            const config = nginxMetricConfig[currentNginxMetric];
+            const archList = ['Intel', 'AMD', 'Graviton'];
 
-            // 최대 2개 선택 제한
-            if (selected.length > 2) {
-                event.target.checked = false;
-                return;
-            }
-
-            // 선택된 메트릭이 없으면 빈 차트
-            if (selected.length === 0) {
-                nginxCombinedChart.data.datasets = [];
-                nginxCombinedChart.options.scales.y.title.text = '메트릭을 선택하세요';
-                nginxCombinedChart.update();
-                return;
-            }
-
-            const datasets = [];
-            const yAxisLabels = [];
-
-            selected.forEach((metricKey, idx) => {
-                const config = nginxMetricConfig[metricKey];
-                const isSecondMetric = idx === 1;
-
-                // 각 아키텍처별 데이터 생성
-                ['Intel', 'AMD', 'Graviton'].forEach(arch => {
-                    const data = [5, 6, 7, 8].map(g => {
-                        const v = calcNginxGenAvg(arch, g, config.key);
-                        if (v === null) return null;
-                        return metricKey === 'latency' ? Math.round(v * 10) : Math.round(v / config.divisor);
-                    });
-
-                    const archKey = arch.toLowerCase();
-                    datasets.push({
-                        label: `${arch} ${config.label}`,
-                        data: data,
-                        backgroundColor: isSecondMetric ? config.colors[archKey] + '99' : config.colors[archKey],
-                        borderColor: config.colors[archKey],
-                        borderWidth: 2,
-                        borderDash: isSecondMetric ? [5, 5] : [],
-                        borderRadius: 4
-                    });
-                });
-
-                yAxisLabels.push(metricKey === 'latency' ? '×10 ms' : 'K req/sec');
-            });
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: [5, 6, 7, 8].map(g => {
+                    if (arch === 'AMD' && g !== 5) return null;
+                    if (arch === 'Graviton' && g < 6) return null;
+                    const v = calcNginxGenAvg(arch, g, config.key);
+                    if (v === null) return null;
+                    return currentNginxMetric === 'reqsec' ? Math.round(v / config.divisor) : parseFloat(v.toFixed(2));
+                }),
+                backgroundColor: nginxArchColors[arch],
+                borderColor: nginxArchColors[arch],
+                borderWidth: 1,
+                borderRadius: 4
+            }));
 
             nginxCombinedChart.data.datasets = datasets;
-            nginxCombinedChart.options.scales.y.title.text = yAxisLabels.join(' / ');
+            nginxCombinedChart.options.scales.y.title.text = `${config.label} (${config.unit})`;
+            nginxCombinedChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${currentNginxMetric === 'reqsec' ? ctx.raw.toLocaleString() + ' K req/sec' : ctx.raw.toFixed(2) + ' ms'}` : null;
             nginxCombinedChart.update();
+        }
+
+        function selectNginxMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentNginxMetric = btn.dataset.metric;
+            updateNginxCombinedChart();
         }
 
         // 초기 차트 렌더링
@@ -1143,6 +1176,14 @@
             }
         });
 
+        // Price tab switching function
+        function showNginxPriceTab(tab) {
+            document.querySelectorAll('#price-perf .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#price-perf .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
         // 차트 10: 가성비 Top 15
         const efficiency = allInstances.map(i => ({ ...i, efficiency: Math.round(i.reqSec / (i.price * 1000)) }))
             .sort((a, b) => b.efficiency - a.efficiency).slice(0, 15);
@@ -1159,10 +1200,82 @@
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, title: { display: true, text: '효율성 점수' } } }
+                scales: { x: { beginAtZero: true, title: { display: true, text: '효율성 (Req/sec / $)' } } }
+            }
+        });
+
+        // Requests/sec Efficiency Chart
+        new Chart(document.getElementById('reqsEffChart'), {
+            type: 'bar',
+            data: {
+                labels: efficiency.slice(0, 15).map(i => i.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Req/sec Efficiency',
+                    data: efficiency.slice(0, 15).map(i => i.efficiency),
+                    backgroundColor: efficiency.slice(0, 15).map(i => colorMap[i.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Req/sec 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Latency-based Efficiency (lower latency = better, so inverse)
+        const latencyEff = allInstances.map(i => ({
+            ...i,
+            latencyMs: parseFloat(i.latency),
+            latencyEff: Math.round(1000 / (parseFloat(i.latency) * i.price))
+        })).sort((a, b) => b.latencyEff - a.latencyEff).slice(0, 15);
+
+        new Chart(document.getElementById('latencyEffChart'), {
+            type: 'bar',
+            data: {
+                labels: latencyEff.map(i => i.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Latency Efficiency',
+                    data: latencyEff.map(i => i.latencyEff),
+                    backgroundColor: latencyEff.map(i => colorMap[i.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Latency 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Throughput Efficiency (Req/sec * 1000 / price)
+        const throughputEff = allInstances.map(i => ({
+            ...i,
+            throughputEff: Math.round(i.reqSec / i.price)
+        })).sort((a, b) => b.throughputEff - a.throughputEff).slice(0, 15);
+
+        new Chart(document.getElementById('throughputEffChart'), {
+            type: 'bar',
+            data: {
+                labels: throughputEff.map(i => i.name.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Throughput Efficiency',
+                    data: throughputEff.map(i => i.throughputEff),
+                    backgroundColor: throughputEff.map(i => colorMap[i.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Throughput 가성비' } },
+                scales: { x: { beginAtZero: true } }
             }
         });
 

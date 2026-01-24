@@ -94,6 +94,38 @@
         .badge-graviton { background: #d1fae5; color: #065f46; }
         .badge-intel { background: #dbeafe; color: #1e40af; }
         .badge-amd { background: #fee2e2; color: #991b1b; }
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .metric-tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .metric-tab .tab-icon { font-size: 1rem; }
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--card);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: var(--intel); color: white; border-color: var(--intel); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .grid-2-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }
         footer {
             text-align: center;
             padding: 2rem;
@@ -214,18 +246,74 @@
             </div>
         </div>
 
-        <div class="insights">
-            <h4>핵심 인사이트</h4>
-            <ul>
-                <li><strong>싱글코어 성능</strong>: Intel 8세대(c8i)가 2,199점으로 1위 - 고주파 작업에 최적</li>
-                <li><strong>멀티코어 성능</strong>: Graviton4(r8g)가 5,843점으로 1위 - Intel 8세대 대비 +17% 우수</li>
-                <li><strong>가성비 최고</strong>: c8g.xlarge가 $0.17/hr 대비 34,141점/$로 가장 효율적</li>
-                <li><strong>세대별 향상</strong>: Intel 5세대→8세대 +98%, Graviton 6세대→8세대 +81%</li>
+        <!-- 목차 -->
+        <div class="toc" style="background: var(--card); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <h2 style="margin-bottom: 1rem;">목차</h2>
+            <ul style="list-style: none; columns: 2; padding: 0;">
+                <li style="margin-bottom: 0.5rem;"><a href="#methodology" style="color: #3b82f6; text-decoration: none;">1. 테스트 방법론</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#multi-core" style="color: #3b82f6; text-decoration: none;">2. 멀티코어 성능</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#single-core" style="color: #3b82f6; text-decoration: none;">3. 싱글코어 성능</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#value" style="color: #3b82f6; text-decoration: none;">4. 가성비 순위</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#arch-gen" style="color: #3b82f6; text-decoration: none;">5. 아키텍처별 세대별 비교</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#gen-trend" style="color: #3b82f6; text-decoration: none;">6. 세대별 성능 추이</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#price-perf" style="color: #3b82f6; text-decoration: none;">7. 가격 대비 성능</a></li>
+                <li style="margin-bottom: 0.5rem;"><a href="#full-results" style="color: #3b82f6; text-decoration: none;">8. 전체 결과</a></li>
             </ul>
         </div>
 
-        <div class="chart-section">
-            <h2>멀티코어 성능 순위 Top 20</h2>
+        <!-- 테스트 방법론 -->
+        <div class="chart-section" id="methodology">
+            <h2>1. 테스트 방법론</h2>
+
+            <div style="background: #f8fafc; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="margin-top: 0; margin-bottom: 1rem;">테스트 환경</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0; width: 200px;"><strong>벤치마크 도구</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Geekbench 6.4.0</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>OS</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Ubuntu 22.04 (Docker image)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>플랫폼</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Amazon EKS (Kubernetes 1.32)</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 프로비저닝</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Karpenter 1.1.0</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 격리</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">podAntiAffinity로 벤치마크당 단일 노드 보장</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>인스턴스 크기</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">xlarge (4 vCPU) - 51개 인스턴스 타입</td></tr>
+                    <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>반복 횟수</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">인스턴스당 5회 실행 후 평균</td></tr>
+                    <tr><td style="padding: 0.5rem;"><strong>리전</strong></td><td style="padding: 0.5rem;">ap-northeast-2 (서울)</td></tr>
+                </table>
+            </div>
+
+            <div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <h3>Geekbench 6 벤치마크</h3>
+                    <p>실제 애플리케이션 시나리오를 기반으로 한 CPU 성능 측정</p>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>싱글코어</strong>: 단일 스레드 성능 (직렬 작업)</li>
+                        <li><strong>멀티코어</strong>: 전체 CPU 활용 (병렬 작업)</li>
+                        <li><strong>워크로드</strong>: 파일 압축, PDF 렌더링, 텍스트 처리, 사진 편집 등</li>
+                        <li><strong>측정 단위</strong>: 점수 (높을수록 좋음)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>왜 Geekbench인가?</h3>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>크로스 플랫폼</strong>: x86 (Intel/AMD)과 ARM (Graviton) 동일 기준 비교</li>
+                        <li><strong>실제 워크로드</strong>: 합성 벤치마크가 아닌 실제 애플리케이션 기반</li>
+                        <li><strong>산업 표준</strong>: Apple, Qualcomm 등 주요 프로세서 비교에 사용</li>
+                        <li><strong>재현 가능</strong>: 표준화된 테스트로 일관된 결과</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h4>핵심 인사이트</h4>
+                <ul>
+                    <li><strong>싱글코어 성능</strong>: Intel 8세대(c8i)가 2,199점으로 1위 - 고주파 작업에 최적</li>
+                    <li><strong>멀티코어 성능</strong>: Graviton4(r8g)가 5,843점으로 1위 - Intel 8세대 대비 +17% 우수</li>
+                    <li><strong>가성비 최고</strong>: c8g.xlarge가 $0.17/hr 대비 34,141점/$로 가장 효율적</li>
+                    <li><strong>세대별 향상</strong>: Intel 5세대→8세대 +98%, Graviton 6세대→8세대 +81%</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="chart-section" id="multi-core">
+            <h2>2. 멀티코어 성능 순위 Top 20</h2>
             <p class="description">Geekbench 6 멀티코어 점수 (5회 평균, 높을수록 좋음)</p>
             <div class="chart-container tall">
                 <canvas id="multiChart"></canvas>
@@ -233,15 +321,15 @@
         </div>
 
         <div class="grid-2">
-            <div class="chart-section">
-                <h2>싱글코어 성능 순위 Top 15</h2>
+            <div class="chart-section" id="single-core">
+                <h2>3. 싱글코어 성능 순위 Top 15</h2>
                 <p class="description">단일 스레드 성능 비교</p>
                 <div class="chart-container">
                     <canvas id="singleChart"></canvas>
                 </div>
             </div>
-            <div class="chart-section">
-                <h2>가성비 순위 Top 15</h2>
+            <div class="chart-section" id="value">
+                <h2>4. 가성비 순위 Top 15</h2>
                 <p class="description">멀티코어 점수 / 시간당 가격</p>
                 <div class="chart-container">
                     <canvas id="valueChart"></canvas>
@@ -249,22 +337,21 @@
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>아키텍처별 세대별 성능 비교</h2>
-            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) - 메트릭을 선택하여 비교 (최대 2개)</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-multi" class="geekbench-metric-chk" value="multi" checked onchange="updateGeekbenchArchChart()">
-                    <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Multi-Core</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="chk-single" class="geekbench-metric-chk" value="single" onchange="updateGeekbenchArchChart()">
-                    <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">Single-Core</span>
-                </label>
+        <div class="chart-section" id="arch-gen">
+            <h2>5. 아키텍처별 세대별 성능 비교</h2>
+            <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대) - 메트릭 선택</p>
+            <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="metric-tab active" data-metric="multi" onclick="selectGeekbenchMetricTab(this)">
+                    <span class="tab-icon">🚀</span> Multi-Core
+                </button>
+                <button class="metric-tab" data-metric="single" onclick="selectGeekbenchMetricTab(this)">
+                    <span class="tab-icon">⚡</span> Single-Core
+                </button>
             </div>
-            <div class="chart-container" style="height: 450px;">
-                <canvas id="archChart"></canvas>
+            <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
+                <div style="height: 400px; position: relative;">
+                    <canvas id="archChart"></canvas>
+                </div>
             </div>
             <div class="insights" style="margin-top: 1rem;">
                 <h4>세대별 성능 향상률</h4>
@@ -278,24 +365,73 @@
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>세대별 성능 추이 (패밀리별)</h2>
-            <p class="description">같은 패밀리 내 세대별 멀티코어 점수 변화</p>
+        <div class="chart-section" id="gen-trend">
+            <h2>6. 세대별 성능 추이</h2>
+            <p class="description">세대별 멀티코어 점수 변화</p>
+            <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="metric-tab active" data-view="family" onclick="selectGenTrendView(this)">
+                    <span class="tab-icon">📦</span> 패밀리별 (C/M/R)
+                </button>
+                <button class="metric-tab" data-view="arch" onclick="selectGenTrendView(this)">
+                    <span class="tab-icon">🏛️</span> 아키텍처별 (Intel/Graviton)
+                </button>
+            </div>
             <div class="chart-container">
                 <canvas id="genChart"></canvas>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>가격 대비 성능 분포</h2>
-            <p class="description">X축: 시간당 가격, Y축: 멀티코어 점수, 크기: 가성비</p>
-            <div class="chart-container tall">
-                <canvas id="bubbleChart"></canvas>
+        <div class="chart-section" id="price-perf">
+            <h2>7. 가격 대비 성능 (Cost Efficiency)</h2>
+            <p class="description">시간당 비용 대비 성능 분석</p>
+
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showGeekbenchPriceTab('bubble')">버블 차트</button>
+                <button class="tab-btn" onclick="showGeekbenchPriceTab('efficiency')">가성비 순위</button>
+                <button class="tab-btn" onclick="showGeekbenchPriceTab('metric')">메트릭별 가성비</button>
+            </div>
+
+            <div id="price-bubble-tab" class="tab-content active">
+                <p class="description" style="margin-bottom: 1rem;">X축: 시간당 가격, Y축: 멀티코어 점수, 버블 크기: 가성비</p>
+                <div class="chart-container extra-tall" style="height: 600px;">
+                    <canvas id="bubbleChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-efficiency-tab" class="tab-content">
+                <p class="description" style="margin-bottom: 1rem;">멀티코어 점수 / 시간당 가격 (높을수록 좋음)</p>
+                <div class="chart-container tall">
+                    <canvas id="efficiencyChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-metric-tab" class="tab-content">
+                <p class="description" style="margin-bottom: 1rem;">싱글코어 vs 멀티코어 가성비 비교</p>
+                <div class="grid-2-charts">
+                    <div class="chart-container" style="height: 400px;">
+                        <div style="text-align: center; font-weight: 600; margin-bottom: 0.5rem;">싱글코어 가성비 Top 15</div>
+                        <canvas id="singleEffChart"></canvas>
+                    </div>
+                    <div class="chart-container" style="height: 400px;">
+                        <div style="text-align: center; font-weight: 600; margin-bottom: 0.5rem;">멀티코어 가성비 Top 15</div>
+                        <canvas id="multiEffChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights" style="margin-top: 1rem;">
+                <h4>가성비 인사이트</h4>
+                <ul>
+                    <li><strong>최고 가성비</strong>: c8g.xlarge (34,141 점/$) - 저렴한 가격 + 높은 멀티코어 성능</li>
+                    <li><strong>Graviton 전체 우위</strong>: 가성비 상위 10개 중 8개가 Graviton</li>
+                    <li><strong>싱글코어 가성비</strong>: c7i-flex가 Intel 중 최고 - burst 성능 활용</li>
+                    <li><strong>권장</strong>: 비용 최적화 시 Graviton4(c8g, m8g), 싱글스레드 워크로드는 c7i-flex</li>
+                </ul>
             </div>
         </div>
 
-        <div class="chart-section">
-            <h2>전체 결과 테이블</h2>
+        <div class="chart-section" id="full-results">
+            <h2>8. 전체 결과 테이블</h2>
             <p class="description">각 인스턴스별 5회 측정 평균값</p>
             <div class="filter-bar">
                 <input type="text" id="searchInput" placeholder="인스턴스 검색..." onkeyup="filterTable()">
@@ -475,8 +611,8 @@
         };
 
         const geekbenchArchSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
-        const geekbenchArchLightColors = { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' };
         const geekbenchGenerations = [5, 6, 7, 8];
+        let currentGeekbenchMetric = 'multi';
 
         let geekbenchArchChart = new Chart(document.getElementById('archChart'), {
             type: 'bar',
@@ -514,61 +650,58 @@
         });
 
         function updateGeekbenchArchChart() {
-            const checkboxes = document.querySelectorAll('.geekbench-metric-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
-
-            // 최대 2개로 제한
-            if (selected.length > 2) {
-                event.target.checked = false;
-                return;
-            }
-
-            const datasets = [];
+            const cfg = geekbenchMetricConfig[currentGeekbenchMetric];
             const archList = ['Intel', 'AMD', 'Graviton'];
 
-            selected.forEach((metricKey, idx) => {
-                const cfg = geekbenchMetricConfig[metricKey];
-                const isSecondary = idx === 1;
-
-                archList.forEach(arch => {
-                    datasets.push({
-                        label: `${arch} ${cfg.label}`,
-                        data: geekbenchGenerations.map(g => {
-                            if (arch === 'AMD' && g !== 5) return null;
-                            if (arch === 'Graviton' && g < 6) return null;
-                            return calcArchGenAvg(arch, g, cfg.key);
-                        }),
-                        backgroundColor: isSecondary ? geekbenchArchLightColors[arch] : geekbenchArchSolidColors[arch],
-                        borderColor: geekbenchArchSolidColors[arch],
-                        borderWidth: isSecondary ? 2 : 1,
-                        borderDash: isSecondary ? [5, 5] : []
-                    });
-                });
-            });
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: geekbenchGenerations.map(g => {
+                    if (arch === 'AMD' && g !== 5) return null;
+                    if (arch === 'Graviton' && g < 6) return null;
+                    return calcArchGenAvg(arch, g, cfg.key);
+                }),
+                backgroundColor: geekbenchArchSolidColors[arch],
+                borderColor: geekbenchArchSolidColors[arch],
+                borderWidth: 1
+            }));
 
             geekbenchArchChart.data.datasets = datasets;
+            geekbenchArchChart.options.scales.y.title.text = `${cfg.label} Score`;
             geekbenchArchChart.update();
+        }
+
+        function selectGeekbenchMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentGeekbenchMetric = btn.dataset.metric;
+            updateGeekbenchArchChart();
         }
 
         // 초기 렌더링
         updateGeekbenchArchChart();
 
-        // Generation trend by family
+        // Generation trend by family or architecture
         function calcFamilyGenAvg(family, gen) {
             const filtered = data.filter(d => d.family === family && d.gen === gen);
             if (filtered.length === 0) return null;
             return Math.round(filtered.reduce((sum, d) => sum + d.multi, 0) / filtered.length);
         }
 
-        new Chart(document.getElementById('genChart'), {
+        function calcArchGenAvgMulti(arch, gen) {
+            const filtered = data.filter(d => d.arch === arch && d.gen === gen);
+            if (filtered.length === 0) return null;
+            return Math.round(filtered.reduce((sum, d) => sum + d.multi, 0) / filtered.length);
+        }
+
+        const familyColors = { C: '#3b82f6', M: '#10b981', R: '#ef4444' };
+        const archLineColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
+        let currentGenTrendView = 'family';
+
+        let genTrendChart = new Chart(document.getElementById('genChart'), {
             type: 'line',
             data: {
                 labels: ['5세대', '6세대', '7세대', '8세대'],
-                datasets: [
-                    { label: 'C (Compute)', data: [calcFamilyGenAvg('C', 5), calcFamilyGenAvg('C', 6), calcFamilyGenAvg('C', 7), calcFamilyGenAvg('C', 8)], borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.1, spanGaps: true },
-                    { label: 'M (General)', data: [calcFamilyGenAvg('M', 5), calcFamilyGenAvg('M', 6), calcFamilyGenAvg('M', 7), calcFamilyGenAvg('M', 8)], borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.1, spanGaps: true },
-                    { label: 'R (Memory)', data: [calcFamilyGenAvg('R', 5), calcFamilyGenAvg('R', 6), calcFamilyGenAvg('R', 7), calcFamilyGenAvg('R', 8)], borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.1, spanGaps: true }
-                ]
+                datasets: []
             },
             options: {
                 responsive: true,
@@ -577,6 +710,45 @@
                 scales: { y: { beginAtZero: false, title: { display: true, text: 'Multi-Core Score' } } }
             }
         });
+
+        function updateGenTrendChart() {
+            let datasets;
+            if (currentGenTrendView === 'family') {
+                datasets = ['C', 'M', 'R'].map(f => ({
+                    label: f === 'C' ? 'C (Compute)' : f === 'M' ? 'M (General)' : 'R (Memory)',
+                    data: [5, 6, 7, 8].map(g => calcFamilyGenAvg(f, g)),
+                    borderColor: familyColors[f],
+                    backgroundColor: familyColors[f],
+                    tension: 0.1,
+                    spanGaps: true
+                }));
+            } else {
+                datasets = ['Intel', 'AMD', 'Graviton'].map(arch => ({
+                    label: arch,
+                    data: [5, 6, 7, 8].map(g => {
+                        if (arch === 'AMD' && g !== 5) return null;
+                        if (arch === 'Graviton' && g < 6) return null;
+                        return calcArchGenAvgMulti(arch, g);
+                    }),
+                    borderColor: archLineColors[arch],
+                    backgroundColor: archLineColors[arch],
+                    tension: 0.1,
+                    spanGaps: true
+                }));
+            }
+            genTrendChart.data.datasets = datasets;
+            genTrendChart.update();
+        }
+
+        function selectGenTrendView(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentGenTrendView = btn.dataset.view;
+            updateGenTrendChart();
+        }
+
+        // 초기 렌더링
+        updateGenTrendChart();
 
         // Bubble chart (Price vs Performance)
         new Chart(document.getElementById('bubbleChart'), {
@@ -618,6 +790,89 @@
                     x: { title: { display: true, text: 'Price ($/hour)' } },
                     y: { title: { display: true, text: 'Multi-Core Score' } }
                 }
+            }
+        });
+
+        // Tab switching for price-performance
+        function showGeekbenchPriceTab(tab) {
+            document.querySelectorAll('#price-perf .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#price-perf .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Efficiency Chart (Top 20 by value)
+        const effTop20 = [...data].sort((a, b) => b.value - a.value).slice(0, 20);
+        new Chart(document.getElementById('efficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: effTop20.map(d => d.instance),
+                datasets: [{
+                    label: '가성비 (점수/$/hr)',
+                    data: effTop20.map(d => d.value),
+                    backgroundColor: effTop20.map(d => d.arch === 'Graviton' ? 'rgba(16, 185, 129, 0.7)' : d.arch === 'Intel' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.raw.toLocaleString()} 점/$`
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: '가성비 (멀티코어 점수 / $/hr)' } }
+                }
+            }
+        });
+
+        // Single-core efficiency chart
+        const singleEff = [...data].map(d => ({...d, singleEff: d.single / d.price})).sort((a, b) => b.singleEff - a.singleEff).slice(0, 15);
+        new Chart(document.getElementById('singleEffChart'), {
+            type: 'bar',
+            data: {
+                labels: singleEff.map(d => d.instance),
+                datasets: [{
+                    label: '싱글코어 가성비',
+                    data: singleEff.map(d => Math.round(d.singleEff)),
+                    backgroundColor: singleEff.map(d => d.arch === 'Graviton' ? 'rgba(16, 185, 129, 0.7)' : d.arch === 'Intel' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: '싱글코어 점수 / $/hr' } } }
+            }
+        });
+
+        // Multi-core efficiency chart
+        const multiEff = [...data].sort((a, b) => b.value - a.value).slice(0, 15);
+        new Chart(document.getElementById('multiEffChart'), {
+            type: 'bar',
+            data: {
+                labels: multiEff.map(d => d.instance),
+                datasets: [{
+                    label: '멀티코어 가성비',
+                    data: multiEff.map(d => d.value),
+                    backgroundColor: multiEff.map(d => d.arch === 'Graviton' ? 'rgba(16, 185, 129, 0.7)' : d.arch === 'Intel' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { title: { display: true, text: '멀티코어 점수 / $/hr' } } }
             }
         });
 

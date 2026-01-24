@@ -99,6 +99,16 @@
         .chart-container.tall { height: 500px; }
         .chart-container.extra-tall { height: 800px; }
 
+        /* Tab Styles for Price-Performance */
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: var(--card); border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+
         .grid-2 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
@@ -313,6 +323,23 @@
             header h1 { font-size: 1.75rem; }
             .grid-2 { grid-template-columns: 1fr; }
         }
+        .metric-tab {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .metric-tab:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .metric-tab.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .metric-tab .tab-icon { font-size: 1rem; }
         /* Navbar Styles */
         .navbar {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -601,17 +628,14 @@
             <!-- 아키텍처별 세대별 통합 차트 (메트릭 선택 가능) -->
             <div class="chart-section">
                 <h2>아키텍처별 세대별 성능 비교</h2>
-                <p class="description">세대별 TCP 대역폭 (Gbps) - 메트릭을 선택하여 비교 (최대 2개)</p>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                    <span style="font-weight: 600; margin-right: 0.5rem;">메트릭 선택:</span>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-parallel" class="iperf-metric-chk" value="parallel" checked onchange="updateIperfCombinedChart()">
-                        <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">TCP Parallel</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                        <input type="checkbox" id="chk-single" class="iperf-metric-chk" value="single" onchange="updateIperfCombinedChart()">
-                        <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">TCP Single</span>
-                    </label>
+                <p class="description">세대별 TCP 대역폭 (Gbps)</p>
+                <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="metric-tab active" data-metric="parallel" onclick="selectIperfMetricTab(this)">
+                        <span class="tab-icon">📡</span> TCP Parallel
+                    </button>
+                    <button class="metric-tab" data-metric="single" onclick="selectIperfMetricTab(this)">
+                        <span class="tab-icon">🔗</span> TCP Single
+                    </button>
                 </div>
                 <div class="chart-container">
                     <canvas id="archGenCombinedChart"></canvas>
@@ -635,21 +659,40 @@
             </div>
         </div>
 
-        <!-- 가격 대비 성능 -->
-        <div id="price-performance">
-            <div class="chart-section">
-                <h2>4. 가격 대비 성능 분석</h2>
-                <p class="description">X축: 시간당 비용 ($/hr), Y축: TCP 병렬 대역폭 (Gbps) - 좌상단이 가성비 우수</p>
-                <div class="chart-container tall">
+        <!-- 가격 대비 성능 (3탭 구조) -->
+        <div class="chart-section" id="price-performance">
+            <h2>4. 가격 대비 성능 (Cost Efficiency)</h2>
+            <p class="description">시간당 비용 대비 네트워크 대역폭 - 버블 크기는 성능</p>
+
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showIperf3PriceTab('bubble')">버블 차트</button>
+                <button class="tab-btn" onclick="showIperf3PriceTab('efficiency')">가성비 순위</button>
+                <button class="tab-btn" onclick="showIperf3PriceTab('metric')">프로토콜별 가성비</button>
+            </div>
+
+            <div id="price-bubble" class="tab-content active">
+                <div class="chart-container extra-tall">
                     <canvas id="pricePerformanceChart"></canvas>
                 </div>
             </div>
 
-            <div class="chart-section">
-                <h2>가성비 Top 15 (TCP 병렬 대역폭 / 시간당 비용)</h2>
-                <p class="description">단위 비용당 네트워크 대역폭 (Gbps / $/hr)</p>
+            <div id="price-efficiency" class="tab-content">
                 <div class="chart-container tall">
                     <canvas id="efficiencyChart"></canvas>
+                </div>
+            </div>
+
+            <div id="price-metric" class="tab-content">
+                <div class="grid-3">
+                    <div class="chart-container">
+                        <canvas id="tcpEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="udpEffChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="parallelEffChart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -1040,8 +1083,8 @@
         };
 
         const archSolidColors = { Intel: '#3b82f6', AMD: '#ef4444', Graviton: '#10b981' };
-        const archLightColors = { Intel: '#93c5fd', AMD: '#fca5a5', Graviton: '#6ee7b7' };
         const generations = [5, 6, 7, 8];
+        let currentIperfMetric = 'parallel';
 
         let iperfCombinedChart = new Chart(document.getElementById('archGenCombinedChart'), {
             type: 'bar',
@@ -1072,43 +1115,35 @@
         });
 
         function updateIperfCombinedChart() {
-            const checkboxes = document.querySelectorAll('.iperf-metric-chk:checked');
-            const selected = Array.from(checkboxes).map(cb => cb.value);
-
-            // 최대 2개로 제한
-            if (selected.length > 2) {
-                event.target.checked = false;
-                return;
-            }
-
-            const datasets = [];
+            const cfg = iperfMetricConfig[currentIperfMetric];
             const archList = ['Intel', 'AMD', 'Graviton'];
 
-            selected.forEach((metricKey, idx) => {
-                const cfg = iperfMetricConfig[metricKey];
-                const isSecondary = idx === 1;
-
-                archList.forEach(arch => {
-                    datasets.push({
-                        label: `${arch} ${cfg.label}`,
-                        data: generations.map(g => {
-                            if (arch === 'AMD' && g !== 5) return null;
-                            if (arch === 'Graviton' && g < 6) return null;
-                            const v = calcIperfGenAvg(arch, g, cfg.key);
-                            return v ? +v.toFixed(2) : null;
-                        }),
-                        backgroundColor: isSecondary ? archLightColors[arch] : archSolidColors[arch],
-                        borderColor: archSolidColors[arch],
-                        borderWidth: isSecondary ? 2 : 1,
-                        borderDash: isSecondary ? [5, 5] : [],
-                        borderRadius: 4
-                    });
-                });
-            });
+            const datasets = archList.map(arch => ({
+                label: arch,
+                data: generations.map(g => {
+                    if (arch === 'AMD' && g !== 5) return null;
+                    if (arch === 'Graviton' && g < 6) return null;
+                    const v = calcIperfGenAvg(arch, g, cfg.key);
+                    return v ? +v.toFixed(2) : null;
+                }),
+                backgroundColor: archSolidColors[arch],
+                borderColor: archSolidColors[arch],
+                borderWidth: 1,
+                borderRadius: 4
+            }));
 
             iperfCombinedChart.data.datasets = datasets;
-            iperfCombinedChart.options.scales.y.title.text = selected.map(m => iperfMetricConfig[m].unit).join(' / ');
+            iperfCombinedChart.options.scales.y.title.text = `${cfg.label} (${cfg.unit})`;
+            iperfCombinedChart.options.plugins.tooltip.callbacks.label = ctx =>
+                ctx.raw ? `${ctx.dataset.label}: ${ctx.raw.toFixed(2)} ${cfg.unit}` : null;
             iperfCombinedChart.update();
+        }
+
+        function selectIperfMetricTab(btn) {
+            btn.parentElement.querySelectorAll('.metric-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentIperfMetric = btn.dataset.metric;
+            updateIperfCombinedChart();
         }
 
         // 초기 렌더링
@@ -1257,6 +1292,14 @@
         });
 
         // Efficiency chart
+        // Price tab switching function
+        function showIperf3PriceTab(tab) {
+            document.querySelectorAll('#price-performance .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#price-performance .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('price-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
         const efficiencyData = [...data]
             .filter(d => d.price > 0)
             .sort((a, b) => parseFloat(b.efficiency) - parseFloat(a.efficiency))
@@ -1288,6 +1331,78 @@
                     }
                 },
                 scales: { x: { title: { display: true, text: 'Gbps / $/hr' } } }
+            }
+        });
+
+        // TCP Single Efficiency Chart
+        const tcpSingleEff = [...data].filter(d => d.price > 0)
+            .map(d => ({ ...d, eff: Math.round(d.single / d.price * 100) / 100 }))
+            .sort((a, b) => b.eff - a.eff).slice(0, 15);
+
+        new Chart(document.getElementById('tcpEffChart'), {
+            type: 'bar',
+            data: {
+                labels: tcpSingleEff.map(d => d.instance.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'TCP Single / $/hr',
+                    data: tcpSingleEff.map(d => d.eff),
+                    backgroundColor: tcpSingleEff.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'TCP Single 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // UDP Efficiency Chart
+        const udpEff = [...data].filter(d => d.price > 0 && d.udp > 0)
+            .map(d => ({ ...d, eff: Math.round(d.udp / d.price * 100) / 100 }))
+            .sort((a, b) => b.eff - a.eff).slice(0, 15);
+
+        new Chart(document.getElementById('udpEffChart'), {
+            type: 'bar',
+            data: {
+                labels: udpEff.map(d => d.instance.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'UDP / $/hr',
+                    data: udpEff.map(d => d.eff),
+                    backgroundColor: udpEff.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'UDP 가성비' } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // TCP Parallel Efficiency Chart
+        const parallelEff = [...data].filter(d => d.price > 0)
+            .map(d => ({ ...d, eff: Math.round(d.parallel / d.price * 100) / 100 }))
+            .sort((a, b) => b.eff - a.eff).slice(0, 15);
+
+        new Chart(document.getElementById('parallelEffChart'), {
+            type: 'bar',
+            data: {
+                labels: parallelEff.map(d => d.instance.replace('.xlarge', '')),
+                datasets: [{
+                    label: 'Parallel / $/hr',
+                    data: parallelEff.map(d => d.eff),
+                    backgroundColor: parallelEff.map(d => colors[d.arch])
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'TCP Parallel 가성비' } },
+                scales: { x: { beginAtZero: true } }
             }
         });
 
