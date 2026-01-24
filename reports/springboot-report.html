@@ -35,10 +35,10 @@
         .section { background: var(--card); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .section h2 { font-size: 1.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); }
 
-        .chart-container { height: 450px; margin: 2rem 0; position: relative; padding: 1rem; background: #fafbfc; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
-        .chart-container.tall { height: 550px; }
-        .chart-container.extra-tall { height: 700px; }
-        .chart-container canvas { max-height: calc(100% - 2rem); }
+        .chart-container { height: 450px; margin: 2rem 0; position: relative; padding: 1rem; background: #fafbfc; border-radius: 0.75rem; border: 1px solid #e2e8f0; overflow: hidden; }
+        .chart-container.tall { height: 600px; }
+        .chart-container.extra-tall { height: 750px; }
+        .chart-container canvas { max-height: 100% !important; height: auto !important; }
         .chart-title { text-align: center; font-weight: 600; margin-bottom: 1rem; color: var(--text); font-size: 1.1rem; }
 
         .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; }
@@ -334,7 +334,7 @@
             <p style="color: var(--muted); margin-bottom: 1rem;">5세대: Intel + AMD | 6~8세대: Intel + Graviton</p>
 
             <!-- 아키텍처별 세대별 통합 차트 (메트릭 선택 가능) -->
-            <div class="chart-container tall" style="margin-bottom: 2rem;">
+            <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
                 <div class="chart-title">아키텍처별 세대별 성능 비교</div>
                 <div class="metric-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
                     <button class="metric-tab active" data-metric="reqsec" onclick="selectMetricTab(this)">
@@ -347,12 +347,16 @@
                         <span class="tab-icon">🚀</span> Cold Start
                     </button>
                 </div>
-                <canvas id="archGenCombinedChart"></canvas>
+                <div style="height: 450px; position: relative;">
+                    <canvas id="archGenCombinedChart"></canvas>
+                </div>
             </div>
 
-            <div class="chart-container extra-tall">
+            <div class="chart-container" style="height: auto; margin-bottom: 2rem;">
                 <div class="chart-title">세대별 wrk Throughput 평균 (200 conn, 아키텍처 구분)</div>
-                <canvas id="genArchWrkChart"></canvas>
+                <div style="height: 500px; position: relative;">
+                    <canvas id="genArchWrkChart"></canvas>
+                </div>
             </div>
 
             <div class="grid-2" style="margin-top: 2rem;">
