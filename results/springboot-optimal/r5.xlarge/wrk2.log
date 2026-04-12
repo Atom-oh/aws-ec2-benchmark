@@ -1,0 +1,53 @@
+===== Spring Boot Benchmark (wrk) =====
+Instance Type: r5.xlarge
+Spring Boot Host: springboot-server-r5-xlarge
+
+--- Warm-up Phase (30s) ---
+Warm-up complete
+
+--- Main Page - 2 threads, 50 connections, 60s ---
+Running 1m test @ http://springboot-server-r5-xlarge:8080/
+  2 threads and 50 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.73ms  757.87us  32.23ms   90.80%
+    Req/Sec    14.67k     1.98k   30.33k    66.03%
+  Latency Distribution
+     50%    1.63ms
+     75%    1.88ms
+     90%    2.28ms
+     99%    3.97ms
+  1753185 requests in 1.00m, 234.39MB read
+Requests/sec:  29171.33
+Transfer/sec:      3.90MB
+
+--- Main Page - 2 threads, 100 connections, 60s ---
+Running 1m test @ http://springboot-server-r5-xlarge:8080/
+  2 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.90ms  796.45us  43.37ms   80.39%
+    Req/Sec    17.30k     0.86k   19.34k    74.83%
+  Latency Distribution
+     50%    2.81ms
+     75%    3.18ms
+     90%    3.73ms
+     99%    5.25ms
+  2065423 requests in 1.00m, 276.14MB read
+Requests/sec:  34374.19
+Transfer/sec:      4.60MB
+
+--- High Load - 2 threads, 200 connections, 30s ---
+Running 30s test @ http://springboot-server-r5-xlarge:8080/
+  2 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     5.89ms    1.64ms  48.52ms   78.26%
+    Req/Sec    17.09k   769.88    18.69k    76.09%
+  Latency Distribution
+     50%    5.72ms
+     75%    6.49ms
+     90%    7.73ms
+     99%   10.73ms
+  1017083 requests in 30.01s, 135.98MB read
+Requests/sec:  33889.70
+Transfer/sec:      4.53MB
+
+===== Spring Boot Benchmark Complete =====

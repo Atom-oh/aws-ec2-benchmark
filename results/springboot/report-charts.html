@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Spring Boot Benchmark Report</title>
+    <title>Spring Boot wrk Benchmark Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -17,13 +17,13 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
         .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%); color: white; padding: 40px; border-radius: 1rem; margin-bottom: 30px; text-align: center; }
+        .header { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%); color: white; padding: 40px; border-radius: 1rem; margin-bottom: 30px; text-align: center; }
         .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
         .header p { opacity: 0.9; font-size: 1.1rem; }
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .summary-card { background: var(--card); padding: 24px; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .summary-card h3 { color: var(--muted); font-size: 0.875rem; text-transform: uppercase; margin-bottom: 8px; }
-        .summary-card .value { font-size: 2rem; font-weight: 700; }
+        .summary-card .value { font-size: 1.8rem; font-weight: 700; }
         .summary-card .detail { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
         .badge-graviton { background: #d1fae5; color: #065f46; }
@@ -33,1034 +33,1384 @@
         .card h2 { font-size: 1.25rem; margin-bottom: 16px; color: var(--text); }
         .chart-container { height: 400px; }
         .chart-container.tall { height: 600px; }
-        .chart-container.extra-tall { height: 900px; }
+        .chart-container.extra-tall { height: 1100px; }
         .insights { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 16px 0; }
         .insights h4 { color: #92400e; margin-bottom: 8px; }
         .insights ul { margin-left: 20px; color: #78350f; }
+        .insights li { margin-bottom: 4px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f1f5f9; font-weight: 600; position: sticky; top: 0; cursor: pointer; }
+        th { background: #f1f5f9; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
         th:hover { background: #e2e8f0; }
         tr:hover { background: #f8fafc; }
         .num { text-align: right; font-family: 'SF Mono', Monaco, monospace; }
         .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-        .filter-btn { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer; font-size: 0.875rem; }
+        .filter-btn { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
         .filter-btn.active { background: var(--intel); color: white; border-color: var(--intel); }
         .filter-btn.graviton.active { background: var(--graviton); border-color: var(--graviton); }
         .filter-btn.amd.active { background: var(--amd); border-color: var(--amd); }
         .search { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; width: 200px; }
         .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
         @media (max-width: 1200px) { .grid-2 { grid-template-columns: 1fr; } }
+        .tab-container { margin-bottom: 16px; }
+        .tab-buttons { display: flex; gap: 4px; margin-bottom: 16px; }
+        .tab-btn { padding: 8px 20px; border: 1px solid #e2e8f0; border-radius: 6px 6px 0 0; background: #f1f5f9; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; }
+        .tab-btn.active { background: var(--intel); color: white; border-color: var(--intel); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .methodology { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.75rem; padding: 20px; margin-bottom: 24px; }
+        .methodology h3 { color: #166534; margin-bottom: 12px; }
+        .methodology table { font-size: 0.85rem; }
+        .methodology td, .methodology th { padding: 8px 12px; }
+        .toc { background: var(--card); border-radius: 1rem; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .toc h2 { font-size: 1.25rem; margin-bottom: 16px; }
+        .toc ul { list-style: none; padding-left: 0; }
+        .toc li { padding: 6px 0; }
+        .toc a { color: var(--intel); text-decoration: none; font-weight: 500; }
+        .toc a:hover { text-decoration: underline; }
+        .gen-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0; }
+        .gen-card { background: #f8fafc; border-radius: 0.75rem; padding: 16px; text-align: center; border: 1px solid #e2e8f0; }
+        .gen-card .gen-title { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+        .gen-card .gen-value { font-size: 1.5rem; font-weight: 700; margin: 4px 0; }
+        .gen-card .gen-gap { font-size: 0.85rem; }
+        .positive { color: #059669; }
+        .negative { color: #dc2626; }
         .footer { text-align: center; padding: 40px; color: var(--muted); }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Spring Boot Benchmark Report</h1>
-            <p>51 EC2 Instance Types (5th~8th Gen) | PetClinic Coldstart + wrk HTTP Throughput</p>
-            <p style="margin-top: 10px; opacity: 0.8;">ap-northeast-2 (Seoul) | 2026-01-20</p>
-        </div>
+<div class="container">
 
-        <div class="summary-grid">
-            <div class="summary-card">
-                <h3>Best HTTP Throughput</h3>
-                <div class="value" style="color: var(--intel);">c7i-flex.xlarge</div>
-                <div class="detail">94,639 req/s (100 connections) <span class="badge badge-intel">Intel 7th</span></div>
-            </div>
-            <div class="summary-card">
-                <h3>Fastest Cold Start</h3>
-                <div class="value" style="color: var(--graviton);">c8g.xlarge</div>
-                <div class="detail">4.293 seconds <span class="badge badge-graviton">Graviton4</span></div>
-            </div>
-            <div class="summary-card">
-                <h3>Best Price/Performance</h3>
-                <div class="value" style="color: var(--graviton);">c7i-flex.xlarge</div>
-                <div class="detail">490,356 req/s per $/hr</div>
-            </div>
-            <div class="summary-card">
-                <h3>Architecture Comparison</h3>
-                <div class="detail" style="margin-top: 8px;">
-                    <div><span class="badge badge-graviton">Graviton</span> Avg: 40,861 req/s | 6.27s coldstart</div>
-                    <div style="margin-top: 4px;"><span class="badge badge-intel">Intel</span> Avg: 53,396 req/s | 6.34s coldstart</div>
-                </div>
-            </div>
-        </div>
 
+    <div class="header">
+        <h1>Spring Boot wrk HTTP Throughput Report</h1>
+        <p>51 EC2 Instance Types (5th~8th Gen) | 4 vCPU xlarge | JVM Tuning Applied</p>
+        <p style="margin-top: 10px; opacity: 0.8;">ap-northeast-2 (Seoul) | 2026-04 | 5 Runs Median | <a href="https://github.com/spring-projects/spring-petclinic" style="color: #bfdbfe;">spring-petclinic</a> (coldstart) + spring-boot-simple (wrk)</p>
+    </div>
+
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <h3>Best Throughput (100 conn)</h3>
+            <div class="value" style="color: #3b82f6;">c7i-flex.xlarge</div>
+            <div class="detail">96,573 req/s <span class="badge badge-intel">Intel</span></div>
+        </div>
+        <div class="summary-card">
+            <h3>Best Price-Performance</h3>
+            <div class="value" style="color: #3b82f6;">c7i-flex.xlarge</div>
+            <div class="detail">500,381 req/s per $/hr <span class="badge badge-intel">Intel</span></div>
+        </div>
+        <div class="summary-card">
+            <h3>Fastest Cold Start</h3>
+            <div class="value" style="color: #10b981;">c8g.xlarge</div>
+            <div class="detail">4.016s <span class="badge badge-graviton">Graviton</span></div>
+        </div>
+        <div class="summary-card">
+            <h3>Architecture Average (100 conn)</h3>
+            <div class="value" style="font-size: 1.2rem;">
+                <span style="color: var(--intel);">Intel 53,537</span> vs
+                <span style="color: var(--graviton);">Graviton 44,041</span>
+            </div>
+            <div class="detail">Intel avg +21.6% vs Graviton</div>
+        </div>
+    </div>
+
+
+    <div class="toc">
+        <h2>Contents</h2>
+        <ul>
+            <li><a href="#methodology">1. Test Methodology</a></li>
+            <li><a href="#top20">2. Top 20 Throughput Ranking</a></li>
+            <li><a href="#generation">3. Generation & Architecture Analysis</a></li>
+            <li><a href="#price-perf">4. Price-Performance Analysis</a></li>
+            <li><a href="#coldstart">5. Cold Start Performance</a></li>
+            <li><a href="#full-table">6. Full Results Table</a></li>
+        </ul>
+    </div>
+
+
+    <div class="methodology" id="methodology">
+        <h3>1. Test Methodology</h3>
+        <p><strong>Application</strong>: Spring Boot 3.2 + Java 21 minimal REST API (spring-boot-simple) for throughput, Spring PetClinic for cold start.</p>
+        <p><strong>Load Tool</strong>: wrk (2 threads) — 30s warm-up, then 3 phases: 50 conn (60s), 100 conn (60s), 200 conn (30s). Each instance measured 5 times, median reported.</p>
+        <p><strong>JVM Tuning</strong>: <code>-XX:MaxRAMPercentage=60.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100</code></p>
+        <table>
+            <tr>
+                <th>Architecture</th>
+                <th>TieredCompilation</th>
+                <th>JIT Strategy</th>
+                <th>Rationale</th>
+            </tr>
+            <tr>
+                <td><span class="badge badge-intel">Intel</span> <span class="badge badge-amd">AMD</span></td>
+                <td>ON (default)</td>
+                <td>C1 → C2 (staged compilation)</td>
+                <td>x86 JIT는 C1+C2 조합이 최적. C1으로 빠르게 워밍업 후 C2가 최종 최적화.</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-graviton">Graviton</span></td>
+                <td>OFF (<code>-XX:-TieredCompilation</code>)</td>
+                <td>C2 only (direct optimization)</td>
+                <td>ARM C2 컴파일러가 생성하는 네이티브 코드가 C1 없이 직접 실행 시 더 효율적. 30s warm-up이 C2 지연을 상쇄.</td>
+            </tr>
+        </table>
+        <p style="margin-top: 12px; font-size: 0.85rem; color: #166534;">
+            <strong>Note</strong>: c7i-flex.xlarge는 클러스터 AZ 제약으로 C2 only 결과를 사용합니다 (C1+C2 대비 소폭 차이 예상).
+        </p>
+    </div>
+
+
+    <div class="card" id="top20">
+        <h2>2. Top 20 Throughput Ranking</h2>
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTop20Tab(0)">100 Connections</button>
+            <button class="tab-btn" onclick="switchTop20Tab(1)">50 Connections</button>
+            <button class="tab-btn" onclick="switchTop20Tab(2)">200 Connections</button>
+        </div>
+        <div class="chart-container tall">
+            <canvas id="top20Chart"></canvas>
+        </div>
         <div class="insights">
             <h4>Key Insights</h4>
             <ul>
-                <li><strong>c7i-flex.xlarge</strong>가 HTTP throughput 1위 (94,639 req/s) - Intel 7세대 flex 타입의 뛰어난 단일 스레드 성능</li>
-                <li><strong>Graviton4 (8세대)</strong>가 coldstart에서 우수 - c8g.xlarge가 4.29초로 가장 빠름</li>
-                <li>Graviton 평균 coldstart 6.27초 vs Intel 6.34초 - Graviton이 약 1% 빠름</li>
-                <li><strong>가성비</strong>: Graviton 인스턴스가 상위권 독점 - 저렴한 가격 + 우수한 성능</li>
+                <li><strong>8세대 Intel 압도적</strong> — Top 5 중 4개가 8세대 Intel. r8i-flex, m8i, c8i-flex, c8i 순.</li>
+                <li><strong>Graviton4 (c8g, m8g, r8g)</strong> — 상위권 진입. c8g.xlarge는 73,937 req/s로 6위.</li>
+                <li><strong>R 패밀리의 강세</strong> — 32GB 메모리 → JVM 힙 60% ≈ 19GB. GC 압력 감소로 throughput 향상.</li>
             </ul>
         </div>
+    </div>
 
-        <div class="card">
-            <h2>HTTP Throughput Top 20 (100 Connections)</h2>
-            <div class="chart-container tall">
-                <canvas id="rpsChart"></canvas>
-            </div>
+
+    <div class="card" id="generation">
+        <h2>3. Generation & Architecture Analysis</h2>
+        <p style="margin-bottom: 16px; color: var(--muted);">모든 인스턴스를 세대별로 그룹화. 각 바의 색상은 아키텍처를 나타냅니다.</p>
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchGenTab(0)">Throughput (req/s)</button>
+            <button class="tab-btn" onclick="switchGenTab(1)">Latency (ms)</button>
+            <button class="tab-btn" onclick="switchGenTab(2)">Cold Start (s)</button>
+        </div>
+        <div class="chart-container extra-tall">
+            <canvas id="genChart"></canvas>
         </div>
 
+<div class="gen-compare">
+
+        <div class="gen-card">
+            <div class="gen-title">8th Gen Average</div>
+            <div class="gen-value">76,453</div>
+            <div class="gen-gap">Intel <span class="positive">+10.5%</span> vs Graviton</div>
+        </div>
+
+        <div class="gen-card">
+            <div class="gen-title">7th Gen Average</div>
+            <div class="gen-value">59,524</div>
+            <div class="gen-gap">Intel <span class="positive">+62.5%</span> vs Graviton</div>
+        </div>
+
+        <div class="gen-card">
+            <div class="gen-title">6th Gen Average</div>
+            <div class="gen-value">40,086</div>
+            <div class="gen-gap">Intel <span class="positive">+61.4%</span> vs Graviton</div>
+        </div>
+
+        <div class="gen-card">
+            <div class="gen-title">5th Gen Average</div>
+            <div class="gen-value">35,516</div>
+            <div class="gen-gap">Intel/AMD only</div>
+        </div>
+</div>
+
+        <div class="insights">
+            <h4>세대별 분석</h4>
+            <ul>
+                <li><strong>8세대</strong>: Intel 8세대가 가장 큰 성능 도약. Graviton4도 7세대 대비 큰 폭 향상.</li>
+                <li><strong>7세대 vs 6세대</strong>: Intel 7세대는 6세대 대비 ~30% 향상. Graviton3는 Graviton2 대비 ~50% 향상.</li>
+                <li><strong>5세대</strong>: AMD(c5a 계열)는 동세대 Intel보다 낮은 성능. m5a/r5a 계열은 전체 최하위.</li>
+            </ul>
+        </div>
+    </div>
+
+
+    <div class="card" id="price-perf">
+        <h2>4. Price-Performance Analysis</h2>
         <div class="grid-2">
-            <div class="card">
-                <h2>Coldstart Time Top 20 (Fastest)</h2>
-                <div class="chart-container">
-                    <canvas id="coldstartChart"></canvas>
+            <div>
+                <h3 style="font-size: 1rem; margin-bottom: 12px;">Bubble Chart: Price vs Throughput</h3>
+                <div class="chart-container tall">
+                    <canvas id="bubbleChart"></canvas>
                 </div>
             </div>
-            <div class="card">
-                <h2>Price/Performance Top 20</h2>
-                <div class="chart-container">
+            <div>
+                <h3 style="font-size: 1rem; margin-bottom: 12px;">Top 15 Price-Performance (req/s per $/hr)</h3>
+                <div class="chart-container tall">
                     <canvas id="perfDollarChart"></canvas>
                 </div>
             </div>
         </div>
+        <div class="insights">
+            <h4>가성비 분석</h4>
+            <ul>
 
-        <div class="card">
-            <h2>Architecture Comparison</h2>
-            <div class="chart-container">
-                <canvas id="archChart"></canvas>
-            </div>
-        </div>
+                <li><strong>1위 c7i-flex.xlarge</strong> — 500,381 req/s per $/hr (<span class="badge badge-intel">Intel</span> $0.193/hr)</li>
+                <li><strong>2위 c8g.xlarge</strong> — 480,112 req/s per $/hr (<span class="badge badge-graviton">Graviton</span> $0.154/hr)</li>
+                <li><strong>3위 c8i-flex.xlarge</strong> — 398,617 req/s per $/hr (<span class="badge badge-intel">Intel</span> $0.2/hr)</li>
 
-        <div class="card">
-            <h2>Generation Comparison</h2>
-            <div class="chart-container">
-                <canvas id="genChart"></canvas>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Complete Results</h2>
-            <div class="filters">
-                <input type="text" class="search" placeholder="Search instance..." onkeyup="filterTable()">
-                <button class="filter-btn active" onclick="filterArch('all')">All</button>
-                <button class="filter-btn graviton" onclick="filterArch('Graviton')">Graviton</button>
-                <button class="filter-btn" onclick="filterArch('Intel')">Intel</button>
-                <button class="filter-btn amd" onclick="filterArch('AMD')">AMD</button>
-            </div>
-            <div style="overflow-x: auto;">
-                <table id="resultsTable">
-                    <thead>
-                        <tr>
-                            <th onclick="sortTable(0)">Rank</th>
-                            <th onclick="sortTable(1)">Instance</th>
-                            <th onclick="sortTable(2)">Arch</th>
-                            <th onclick="sortTable(3)">Gen</th>
-                            <th onclick="sortTable(4)" class="num">RPS (100 conn)</th>
-                            <th onclick="sortTable(5)" class="num">RPS (200 conn)</th>
-                            <th onclick="sortTable(6)" class="num">Latency Avg</th>
-                            <th onclick="sortTable(7)" class="num">Latency P99</th>
-                            <th onclick="sortTable(8)" class="num">Coldstart (s)</th>
-                            <th onclick="sortTable(9)" class="num">Price ($/hr)</th>
-                            <th onclick="sortTable(10)" class="num">Perf/$ </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr data-arch="Intel">
-                            <td>1</td>
-                            <td><strong>c7i-flex.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>7th</td>
-                            <td class="num">94,639</td>
-                            <td class="num">101,658</td>
-                            <td class="num">1.03ms</td>
-                            <td class="num">3.47ms</td>
-                            <td class="num">5.078</td>
-                            <td class="num">$0.193</td>
-                            <td class="num">490,356</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>2</td>
-                            <td><strong>m7i-flex.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>7th</td>
-                            <td class="num">88,417</td>
-                            <td class="num">97,607</td>
-                            <td class="num">1.12ms</td>
-                            <td class="num">3.96ms</td>
-                            <td class="num">5.355</td>
-                            <td class="num">$0.218</td>
-                            <td class="num">405,582</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>3</td>
-                            <td><strong>r8i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>8th</td>
-                            <td class="num">83,159</td>
-                            <td class="num">94,115</td>
-                            <td class="num">1.16ms</td>
-                            <td class="num">3.27ms</td>
-                            <td class="num">4.799</td>
-                            <td class="num">$0.316</td>
-                            <td class="num">263,163</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>4</td>
-                            <td><strong>m8i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>8th</td>
-                            <td class="num">81,528</td>
-                            <td class="num">94,181</td>
-                            <td class="num">1.19ms</td>
-                            <td class="num">3.42ms</td>
-                            <td class="num">4.686</td>
-                            <td class="num">$0.254</td>
-                            <td class="num">320,975</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>5</td>
-                            <td><strong>c8i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>8th</td>
-                            <td class="num">81,303</td>
-                            <td class="num">93,746</td>
-                            <td class="num">1.19ms</td>
-                            <td class="num">3.26ms</td>
-                            <td class="num">4.368</td>
-                            <td class="num">$0.212</td>
-                            <td class="num">383,505</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>6</td>
-                            <td><strong>r8i-flex.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>8th</td>
-                            <td class="num">80,328</td>
-                            <td class="num">91,191</td>
-                            <td class="num">1.22ms</td>
-                            <td class="num">3.78ms</td>
-                            <td class="num">4.693</td>
-                            <td class="num">$0.294</td>
-                            <td class="num">273,224</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>7</td>
-                            <td><strong>c8i-flex.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>8th</td>
-                            <td class="num">80,121</td>
-                            <td class="num">91,741</td>
-                            <td class="num">1.22ms</td>
-                            <td class="num">3.89ms</td>
-                            <td class="num">4.505</td>
-                            <td class="num">$0.200</td>
-                            <td class="num">400,606</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>8</td>
-                            <td><strong>m7i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>7th</td>
-                            <td class="num">70,009</td>
-                            <td class="num">75,740</td>
-                            <td class="num">1.38ms</td>
-                            <td class="num">3.74ms</td>
-                            <td class="num">5.848</td>
-                            <td class="num">$0.242</td>
-                            <td class="num">289,292</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>9</td>
-                            <td><strong>r8g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>8th</td>
-                            <td class="num">69,323</td>
-                            <td class="num">76,418</td>
-                            <td class="num">1.40ms</td>
-                            <td class="num">3.49ms</td>
-                            <td class="num">4.393</td>
-                            <td class="num">$0.229</td>
-                            <td class="num">302,722</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>10</td>
-                            <td><strong>c8g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>8th</td>
-                            <td class="num">66,933</td>
-                            <td class="num">74,291</td>
-                            <td class="num">1.45ms</td>
-                            <td class="num">3.84ms</td>
-                            <td class="num">4.293</td>
-                            <td class="num">$0.154</td>
-                            <td class="num">434,630</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>11</td>
-                            <td><strong>r7i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>7th</td>
-                            <td class="num">66,550</td>
-                            <td class="num">73,161</td>
-                            <td class="num">1.45ms</td>
-                            <td class="num">3.43ms</td>
-                            <td class="num">5.539</td>
-                            <td class="num">$0.301</td>
-                            <td class="num">221,095</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>12</td>
-                            <td><strong>m8g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>8th</td>
-                            <td class="num">65,460</td>
-                            <td class="num">70,844</td>
-                            <td class="num">1.48ms</td>
-                            <td class="num">3.47ms</td>
-                            <td class="num">4.551</td>
-                            <td class="num">$0.185</td>
-                            <td class="num">353,836</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>13</td>
-                            <td><strong>c7i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>7th</td>
-                            <td class="num">59,534</td>
-                            <td class="num">64,948</td>
-                            <td class="num">1.63ms</td>
-                            <td class="num">3.90ms</td>
-                            <td class="num">5.656</td>
-                            <td class="num">$0.202</td>
-                            <td class="num">294,724</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>14</td>
-                            <td><strong>m6idn.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">51,826</td>
-                            <td class="num">54,657</td>
-                            <td class="num">1.88ms</td>
-                            <td class="num">3.90ms</td>
-                            <td class="num">6.059</td>
-                            <td class="num">$0.321</td>
-                            <td class="num">161,451</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>15</td>
-                            <td><strong>r6i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">50,908</td>
-                            <td class="num">53,514</td>
-                            <td class="num">1.91ms</td>
-                            <td class="num">4.10ms</td>
-                            <td class="num">6.231</td>
-                            <td class="num">$0.286</td>
-                            <td class="num">178,000</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>16</td>
-                            <td><strong>r6id.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">48,598</td>
-                            <td class="num">50,303</td>
-                            <td class="num">2.01ms</td>
-                            <td class="num">4.11ms</td>
-                            <td class="num">6.295</td>
-                            <td class="num">$0.353</td>
-                            <td class="num">137,670</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>17</td>
-                            <td><strong>m6i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">48,442</td>
-                            <td class="num">49,723</td>
-                            <td class="num">2.02ms</td>
-                            <td class="num">4.12ms</td>
-                            <td class="num">6.273</td>
-                            <td class="num">$0.230</td>
-                            <td class="num">210,618</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>18</td>
-                            <td><strong>c6in.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">47,824</td>
-                            <td class="num">49,297</td>
-                            <td class="num">8.58ms</td>
-                            <td class="num">182.28ms</td>
-                            <td class="num">5.873</td>
-                            <td class="num">$0.254</td>
-                            <td class="num">188,283</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>19</td>
-                            <td><strong>m6in.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">45,696</td>
-                            <td class="num">47,149</td>
-                            <td class="num">2.15ms</td>
-                            <td class="num">4.54ms</td>
-                            <td class="num">6.571</td>
-                            <td class="num">$0.285</td>
-                            <td class="num">160,338</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>20</td>
-                            <td><strong>m6id.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">45,379</td>
-                            <td class="num">46,857</td>
-                            <td class="num">2.16ms</td>
-                            <td class="num">4.48ms</td>
-                            <td class="num">6.533</td>
-                            <td class="num">$0.285</td>
-                            <td class="num">159,225</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>21</td>
-                            <td><strong>c6id.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">44,060</td>
-                            <td class="num">49,937</td>
-                            <td class="num">1.87ms</td>
-                            <td class="num">4.13ms</td>
-                            <td class="num">5.996</td>
-                            <td class="num">$0.242</td>
-                            <td class="num">182,068</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>22</td>
-                            <td><strong>m5zn.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">43,771</td>
-                            <td class="num">45,387</td>
-                            <td class="num">2.24ms</td>
-                            <td class="num">4.47ms</td>
-                            <td class="num">6.251</td>
-                            <td class="num">$0.331</td>
-                            <td class="num">132,238</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>23</td>
-                            <td><strong>c6i.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>6th</td>
-                            <td class="num">43,182</td>
-                            <td class="num">43,917</td>
-                            <td class="num">2.29ms</td>
-                            <td class="num">4.57ms</td>
-                            <td class="num">6.300</td>
-                            <td class="num">$0.192</td>
-                            <td class="num">224,905</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>24</td>
-                            <td><strong>r7gd.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>7th</td>
-                            <td class="num">42,485</td>
-                            <td class="num">47,028</td>
-                            <td class="num">2.34ms</td>
-                            <td class="num">5.04ms</td>
-                            <td class="num">5.592</td>
-                            <td class="num">$0.287</td>
-                            <td class="num">148,033</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>25</td>
-                            <td><strong>c7g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>7th</td>
-                            <td class="num">42,077</td>
-                            <td class="num">45,840</td>
-                            <td class="num">2.37ms</td>
-                            <td class="num">5.06ms</td>
-                            <td class="num">5.746</td>
-                            <td class="num">$0.162</td>
-                            <td class="num">259,735</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>26</td>
-                            <td><strong>r7g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>7th</td>
-                            <td class="num">41,906</td>
-                            <td class="num">46,742</td>
-                            <td class="num">2.38ms</td>
-                            <td class="num">4.97ms</td>
-                            <td class="num">5.629</td>
-                            <td class="num">$0.240</td>
-                            <td class="num">174,608</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>27</td>
-                            <td><strong>m7gd.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>7th</td>
-                            <td class="num">41,613</td>
-                            <td class="num">45,606</td>
-                            <td class="num">2.39ms</td>
-                            <td class="num">4.98ms</td>
-                            <td class="num">5.713</td>
-                            <td class="num">$0.231</td>
-                            <td class="num">180,144</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>28</td>
-                            <td><strong>m7g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>7th</td>
-                            <td class="num">41,038</td>
-                            <td class="num">45,772</td>
-                            <td class="num">2.43ms</td>
-                            <td class="num">5.17ms</td>
-                            <td class="num">5.924</td>
-                            <td class="num">$0.194</td>
-                            <td class="num">211,539</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>29</td>
-                            <td><strong>c7gd.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>7th</td>
-                            <td class="num">39,330</td>
-                            <td class="num">42,797</td>
-                            <td class="num">2.54ms</td>
-                            <td class="num">5.36ms</td>
-                            <td class="num">5.439</td>
-                            <td class="num">$0.193</td>
-                            <td class="num">203,782</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>30</td>
-                            <td><strong>c5d.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">38,132</td>
-                            <td class="num">27,012</td>
-                            <td class="num">2.38ms</td>
-                            <td class="num">5.50ms</td>
-                            <td class="num">7.189</td>
-                            <td class="num">$0.218</td>
-                            <td class="num">174,917</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>31</td>
-                            <td><strong>c5.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">37,299</td>
-                            <td class="num">29,877</td>
-                            <td class="num">2.45ms</td>
-                            <td class="num">4.82ms</td>
-                            <td class="num">7.140</td>
-                            <td class="num">$0.192</td>
-                            <td class="num">194,267</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>32</td>
-                            <td><strong>r5n.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">35,487</td>
-                            <td class="num">35,883</td>
-                            <td class="num">2.78ms</td>
-                            <td class="num">5.44ms</td>
-                            <td class="num">7.866</td>
-                            <td class="num">$0.343</td>
-                            <td class="num">103,462</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>33</td>
-                            <td><strong>r5.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">35,103</td>
-                            <td class="num">36,185</td>
-                            <td class="num">2.82ms</td>
-                            <td class="num">5.39ms</td>
-                            <td class="num">8.228</td>
-                            <td class="num">$0.286</td>
-                            <td class="num">122,738</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>34</td>
-                            <td><strong>r5d.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">34,891</td>
-                            <td class="num">35,052</td>
-                            <td class="num">2.84ms</td>
-                            <td class="num">5.46ms</td>
-                            <td class="num">8.100</td>
-                            <td class="num">$0.329</td>
-                            <td class="num">106,052</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>35</td>
-                            <td><strong>r5dn.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">33,717</td>
-                            <td class="num">34,533</td>
-                            <td class="num">2.94ms</td>
-                            <td class="num">5.49ms</td>
-                            <td class="num">8.327</td>
-                            <td class="num">$0.377</td>
-                            <td class="num">89,436</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>36</td>
-                            <td><strong>c5n.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">33,690</td>
-                            <td class="num">32,199</td>
-                            <td class="num">3.10ms</td>
-                            <td class="num">10.16ms</td>
-                            <td class="num">7.354</td>
-                            <td class="num">$0.242</td>
-                            <td class="num">139,214</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>37</td>
-                            <td><strong>r5b.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">33,557</td>
-                            <td class="num">34,461</td>
-                            <td class="num">2.97ms</td>
-                            <td class="num">5.70ms</td>
-                            <td class="num">7.967</td>
-                            <td class="num">$0.343</td>
-                            <td class="num">97,833</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>38</td>
-                            <td><strong>m5.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">32,932</td>
-                            <td class="num">33,345</td>
-                            <td class="num">2.88ms</td>
-                            <td class="num">5.35ms</td>
-                            <td class="num">7.451</td>
-                            <td class="num">$0.230</td>
-                            <td class="num">143,182</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>39</td>
-                            <td><strong>m6g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>6th</td>
-                            <td class="num">31,898</td>
-                            <td class="num">34,293</td>
-                            <td class="num">3.15ms</td>
-                            <td class="num">5.68ms</td>
-                            <td class="num">7.550</td>
-                            <td class="num">$0.185</td>
-                            <td class="num">172,423</td>
-                        </tr>
-                        <tr data-arch="Intel">
-                            <td>40</td>
-                            <td><strong>m5d.xlarge</strong></td>
-                            <td><span class="badge badge-intel">Intel</span></td>
-                            <td>5th</td>
-                            <td class="num">31,809</td>
-                            <td class="num">33,234</td>
-                            <td class="num">2.92ms</td>
-                            <td class="num">5.75ms</td>
-                            <td class="num">7.706</td>
-                            <td class="num">$0.261</td>
-                            <td class="num">121,874</td>
-                        </tr>
-                        <tr data-arch="AMD">
-                            <td>41</td>
-                            <td><strong>c5a.xlarge</strong></td>
-                            <td><span class="badge badge-amd">AMD</span></td>
-                            <td>5th</td>
-                            <td class="num">30,832</td>
-                            <td class="num">30,856</td>
-                            <td class="num">3.23ms</td>
-                            <td class="num">5.50ms</td>
-                            <td class="num">6.965</td>
-                            <td class="num">$0.173</td>
-                            <td class="num">178,219</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>42</td>
-                            <td><strong>c6gd.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>6th</td>
-                            <td class="num">30,312</td>
-                            <td class="num">33,005</td>
-                            <td class="num">3.30ms</td>
-                            <td class="num">6.65ms</td>
-                            <td class="num">7.732</td>
-                            <td class="num">$0.185</td>
-                            <td class="num">163,847</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>43</td>
-                            <td><strong>m6gd.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>6th</td>
-                            <td class="num">28,960</td>
-                            <td class="num">30,725</td>
-                            <td class="num">3.46ms</td>
-                            <td class="num">6.98ms</td>
-                            <td class="num">7.823</td>
-                            <td class="num">$0.220</td>
-                            <td class="num">131,635</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>44</td>
-                            <td><strong>c6g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>6th</td>
-                            <td class="num">28,411</td>
-                            <td class="num">30,564</td>
-                            <td class="num">3.52ms</td>
-                            <td class="num">6.44ms</td>
-                            <td class="num">7.654</td>
-                            <td class="num">$0.154</td>
-                            <td class="num">184,488</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>45</td>
-                            <td><strong>c6gn.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>6th</td>
-                            <td class="num">28,383</td>
-                            <td class="num">30,359</td>
-                            <td class="num">3.54ms</td>
-                            <td class="num">7.20ms</td>
-                            <td class="num">7.176</td>
-                            <td class="num">$0.194</td>
-                            <td class="num">146,303</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>46</td>
-                            <td><strong>r6g.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>6th</td>
-                            <td class="num">28,093</td>
-                            <td class="num">29,783</td>
-                            <td class="num">3.58ms</td>
-                            <td class="num">7.68ms</td>
-                            <td class="num">7.688</td>
-                            <td class="num">$0.229</td>
-                            <td class="num">122,678</td>
-                        </tr>
-                        <tr data-arch="Graviton">
-                            <td>47</td>
-                            <td><strong>r6gd.xlarge</strong></td>
-                            <td><span class="badge badge-graviton">Graviton</span></td>
-                            <td>6th</td>
-                            <td class="num">27,545</td>
-                            <td class="num">29,033</td>
-                            <td class="num">3.65ms</td>
-                            <td class="num">7.44ms</td>
-                            <td class="num">7.344</td>
-                            <td class="num">$0.264</td>
-                            <td class="num">104,338</td>
-                        </tr>
-                        <tr data-arch="AMD">
-                            <td>48</td>
-                            <td><strong>r5ad.xlarge</strong></td>
-                            <td><span class="badge badge-amd">AMD</span></td>
-                            <td>5th</td>
-                            <td class="num">24,411</td>
-                            <td class="num">24,329</td>
-                            <td class="num">4.13ms</td>
-                            <td class="num">7.90ms</td>
-                            <td class="num">10.962</td>
-                            <td class="num">$0.308</td>
-                            <td class="num">79,255</td>
-                        </tr>
-                        <tr data-arch="AMD">
-                            <td>49</td>
-                            <td><strong>r5a.xlarge</strong></td>
-                            <td><span class="badge badge-amd">AMD</span></td>
-                            <td>5th</td>
-                            <td class="num">22,976</td>
-                            <td class="num">22,983</td>
-                            <td class="num">4.36ms</td>
-                            <td class="num">8.28ms</td>
-                            <td class="num">11.224</td>
-                            <td class="num">$0.257</td>
-                            <td class="num">89,403</td>
-                        </tr>
-                        <tr data-arch="AMD">
-                            <td>50</td>
-                            <td><strong>m5ad.xlarge</strong></td>
-                            <td><span class="badge badge-amd">AMD</span></td>
-                            <td>5th</td>
-                            <td class="num">22,822</td>
-                            <td class="num">22,825</td>
-                            <td class="num">4.39ms</td>
-                            <td class="num">8.88ms</td>
-                            <td class="num">11.077</td>
-                            <td class="num">$0.247</td>
-                            <td class="num">92,397</td>
-                        </tr>
-                        <tr data-arch="AMD">
-                            <td>51</td>
-                            <td><strong>m5a.xlarge</strong></td>
-                            <td><span class="badge badge-amd">AMD</span></td>
-                            <td>5th</td>
-                            <td class="num">22,364</td>
-                            <td class="num">22,443</td>
-                            <td class="num">4.48ms</td>
-                            <td class="num">8.63ms</td>
-                            <td class="num">11.483</td>
-                            <td class="num">$0.206</td>
-                            <td class="num">108,564</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>Generated on 2026-01-20 11:10:02 | EKS EC2 Benchmark Suite</p>
+                <li><strong>Graviton 가성비 우위</strong> — 낮은 시간당 가격 + 준수한 처리량 = 상위 가성비 다수 차지</li>
+            </ul>
         </div>
     </div>
 
-    <script>
-        // Chart colors
-        const colors = {
-            graviton: '#10b981',
-            intel: '#3b82f6',
-            amd: '#ef4444'
-        };
-        
-        function getColor(arch) {
-            return colors[arch.toLowerCase()] || colors.intel;
+
+    <div class="card" id="coldstart">
+        <h2>5. Cold Start Performance (PetClinic)</h2>
+        <p style="margin-bottom: 16px; color: var(--muted);">Spring PetClinic (H2 DB, Thymeleaf, 다수 Bean) — <code>-XX:-TieredCompilation</code> 전 인스턴스 동일 적용</p>
+        <div class="grid-2">
+            <div>
+                <h3 style="font-size: 1rem; margin-bottom: 12px;">Top 15 Fastest Cold Start</h3>
+                <div class="chart-container tall">
+                    <canvas id="coldstartChart"></canvas>
+                </div>
+            </div>
+            <div>
+                <h3 style="font-size: 1rem; margin-bottom: 12px;">Slowest 10 Cold Start</h3>
+                <div class="chart-container tall">
+                    <canvas id="coldstartSlowChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="insights">
+            <h4>Cold Start 인사이트</h4>
+            <ul>
+
+                <li><strong>최고: c8g.xlarge</strong> — 4.016s <span class="badge badge-graviton">Graviton</span></li>
+                <li><strong>최저: m5a.xlarge</strong> — 11.416s <span class="badge badge-amd">AMD</span></li>
+
+                <li><strong>8세대 > 7세대 > 6세대</strong> — Cold Start도 세대가 높을수록 빠름 (CPU 클럭 + 메모리 속도)</li>
+                <li><strong>R 패밀리 약간 불리</strong> — 32GB 메모리의 60% 힙 할당 → 대용량 힙 초기화 시간</li>
+            </ul>
+        </div>
+    </div>
+
+
+    <div class="card" id="full-table">
+        <h2>6. Full Results Table (51 Instances)</h2>
+        <div class="filters">
+            <input type="text" class="search" placeholder="Search instance..." oninput="filterTable()">
+            <button class="filter-btn active" onclick="toggleFilter(this, 'all')">All</button>
+            <button class="filter-btn" onclick="toggleFilter(this, 'Intel')">Intel</button>
+            <button class="filter-btn graviton" onclick="toggleFilter(this, 'Graviton')">Graviton</button>
+            <button class="filter-btn amd" onclick="toggleFilter(this, 'AMD')">AMD</button>
+            <span style="border-left: 1px solid #e2e8f0; margin: 0 4px;"></span>
+            <button class="filter-btn" onclick="toggleFilter(this, 'gen-8')">8th Gen</button>
+            <button class="filter-btn" onclick="toggleFilter(this, 'gen-7')">7th Gen</button>
+            <button class="filter-btn" onclick="toggleFilter(this, 'gen-6')">6th Gen</button>
+            <button class="filter-btn" onclick="toggleFilter(this, 'gen-5')">5th Gen</button>
+            <span style="border-left: 1px solid #e2e8f0; margin: 0 4px;"></span>
+            <button class="filter-btn" onclick="toggleFilter(this, 'family-C')">C (Compute)</button>
+            <button class="filter-btn" onclick="toggleFilter(this, 'family-M')">M (General)</button>
+            <button class="filter-btn" onclick="toggleFilter(this, 'family-R')">R (Memory)</button>
+        </div>
+        <div style="overflow-x: auto;">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">#</th>
+                        <th onclick="sortTable(1)">Instance</th>
+                        <th onclick="sortTable(2)">Arch</th>
+                        <th onclick="sortTable(3)">Gen</th>
+                        <th onclick="sortTable(4)">Family</th>
+                        <th onclick="sortTable(5)" class="num">RPS@50</th>
+                        <th onclick="sortTable(6)" class="num">RPS@100</th>
+                        <th onclick="sortTable(7)" class="num">RPS@200</th>
+                        <th onclick="sortTable(8)" class="num">Latency Avg (ms)</th>
+                        <th onclick="sortTable(9)" class="num">Latency P99 (ms)</th>
+                        <th onclick="sortTable(10)" class="num">Cold Start (s)</th>
+                        <th onclick="sortTable(11)" class="num">Price ($/hr)</th>
+                        <th onclick="sortTable(12)" class="num">Perf/$ (req/s per $/hr)</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr data-arch="Intel" data-gen="7" data-family="C">
+                        <td>1</td>
+                        <td><strong>c7i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7</td>
+                        <td>C</td>
+                        <td class="num">90,450</td>
+                        <td class="num">96,573</td>
+                        <td class="num">103,228</td>
+                        <td class="num">1.01</td>
+                        <td class="num">3.56</td>
+                        <td class="num">5.189</td>
+                        <td class="num">$0.193</td>
+                        <td class="num">500,381</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8" data-family="R">
+                        <td>2</td>
+                        <td><strong>r8i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8</td>
+                        <td>R</td>
+                        <td class="num">68,561</td>
+                        <td class="num">83,150</td>
+                        <td class="num">93,935</td>
+                        <td class="num">1.16</td>
+                        <td class="num">2.97</td>
+                        <td class="num">4.759</td>
+                        <td class="num">$0.294</td>
+                        <td class="num">282,822</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8" data-family="M">
+                        <td>3</td>
+                        <td><strong>m8i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8</td>
+                        <td>M</td>
+                        <td class="num">77,181</td>
+                        <td class="num">82,004</td>
+                        <td class="num">85,681</td>
+                        <td class="num">1.17</td>
+                        <td class="num">2.94</td>
+                        <td class="num">4.680</td>
+                        <td class="num">$0.254</td>
+                        <td class="num">322,851</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8" data-family="C">
+                        <td>4</td>
+                        <td><strong>c8i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8</td>
+                        <td>C</td>
+                        <td class="num">66,277</td>
+                        <td class="num">79,723</td>
+                        <td class="num">88,016</td>
+                        <td class="num">1.21</td>
+                        <td class="num">3.06</td>
+                        <td class="num">4.543</td>
+                        <td class="num">$0.200</td>
+                        <td class="num">398,617</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8" data-family="R">
+                        <td>5</td>
+                        <td><strong>r8i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8</td>
+                        <td>R</td>
+                        <td class="num">67,470</td>
+                        <td class="num">78,739</td>
+                        <td class="num">88,333</td>
+                        <td class="num">1.22</td>
+                        <td class="num">2.93</td>
+                        <td class="num">4.831</td>
+                        <td class="num">$0.316</td>
+                        <td class="num">249,175</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="8" data-family="C">
+                        <td>6</td>
+                        <td><strong>c8i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>8</td>
+                        <td>C</td>
+                        <td class="num">65,382</td>
+                        <td class="num">77,784</td>
+                        <td class="num">86,133</td>
+                        <td class="num">1.24</td>
+                        <td class="num">2.98</td>
+                        <td class="num">4.313</td>
+                        <td class="num">$0.212</td>
+                        <td class="num">366,903</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="8" data-family="C">
+                        <td>7</td>
+                        <td><strong>c8g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>8</td>
+                        <td>C</td>
+                        <td class="num">68,987</td>
+                        <td class="num">73,937</td>
+                        <td class="num">79,052</td>
+                        <td class="num">1.31</td>
+                        <td class="num">3.24</td>
+                        <td class="num">4.016</td>
+                        <td class="num">$0.154</td>
+                        <td class="num">480,112</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7" data-family="R">
+                        <td>8</td>
+                        <td><strong>r7i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7</td>
+                        <td>R</td>
+                        <td class="num">69,324</td>
+                        <td class="num">72,864</td>
+                        <td class="num">77,701</td>
+                        <td class="num">1.33</td>
+                        <td class="num">3.04</td>
+                        <td class="num">5.517</td>
+                        <td class="num">$0.301</td>
+                        <td class="num">242,074</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="8" data-family="M">
+                        <td>9</td>
+                        <td><strong>m8g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>8</td>
+                        <td>M</td>
+                        <td class="num">67,657</td>
+                        <td class="num">72,399</td>
+                        <td class="num">77,323</td>
+                        <td class="num">1.35</td>
+                        <td class="num">3.46</td>
+                        <td class="num">4.545</td>
+                        <td class="num">$0.185</td>
+                        <td class="num">391,346</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="8" data-family="R">
+                        <td>10</td>
+                        <td><strong>r8g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>8</td>
+                        <td>R</td>
+                        <td class="num">66,716</td>
+                        <td class="num">71,541</td>
+                        <td class="num">75,516</td>
+                        <td class="num">1.36</td>
+                        <td class="num">3.29</td>
+                        <td class="num">4.417</td>
+                        <td class="num">$0.229</td>
+                        <td class="num">312,408</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7" data-family="M">
+                        <td>11</td>
+                        <td><strong>m7i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7</td>
+                        <td>M</td>
+                        <td class="num">65,526</td>
+                        <td class="num">70,929</td>
+                        <td class="num">75,426</td>
+                        <td class="num">1.36</td>
+                        <td class="num">3.19</td>
+                        <td class="num">5.828</td>
+                        <td class="num">$0.242</td>
+                        <td class="num">293,096</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7" data-family="M">
+                        <td>12</td>
+                        <td><strong>m7i-flex.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7</td>
+                        <td>M</td>
+                        <td class="num">62,702</td>
+                        <td class="num">66,848</td>
+                        <td class="num">72,778</td>
+                        <td class="num">1.48</td>
+                        <td class="num">3.96</td>
+                        <td class="num">5.263</td>
+                        <td class="num">$0.218</td>
+                        <td class="num">306,641</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="7" data-family="C">
+                        <td>13</td>
+                        <td><strong>c7i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>7</td>
+                        <td>C</td>
+                        <td class="num">54,818</td>
+                        <td class="num">61,275</td>
+                        <td class="num">65,106</td>
+                        <td class="num">1.58</td>
+                        <td class="num">3.22</td>
+                        <td class="num">5.675</td>
+                        <td class="num">$0.202</td>
+                        <td class="num">303,341</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="R">
+                        <td>14</td>
+                        <td><strong>r6i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>R</td>
+                        <td class="num">48,984</td>
+                        <td class="num">52,687</td>
+                        <td class="num">53,711</td>
+                        <td class="num">1.86</td>
+                        <td class="num">3.71</td>
+                        <td class="num">6.269</td>
+                        <td class="num">$0.286</td>
+                        <td class="num">184,221</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="C">
+                        <td>15</td>
+                        <td><strong>c6id.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>C</td>
+                        <td class="num">47,291</td>
+                        <td class="num">52,114</td>
+                        <td class="num">54,167</td>
+                        <td class="num">1.88</td>
+                        <td class="num">3.51</td>
+                        <td class="num">5.942</td>
+                        <td class="num">$0.242</td>
+                        <td class="num">215,349</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="M">
+                        <td>16</td>
+                        <td><strong>m6idn.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>M</td>
+                        <td class="num">47,291</td>
+                        <td class="num">51,541</td>
+                        <td class="num">52,715</td>
+                        <td class="num">1.91</td>
+                        <td class="num">3.56</td>
+                        <td class="num">6.084</td>
+                        <td class="num">$0.321</td>
+                        <td class="num">160,565</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="C">
+                        <td>17</td>
+                        <td><strong>c6in.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>C</td>
+                        <td class="num">46,937</td>
+                        <td class="num">50,253</td>
+                        <td class="num">52,284</td>
+                        <td class="num">1.95</td>
+                        <td class="num">3.83</td>
+                        <td class="num">5.822</td>
+                        <td class="num">$0.254</td>
+                        <td class="num">197,848</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="M">
+                        <td>18</td>
+                        <td><strong>m6i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>M</td>
+                        <td class="num">46,370</td>
+                        <td class="num">49,060</td>
+                        <td class="num">50,920</td>
+                        <td class="num">2.00</td>
+                        <td class="num">3.78</td>
+                        <td class="num">6.254</td>
+                        <td class="num">$0.230</td>
+                        <td class="num">213,303</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="M">
+                        <td>19</td>
+                        <td><strong>m6in.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>M</td>
+                        <td class="num">46,112</td>
+                        <td class="num">48,728</td>
+                        <td class="num">49,775</td>
+                        <td class="num">2.03</td>
+                        <td class="num">3.79</td>
+                        <td class="num">6.621</td>
+                        <td class="num">$0.285</td>
+                        <td class="num">170,975</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="C">
+                        <td>20</td>
+                        <td><strong>c6i.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>C</td>
+                        <td class="num">47,084</td>
+                        <td class="num">47,872</td>
+                        <td class="num">48,455</td>
+                        <td class="num">2.07</td>
+                        <td class="num">3.91</td>
+                        <td class="num">6.296</td>
+                        <td class="num">$0.192</td>
+                        <td class="num">249,333</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7" data-family="R">
+                        <td>21</td>
+                        <td><strong>r7g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7</td>
+                        <td>R</td>
+                        <td class="num">41,745</td>
+                        <td class="num">47,225</td>
+                        <td class="num">51,351</td>
+                        <td class="num">2.11</td>
+                        <td class="num">4.45</td>
+                        <td class="num">5.631</td>
+                        <td class="num">$0.240</td>
+                        <td class="num">196,771</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="R">
+                        <td>22</td>
+                        <td><strong>r6id.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>R</td>
+                        <td class="num">43,097</td>
+                        <td class="num">46,771</td>
+                        <td class="num">47,768</td>
+                        <td class="num">2.11</td>
+                        <td class="num">3.91</td>
+                        <td class="num">6.214</td>
+                        <td class="num">$0.353</td>
+                        <td class="num">132,496</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="6" data-family="M">
+                        <td>23</td>
+                        <td><strong>m6id.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>6</td>
+                        <td>M</td>
+                        <td class="num">45,009</td>
+                        <td class="num">46,515</td>
+                        <td class="num">46,662</td>
+                        <td class="num">2.11</td>
+                        <td class="num">3.99</td>
+                        <td class="num">6.340</td>
+                        <td class="num">$0.285</td>
+                        <td class="num">163,211</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7" data-family="R">
+                        <td>24</td>
+                        <td><strong>r7gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7</td>
+                        <td>R</td>
+                        <td class="num">43,012</td>
+                        <td class="num">46,341</td>
+                        <td class="num">51,855</td>
+                        <td class="num">2.16</td>
+                        <td class="num">4.30</td>
+                        <td class="num">5.609</td>
+                        <td class="num">$0.287</td>
+                        <td class="num">161,467</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7" data-family="C">
+                        <td>25</td>
+                        <td><strong>c7g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7</td>
+                        <td>C</td>
+                        <td class="num">42,836</td>
+                        <td class="num">46,034</td>
+                        <td class="num">49,528</td>
+                        <td class="num">2.16</td>
+                        <td class="num">4.57</td>
+                        <td class="num">5.573</td>
+                        <td class="num">$0.162</td>
+                        <td class="num">284,158</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="M">
+                        <td>26</td>
+                        <td><strong>m5zn.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>M</td>
+                        <td class="num">44,209</td>
+                        <td class="num">45,719</td>
+                        <td class="num">46,097</td>
+                        <td class="num">2.16</td>
+                        <td class="num">3.92</td>
+                        <td class="num">6.336</td>
+                        <td class="num">$0.331</td>
+                        <td class="num">138,124</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7" data-family="M">
+                        <td>27</td>
+                        <td><strong>m7g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7</td>
+                        <td>M</td>
+                        <td class="num">41,859</td>
+                        <td class="num">45,332</td>
+                        <td class="num">48,708</td>
+                        <td class="num">2.20</td>
+                        <td class="num">4.56</td>
+                        <td class="num">5.987</td>
+                        <td class="num">$0.194</td>
+                        <td class="num">233,672</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7" data-family="C">
+                        <td>28</td>
+                        <td><strong>c7gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7</td>
+                        <td>C</td>
+                        <td class="num">41,217</td>
+                        <td class="num">44,184</td>
+                        <td class="num">47,645</td>
+                        <td class="num">2.26</td>
+                        <td class="num">4.69</td>
+                        <td class="num">5.400</td>
+                        <td class="num">$0.193</td>
+                        <td class="num">228,932</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="7" data-family="M">
+                        <td>29</td>
+                        <td><strong>m7gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>7</td>
+                        <td>M</td>
+                        <td class="num">39,820</td>
+                        <td class="num">42,984</td>
+                        <td class="num">46,364</td>
+                        <td class="num">2.33</td>
+                        <td class="num">4.67</td>
+                        <td class="num">5.700</td>
+                        <td class="num">$0.231</td>
+                        <td class="num">186,077</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="C">
+                        <td>30</td>
+                        <td><strong>c5.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>C</td>
+                        <td class="num">37,638</td>
+                        <td class="num">38,802</td>
+                        <td class="num">39,487</td>
+                        <td class="num">2.56</td>
+                        <td class="num">4.71</td>
+                        <td class="num">7.130</td>
+                        <td class="num">$0.192</td>
+                        <td class="num">202,094</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="C">
+                        <td>31</td>
+                        <td><strong>c5n.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>C</td>
+                        <td class="num">36,973</td>
+                        <td class="num">38,107</td>
+                        <td class="num">38,841</td>
+                        <td class="num">2.61</td>
+                        <td class="num">4.74</td>
+                        <td class="num">7.363</td>
+                        <td class="num">$0.242</td>
+                        <td class="num">157,468</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="R">
+                        <td>32</td>
+                        <td><strong>r5b.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>R</td>
+                        <td class="num">33,826</td>
+                        <td class="num">34,901</td>
+                        <td class="num">35,372</td>
+                        <td class="num">2.85</td>
+                        <td class="num">5.11</td>
+                        <td class="num">7.733</td>
+                        <td class="num">$0.343</td>
+                        <td class="num">101,753</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="M">
+                        <td>33</td>
+                        <td><strong>m5d.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>M</td>
+                        <td class="num">33,169</td>
+                        <td class="num">34,378</td>
+                        <td class="num">34,981</td>
+                        <td class="num">2.90</td>
+                        <td class="num">5.28</td>
+                        <td class="num">7.905</td>
+                        <td class="num">$0.261</td>
+                        <td class="num">131,715</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="R">
+                        <td>34</td>
+                        <td><strong>r5.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>R</td>
+                        <td class="num">32,939</td>
+                        <td class="num">34,374</td>
+                        <td class="num">34,460</td>
+                        <td class="num">2.89</td>
+                        <td class="num">5.25</td>
+                        <td class="num">8.257</td>
+                        <td class="num">$0.286</td>
+                        <td class="num">120,189</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="R">
+                        <td>35</td>
+                        <td><strong>r5d.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>R</td>
+                        <td class="num">31,991</td>
+                        <td class="num">33,459</td>
+                        <td class="num">33,726</td>
+                        <td class="num">2.97</td>
+                        <td class="num">5.49</td>
+                        <td class="num">8.065</td>
+                        <td class="num">$0.329</td>
+                        <td class="num">101,700</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="R">
+                        <td>36</td>
+                        <td><strong>r5dn.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>R</td>
+                        <td class="num">32,776</td>
+                        <td class="num">33,430</td>
+                        <td class="num">33,876</td>
+                        <td class="num">2.98</td>
+                        <td class="num">5.45</td>
+                        <td class="num">8.339</td>
+                        <td class="num">$0.377</td>
+                        <td class="num">88,675</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="R">
+                        <td>37</td>
+                        <td><strong>r5n.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>R</td>
+                        <td class="num">32,334</td>
+                        <td class="num">32,853</td>
+                        <td class="num">33,333</td>
+                        <td class="num">3.03</td>
+                        <td class="num">5.46</td>
+                        <td class="num">7.745</td>
+                        <td class="num">$0.343</td>
+                        <td class="num">95,781</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="M">
+                        <td>38</td>
+                        <td><strong>m5.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>M</td>
+                        <td class="num">31,878</td>
+                        <td class="num">32,657</td>
+                        <td class="num">32,979</td>
+                        <td class="num">3.04</td>
+                        <td class="num">5.61</td>
+                        <td class="num">7.359</td>
+                        <td class="num">$0.230</td>
+                        <td class="num">141,987</td>
+                    </tr>
+                    <tr data-arch="Intel" data-gen="5" data-family="C">
+                        <td>39</td>
+                        <td><strong>c5d.xlarge</strong></td>
+                        <td><span class="badge badge-intel">Intel</span></td>
+                        <td>5</td>
+                        <td>C</td>
+                        <td class="num">30,640</td>
+                        <td class="num">31,994</td>
+                        <td class="num">32,154</td>
+                        <td class="num">3.12</td>
+                        <td class="num">5.73</td>
+                        <td class="num">7.129</td>
+                        <td class="num">$0.218</td>
+                        <td class="num">146,760</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6" data-family="C">
+                        <td>40</td>
+                        <td><strong>c6gn.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6</td>
+                        <td>C</td>
+                        <td class="num">29,133</td>
+                        <td class="num">31,354</td>
+                        <td class="num">33,584</td>
+                        <td class="num">3.19</td>
+                        <td class="num">6.22</td>
+                        <td class="num">7.110</td>
+                        <td class="num">$0.194</td>
+                        <td class="num">161,617</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6" data-family="M">
+                        <td>41</td>
+                        <td><strong>m6g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6</td>
+                        <td>M</td>
+                        <td class="num">28,376</td>
+                        <td class="num">30,953</td>
+                        <td class="num">33,039</td>
+                        <td class="num">3.25</td>
+                        <td class="num">6.40</td>
+                        <td class="num">7.502</td>
+                        <td class="num">$0.185</td>
+                        <td class="num">167,313</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6" data-family="R">
+                        <td>42</td>
+                        <td><strong>r6g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6</td>
+                        <td>R</td>
+                        <td class="num">28,441</td>
+                        <td class="num">30,809</td>
+                        <td class="num">32,906</td>
+                        <td class="num">3.26</td>
+                        <td class="num">6.48</td>
+                        <td class="num">7.354</td>
+                        <td class="num">$0.229</td>
+                        <td class="num">134,538</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6" data-family="R">
+                        <td>43</td>
+                        <td><strong>r6gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6</td>
+                        <td>R</td>
+                        <td class="num">28,610</td>
+                        <td class="num">30,773</td>
+                        <td class="num">33,432</td>
+                        <td class="num">3.26</td>
+                        <td class="num">6.66</td>
+                        <td class="num">7.342</td>
+                        <td class="num">$0.264</td>
+                        <td class="num">116,563</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6" data-family="M">
+                        <td>44</td>
+                        <td><strong>m6gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6</td>
+                        <td>M</td>
+                        <td class="num">27,826</td>
+                        <td class="num">30,692</td>
+                        <td class="num">32,662</td>
+                        <td class="num">3.28</td>
+                        <td class="num">6.23</td>
+                        <td class="num">7.948</td>
+                        <td class="num">$0.220</td>
+                        <td class="num">139,511</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6" data-family="C">
+                        <td>45</td>
+                        <td><strong>c6gd.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6</td>
+                        <td>C</td>
+                        <td class="num">27,526</td>
+                        <td class="num">30,068</td>
+                        <td class="num">32,051</td>
+                        <td class="num">3.34</td>
+                        <td class="num">6.74</td>
+                        <td class="num">7.712</td>
+                        <td class="num">$0.185</td>
+                        <td class="num">162,527</td>
+                    </tr>
+                    <tr data-arch="Graviton" data-gen="6" data-family="C">
+                        <td>46</td>
+                        <td><strong>c6g.xlarge</strong></td>
+                        <td><span class="badge badge-graviton">Graviton</span></td>
+                        <td>6</td>
+                        <td>C</td>
+                        <td class="num">27,905</td>
+                        <td class="num">30,026</td>
+                        <td class="num">31,938</td>
+                        <td class="num">3.35</td>
+                        <td class="num">6.72</td>
+                        <td class="num">7.592</td>
+                        <td class="num">$0.154</td>
+                        <td class="num">194,973</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5" data-family="C">
+                        <td>47</td>
+                        <td><strong>c5a.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5</td>
+                        <td>C</td>
+                        <td class="num">29,173</td>
+                        <td class="num">29,320</td>
+                        <td class="num">29,903</td>
+                        <td class="num">3.41</td>
+                        <td class="num">6.23</td>
+                        <td class="num">6.938</td>
+                        <td class="num">$0.173</td>
+                        <td class="num">169,479</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5" data-family="M">
+                        <td>48</td>
+                        <td><strong>m5a.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5</td>
+                        <td>M</td>
+                        <td class="num">22,599</td>
+                        <td class="num">23,154</td>
+                        <td class="num">22,915</td>
+                        <td class="num">4.32</td>
+                        <td class="num">8.04</td>
+                        <td class="num">11.416</td>
+                        <td class="num">$0.206</td>
+                        <td class="num">112,397</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5" data-family="M">
+                        <td>49</td>
+                        <td><strong>m5ad.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5</td>
+                        <td>M</td>
+                        <td class="num">22,342</td>
+                        <td class="num">22,664</td>
+                        <td class="num">22,928</td>
+                        <td class="num">4.41</td>
+                        <td class="num">8.17</td>
+                        <td class="num">11.108</td>
+                        <td class="num">$0.247</td>
+                        <td class="num">91,758</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5" data-family="R">
+                        <td>50</td>
+                        <td><strong>r5a.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5</td>
+                        <td>R</td>
+                        <td class="num">22,048</td>
+                        <td class="num">22,600</td>
+                        <td class="num">22,672</td>
+                        <td class="num">4.43</td>
+                        <td class="num">8.37</td>
+                        <td class="num">11.144</td>
+                        <td class="num">$0.257</td>
+                        <td class="num">87,938</td>
+                    </tr>
+                    <tr data-arch="AMD" data-gen="5" data-family="R">
+                        <td>51</td>
+                        <td><strong>r5ad.xlarge</strong></td>
+                        <td><span class="badge badge-amd">AMD</span></td>
+                        <td>5</td>
+                        <td>R</td>
+                        <td class="num">21,442</td>
+                        <td class="num">22,398</td>
+                        <td class="num">22,602</td>
+                        <td class="num">4.48</td>
+                        <td class="num">9.00</td>
+                        <td class="num">11.192</td>
+                        <td class="num">$0.308</td>
+                        <td class="num">72,721</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <div class="footer">
+        <p>EKS EC2 Node Benchmark | ap-northeast-2 (Seoul) | 2026-04</p>
+        <p>Spring Boot 3.2 + Java 21 | 5 runs median | Karpenter node provisioning</p>
+    </div>
+</div>
+
+
+<script>
+// ── Data ──
+const top20Labels = ["c7i-flex.xlarge","r8i-flex.xlarge","m8i.xlarge","c8i-flex.xlarge","r8i.xlarge","c8i.xlarge","c8g.xlarge","r7i.xlarge","m8g.xlarge","r8g.xlarge","m7i.xlarge","m7i-flex.xlarge","c7i.xlarge","r6i.xlarge","c6id.xlarge","m6idn.xlarge","c6in.xlarge","m6i.xlarge","m6in.xlarge","c6i.xlarge"];
+const top20Rps100 = [96573.46,83149.71,82004.09,79723.39,78739.19,77783.5,73937.18,72864.27,72399.0,71541.45,70929.32,66847.68,61274.89,52687.14,52114.35,51541.33,50253.47,49059.6,48727.89,47871.97];
+const top20Rps50 = [90449.84,68561.12,77180.96,66276.61,67470.0,65381.93,68987.04,69324.26,67656.52,66715.75,65525.68,62702.41,54818.06,48983.5,47290.82,47290.83,46937.4,46369.69,46111.73,47083.83];
+const top20Rps200 = [103228.05,93934.56,85681.01,88015.5,88332.73,86132.6,79051.79,77701.28,77322.97,75516.04,75425.75,72777.95,65105.96,53711.4,54167.48,52715.12,52284.5,50920.41,49774.57,48455.22];
+const top20Bg = ["rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)"];
+const top20Bd = ["rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)"];
+
+const allLabels = ["c7i-flex.xlarge","r8i-flex.xlarge","m8i.xlarge","c8i-flex.xlarge","r8i.xlarge","c8i.xlarge","c8g.xlarge","r7i.xlarge","m8g.xlarge","r8g.xlarge","m7i.xlarge","m7i-flex.xlarge","c7i.xlarge","r6i.xlarge","c6id.xlarge","m6idn.xlarge","c6in.xlarge","m6i.xlarge","m6in.xlarge","c6i.xlarge","r7g.xlarge","r6id.xlarge","m6id.xlarge","r7gd.xlarge","c7g.xlarge","m5zn.xlarge","m7g.xlarge","c7gd.xlarge","m7gd.xlarge","c5.xlarge","c5n.xlarge","r5b.xlarge","m5d.xlarge","r5.xlarge","r5d.xlarge","r5dn.xlarge","r5n.xlarge","m5.xlarge","c5d.xlarge","c6gn.xlarge","m6g.xlarge","r6g.xlarge","r6gd.xlarge","m6gd.xlarge","c6gd.xlarge","c6g.xlarge","c5a.xlarge","m5a.xlarge","m5ad.xlarge","r5a.xlarge","r5ad.xlarge"];
+const allRps100 = [96573.46,83149.71,82004.09,79723.39,78739.19,77783.5,73937.18,72864.27,72399.0,71541.45,70929.32,66847.68,61274.89,52687.14,52114.35,51541.33,50253.47,49059.6,48727.89,47871.97,47225.15,46771.15,46515.17,46341.12,46033.65,45718.94,45332.4,44183.81,42983.77,38802.0,38107.24,34901.19,34377.73,34374.19,33459.44,33430.46,32852.9,32656.94,31993.74,31353.7,30952.89,30809.23,30772.76,30692.32,30067.57,30025.77,29319.91,23153.72,22664.28,22599.97,22398.14];
+const allRps50 = [90449.84,68561.12,77180.96,66276.61,67470.0,65381.93,68987.04,69324.26,67656.52,66715.75,65525.68,62702.41,54818.06,48983.5,47290.82,47290.83,46937.4,46369.69,46111.73,47083.83,41745.03,43097.04,45008.68,43011.96,42835.97,44209.07,41859.2,41217.39,39820.19,37638.39,36973.42,33826.03,33169.18,32938.86,31991.38,32776.08,32333.59,31878.11,30640.43,29132.51,28376.09,28440.65,28609.94,27825.7,27525.53,27904.77,29173.29,22599.14,22341.74,22048.26,21441.68];
+const allRps200 = [103228.05,93934.56,85681.01,88015.5,88332.73,86132.6,79051.79,77701.28,77322.97,75516.04,75425.75,72777.95,65105.96,53711.4,54167.48,52715.12,52284.5,50920.41,49774.57,48455.22,51350.84,47767.88,46662.15,51855.06,49527.6,46096.59,48707.53,47645.04,46363.85,39486.54,38841.39,35371.76,34980.98,34459.86,33726.1,33875.63,33332.83,32979.01,32153.55,33584.01,33039.36,32906.0,33431.56,32661.54,32051.48,31938.37,29903.17,22915.41,22927.57,22671.77,22602.33];
+const allLat100 = [1.01,1.16,1.17,1.21,1.22,1.24,1.31,1.33,1.35,1.36,1.36,1.48,1.58,1.86,1.88,1.91,1.95,2.0,2.03,2.07,2.11,2.11,2.11,2.16,2.16,2.16,2.2,2.26,2.33,2.56,2.61,2.85,2.9,2.89,2.97,2.98,3.03,3.04,3.12,3.19,3.25,3.26,3.26,3.28,3.34,3.35,3.41,4.32,4.41,4.43,4.48];
+const allColdstarts = [5.189,4.759,4.68,4.543,4.831,4.313,4.016,5.517,4.545,4.417,5.828,5.263,5.675,6.269,5.942,6.084,5.822,6.254,6.621,6.296,5.631,6.214,6.34,5.609,5.573,6.336,5.987,5.4,5.7,7.13,7.363,7.733,7.905,8.257,8.065,8.339,7.745,7.359,7.129,7.11,7.502,7.354,7.342,7.948,7.712,7.592,6.938,11.416,11.108,11.144,11.192];
+const allBg = ["rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(239, 68, 68, 0.8)","rgba(239, 68, 68, 0.8)","rgba(239, 68, 68, 0.8)","rgba(239, 68, 68, 0.8)","rgba(239, 68, 68, 0.8)"];
+const allBd = ["rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(239, 68, 68, 1.0)","rgba(239, 68, 68, 1.0)","rgba(239, 68, 68, 1.0)","rgba(239, 68, 68, 1.0)","rgba(239, 68, 68, 1.0)"];
+
+// ── Top 20 Chart ──
+const top20Datasets = [
+    { label: '100 connections', data: top20Rps100, backgroundColor: top20Bg, borderColor: top20Bd, borderWidth: 1 },
+    { label: '50 connections', data: top20Rps50, backgroundColor: top20Bg.map(c => c.replace(/[\d.]+\)/, '0.5)')), borderColor: top20Bd, borderWidth: 1 },
+    { label: '200 connections', data: top20Rps200, backgroundColor: top20Bg.map(c => c.replace(/[\d.]+\)/, '0.6)')), borderColor: top20Bd, borderWidth: 1 }
+];
+let currentTop20 = 0;
+
+const top20Chart = new Chart(document.getElementById('top20Chart'), {
+    type: 'bar',
+    data: { labels: top20Labels, datasets: [top20Datasets[0]] },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.raw.toLocaleString() + ' req/s'
+                }
+            }
+        },
+        scales: {
+            x: { beginAtZero: true, title: { display: true, text: 'Requests/sec' },
+                ticks: { callback: v => (v/1000).toFixed(0) + 'k' } },
+            y: { ticks: { font: { size: 12 } } }
         }
+    }
+});
 
-        // RPS Chart
-        const rpsData = [{"instance": "c7i-flex.xlarge", "rps": 94638.65, "arch": "Intel"}, {"instance": "m7i-flex.xlarge", "rps": 88416.81, "arch": "Intel"}, {"instance": "r8i.xlarge", "rps": 83159.38, "arch": "Intel"}, {"instance": "m8i.xlarge", "rps": 81527.68, "arch": "Intel"}, {"instance": "c8i.xlarge", "rps": 81303.0, "arch": "Intel"}, {"instance": "r8i-flex.xlarge", "rps": 80327.97, "arch": "Intel"}, {"instance": "c8i-flex.xlarge", "rps": 80121.1, "arch": "Intel"}, {"instance": "m7i.xlarge", "rps": 70008.72, "arch": "Intel"}, {"instance": "r8g.xlarge", "rps": 69323.28, "arch": "Graviton"}, {"instance": "c8g.xlarge", "rps": 66932.97, "arch": "Graviton"}, {"instance": "r7i.xlarge", "rps": 66549.52, "arch": "Intel"}, {"instance": "m8g.xlarge", "rps": 65459.59, "arch": "Graviton"}, {"instance": "c7i.xlarge", "rps": 59534.34, "arch": "Intel"}, {"instance": "m6idn.xlarge", "rps": 51825.79, "arch": "Intel"}, {"instance": "r6i.xlarge", "rps": 50907.92, "arch": "Intel"}, {"instance": "r6id.xlarge", "rps": 48597.54, "arch": "Intel"}, {"instance": "m6i.xlarge", "rps": 48442.11, "arch": "Intel"}, {"instance": "c6in.xlarge", "rps": 47823.76, "arch": "Intel"}, {"instance": "m6in.xlarge", "rps": 45696.23, "arch": "Intel"}, {"instance": "m6id.xlarge", "rps": 45379.24, "arch": "Intel"}];
-        new Chart(document.getElementById('rpsChart'), {
-            type: 'bar',
-            data: {
-                labels: rpsData.map(d => d.instance),
-                datasets: [{
-                    label: 'Requests/sec',
-                    data: rpsData.map(d => d.rps),
-                    backgroundColor: rpsData.map(d => getColor(d.arch)),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { title: { display: true, text: 'Requests/sec' } }
+function switchTop20Tab(idx) {
+    document.querySelectorAll('#top20 .tab-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+    top20Chart.data.datasets = [top20Datasets[idx]];
+    top20Chart.update();
+}
+
+// ── Generation Chart (all 51 instances) ──
+const genDatasets = [
+    { label: 'Throughput (req/s @100conn)', data: allRps100, backgroundColor: allBg, borderColor: allBd, borderWidth: 1 },
+    { label: 'Latency Avg (ms @100conn)', data: allLat100, backgroundColor: allBg, borderColor: allBd, borderWidth: 1 },
+    { label: 'Cold Start (seconds)', data: allColdstarts, backgroundColor: allBg, borderColor: allBd, borderWidth: 1 }
+];
+
+const genChart = new Chart(document.getElementById('genChart'), {
+    type: 'bar',
+    data: { labels: allLabels, datasets: [genDatasets[0]] },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => {
+                        const idx = genChart.data.datasets[0] === genDatasets[0] ? 0 :
+                                    genChart.data.datasets[0] === genDatasets[1] ? 1 : 2;
+                        if (idx === 0) return ctx.raw.toLocaleString() + ' req/s';
+                        if (idx === 1) return ctx.raw.toFixed(2) + ' ms';
+                        return ctx.raw.toFixed(3) + ' s';
+                    }
                 }
             }
-        });
-
-        // Coldstart Chart
-        const csData = [{"instance": "c8g.xlarge", "cs": 4.293, "arch": "Graviton"}, {"instance": "c8i.xlarge", "cs": 4.368, "arch": "Intel"}, {"instance": "r8g.xlarge", "cs": 4.393, "arch": "Graviton"}, {"instance": "c8i-flex.xlarge", "cs": 4.505, "arch": "Intel"}, {"instance": "m8g.xlarge", "cs": 4.551, "arch": "Graviton"}, {"instance": "m8i.xlarge", "cs": 4.686, "arch": "Intel"}, {"instance": "r8i-flex.xlarge", "cs": 4.693, "arch": "Intel"}, {"instance": "r8i.xlarge", "cs": 4.799, "arch": "Intel"}, {"instance": "c7i-flex.xlarge", "cs": 5.078, "arch": "Intel"}, {"instance": "m7i-flex.xlarge", "cs": 5.355, "arch": "Intel"}, {"instance": "c7gd.xlarge", "cs": 5.439, "arch": "Graviton"}, {"instance": "r7i.xlarge", "cs": 5.539, "arch": "Intel"}, {"instance": "r7gd.xlarge", "cs": 5.592, "arch": "Graviton"}, {"instance": "r7g.xlarge", "cs": 5.629, "arch": "Graviton"}, {"instance": "c7i.xlarge", "cs": 5.656, "arch": "Intel"}, {"instance": "m7gd.xlarge", "cs": 5.713, "arch": "Graviton"}, {"instance": "c7g.xlarge", "cs": 5.746, "arch": "Graviton"}, {"instance": "m7i.xlarge", "cs": 5.848, "arch": "Intel"}, {"instance": "c6in.xlarge", "cs": 5.873, "arch": "Intel"}, {"instance": "m7g.xlarge", "cs": 5.924, "arch": "Graviton"}];
-        new Chart(document.getElementById('coldstartChart'), {
-            type: 'bar',
-            data: {
-                labels: csData.map(d => d.instance),
-                datasets: [{
-                    label: 'Coldstart (seconds)',
-                    data: csData.map(d => d.cs),
-                    backgroundColor: csData.map(d => getColor(d.arch)),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { title: { display: true, text: 'Seconds (lower is better)' } }
-                }
-            }
-        });
-
-        // Perf/Dollar Chart
-        const pdData = [{"instance": "c7i-flex.xlarge", "pd": 490356.0, "arch": "Intel"}, {"instance": "c8g.xlarge", "pd": 434630.0, "arch": "Graviton"}, {"instance": "m7i-flex.xlarge", "pd": 405582.0, "arch": "Intel"}, {"instance": "c8i-flex.xlarge", "pd": 400606.0, "arch": "Intel"}, {"instance": "c8i.xlarge", "pd": 383505.0, "arch": "Intel"}, {"instance": "m8g.xlarge", "pd": 353836.0, "arch": "Graviton"}, {"instance": "m8i.xlarge", "pd": 320975.0, "arch": "Intel"}, {"instance": "r8g.xlarge", "pd": 302722.0, "arch": "Graviton"}, {"instance": "c7i.xlarge", "pd": 294724.0, "arch": "Intel"}, {"instance": "m7i.xlarge", "pd": 289292.0, "arch": "Intel"}, {"instance": "r8i-flex.xlarge", "pd": 273224.0, "arch": "Intel"}, {"instance": "r8i.xlarge", "pd": 263163.0, "arch": "Intel"}, {"instance": "c7g.xlarge", "pd": 259735.0, "arch": "Graviton"}, {"instance": "c6i.xlarge", "pd": 224905.0, "arch": "Intel"}, {"instance": "r7i.xlarge", "pd": 221095.0, "arch": "Intel"}, {"instance": "m7g.xlarge", "pd": 211539.0, "arch": "Graviton"}, {"instance": "m6i.xlarge", "pd": 210618.0, "arch": "Intel"}, {"instance": "c7gd.xlarge", "pd": 203782.0, "arch": "Graviton"}, {"instance": "c5.xlarge", "pd": 194267.0, "arch": "Intel"}, {"instance": "c6in.xlarge", "pd": 188283.0, "arch": "Intel"}];
-        new Chart(document.getElementById('perfDollarChart'), {
-            type: 'bar',
-            data: {
-                labels: pdData.map(d => d.instance),
-                datasets: [{
-                    label: 'Perf per Dollar',
-                    data: pdData.map(d => d.pd),
-                    backgroundColor: pdData.map(d => getColor(d.arch)),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { title: { display: true, text: 'Requests/sec per $/hr' } }
-                }
-            }
-        });
-
-        // Architecture Comparison
-        const archData = {"Graviton": {"rps": 40860.50375, "cs": 6.2654375}, "Intel": {"rps": 53396.33666666667, "cs": 6.341233333333333}, "AMD": {"rps": 24681.042, "cs": 10.3422}};
-        new Chart(document.getElementById('archChart'), {
-            type: 'bar',
-            data: {
-                labels: ['Graviton', 'Intel', 'AMD'],
-                datasets: [{
-                    label: 'Avg RPS (100 conn)',
-                    data: [archData.Graviton.rps, archData.Intel.rps, archData.AMD.rps],
-                    backgroundColor: [colors.graviton, colors.intel, colors.amd],
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { title: { display: true, text: 'Requests/sec' } }
-                }
-            }
-        });
-
-        // Generation Comparison
-        const genStats = {};
-        genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(94638.65); if (5.078 > 0) genStats[7].cs.push(5.078);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(88416.81); if (5.355 > 0) genStats[7].cs.push(5.355);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(83159.38); if (4.799 > 0) genStats[8].cs.push(4.799);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(81527.68); if (4.686 > 0) genStats[8].cs.push(4.686);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(81303.0); if (4.368 > 0) genStats[8].cs.push(4.368);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(80327.97); if (4.693 > 0) genStats[8].cs.push(4.693);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(80121.1); if (4.505 > 0) genStats[8].cs.push(4.505);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(70008.72); if (5.848 > 0) genStats[7].cs.push(5.848);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(69323.28); if (4.393 > 0) genStats[8].cs.push(4.393);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(66932.97); if (4.293 > 0) genStats[8].cs.push(4.293);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(66549.52); if (5.539 > 0) genStats[7].cs.push(5.539);
-genStats[8] = genStats[8] || {rps: [], cs: []}; genStats[8].rps.push(65459.59); if (4.551 > 0) genStats[8].cs.push(4.551);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(59534.34); if (5.656 > 0) genStats[7].cs.push(5.656);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(51825.79); if (6.059 > 0) genStats[6].cs.push(6.059);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(50907.92); if (6.231 > 0) genStats[6].cs.push(6.231);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(48597.54); if (6.295 > 0) genStats[6].cs.push(6.295);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(48442.11); if (6.273 > 0) genStats[6].cs.push(6.273);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(47823.76); if (5.873 > 0) genStats[6].cs.push(5.873);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(45696.23); if (6.571 > 0) genStats[6].cs.push(6.571);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(45379.24); if (6.533 > 0) genStats[6].cs.push(6.533);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(44060.43); if (5.996 > 0) genStats[6].cs.push(5.996);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(43770.79); if (6.251 > 0) genStats[5].cs.push(6.251);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(43181.68); if (6.3 > 0) genStats[6].cs.push(6.3);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(42485.44); if (5.592 > 0) genStats[7].cs.push(5.592);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(42077.05); if (5.746 > 0) genStats[7].cs.push(5.746);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(41905.98); if (5.629 > 0) genStats[7].cs.push(5.629);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(41613.21); if (5.713 > 0) genStats[7].cs.push(5.713);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(41038.48); if (5.924 > 0) genStats[7].cs.push(5.924);
-genStats[7] = genStats[7] || {rps: [], cs: []}; genStats[7].rps.push(39329.95); if (5.439 > 0) genStats[7].cs.push(5.439);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(38131.88); if (7.189 > 0) genStats[5].cs.push(7.189);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(37299.29); if (7.14 > 0) genStats[5].cs.push(7.14);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(35487.48); if (7.866 > 0) genStats[5].cs.push(7.866);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(35103.11); if (8.228 > 0) genStats[5].cs.push(8.228);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(34891.0); if (8.1 > 0) genStats[5].cs.push(8.1);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(33717.38); if (8.327 > 0) genStats[5].cs.push(8.327);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(33689.72); if (7.354 > 0) genStats[5].cs.push(7.354);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(33556.64); if (7.967 > 0) genStats[5].cs.push(7.967);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(32931.88); if (7.451 > 0) genStats[5].cs.push(7.451);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(31898.22); if (7.55 > 0) genStats[6].cs.push(7.55);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(31809.06); if (7.706 > 0) genStats[5].cs.push(7.706);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(30831.88); if (6.965 > 0) genStats[5].cs.push(6.965);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(30311.77); if (7.732 > 0) genStats[6].cs.push(7.732);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(28959.61); if (7.823 > 0) genStats[6].cs.push(7.823);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(28411.22); if (7.654 > 0) genStats[6].cs.push(7.654);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(28382.83); if (7.176 > 0) genStats[6].cs.push(7.176);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(28093.34); if (7.688 > 0) genStats[6].cs.push(7.688);
-genStats[6] = genStats[6] || {rps: [], cs: []}; genStats[6].rps.push(27545.12); if (7.344 > 0) genStats[6].cs.push(7.344);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(24410.58); if (10.962 > 0) genStats[5].cs.push(10.962);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(22976.47); if (11.224 > 0) genStats[5].cs.push(11.224);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(22822.03); if (11.077 > 0) genStats[5].cs.push(11.077);
-genStats[5] = genStats[5] || {rps: [], cs: []}; genStats[5].rps.push(22364.25); if (11.483 > 0) genStats[5].cs.push(11.483);
-        const genLabels = ['5th', '6th', '7th', '8th'];
-        const genRps = genLabels.map((_, i) => {
-            const g = genStats[i+5];
-            return g ? g.rps.reduce((a,b) => a+b, 0) / g.rps.length : 0;
-        });
-        new Chart(document.getElementById('genChart'), {
-            type: 'bar',
-            data: {
-                labels: genLabels,
-                datasets: [{
-                    label: 'Avg RPS (100 conn)',
-                    data: genRps,
-                    backgroundColor: ['#94a3b8', '#64748b', '#475569', '#1e293b'],
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { title: { display: true, text: 'Requests/sec' } }
-                }
-            }
-        });
-
-        // Table functions
-        let currentArch = 'all';
-        function filterArch(arch) {
-            currentArch = arch;
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            filterTable();
+        },
+        scales: {
+            x: { beginAtZero: true },
+            y: { ticks: { font: { size: 11 } } }
         }
+    }
+});
 
-        function filterTable() {
-            const search = document.querySelector('.search').value.toLowerCase();
-            document.querySelectorAll('#resultsTable tbody tr').forEach(row => {
-                const instance = row.cells[1].textContent.toLowerCase();
-                const arch = row.dataset.arch;
-                const matchSearch = instance.includes(search);
-                const matchArch = currentArch === 'all' || arch === currentArch;
-                row.style.display = matchSearch && matchArch ? '' : 'none';
+function switchGenTab(idx) {
+    document.querySelectorAll('#generation .tab-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+    genChart.data.datasets = [genDatasets[idx]];
+    if (idx === 0) {
+        genChart.options.scales.x.title = { display: true, text: 'Requests/sec' };
+        genChart.options.scales.x.ticks = { callback: v => (v/1000).toFixed(0) + 'k' };
+    } else if (idx === 1) {
+        genChart.options.scales.x.title = { display: true, text: 'Latency (ms)' };
+        genChart.options.scales.x.ticks = { callback: v => v.toFixed(1) + 'ms' };
+    } else {
+        genChart.options.scales.x.title = { display: true, text: 'Cold Start (seconds)' };
+        genChart.options.scales.x.ticks = { callback: v => v.toFixed(1) + 's' };
+    }
+    genChart.update();
+}
+
+// ── Bubble Chart (Price vs Throughput) ──
+const bubbleRaw = [{x:0.192,y:38802.0,r:8,label:"c5.xlarge",arch:"Intel"},{x:0.173,y:29319.91,r:8,label:"c5a.xlarge",arch:"AMD"},{x:0.218,y:31993.74,r:8,label:"c5d.xlarge",arch:"Intel"},{x:0.242,y:38107.24,r:8,label:"c5n.xlarge",arch:"Intel"},{x:0.154,y:30025.77,r:8,label:"c6g.xlarge",arch:"Graviton"},{x:0.185,y:30067.57,r:8,label:"c6gd.xlarge",arch:"Graviton"},{x:0.194,y:31353.7,r:8,label:"c6gn.xlarge",arch:"Graviton"},{x:0.192,y:47871.97,r:8,label:"c6i.xlarge",arch:"Intel"},{x:0.242,y:52114.35,r:8,label:"c6id.xlarge",arch:"Intel"},{x:0.254,y:50253.47,r:8,label:"c6in.xlarge",arch:"Intel"},{x:0.162,y:46033.65,r:8,label:"c7g.xlarge",arch:"Graviton"},{x:0.193,y:44183.81,r:8,label:"c7gd.xlarge",arch:"Graviton"},{x:0.202,y:61274.89,r:8,label:"c7i.xlarge",arch:"Intel"},{x:0.154,y:73937.18,r:8,label:"c8g.xlarge",arch:"Graviton"},{x:0.2,y:79723.39,r:8,label:"c8i-flex.xlarge",arch:"Intel"},{x:0.212,y:77783.5,r:8,label:"c8i.xlarge",arch:"Intel"},{x:0.23,y:32656.94,r:8,label:"m5.xlarge",arch:"Intel"},{x:0.206,y:23153.72,r:8,label:"m5a.xlarge",arch:"AMD"},{x:0.247,y:22664.28,r:8,label:"m5ad.xlarge",arch:"AMD"},{x:0.261,y:34377.73,r:8,label:"m5d.xlarge",arch:"Intel"},{x:0.331,y:45718.94,r:8,label:"m5zn.xlarge",arch:"Intel"},{x:0.185,y:30952.89,r:8,label:"m6g.xlarge",arch:"Graviton"},{x:0.22,y:30692.32,r:8,label:"m6gd.xlarge",arch:"Graviton"},{x:0.23,y:49059.6,r:8,label:"m6i.xlarge",arch:"Intel"},{x:0.285,y:46515.17,r:8,label:"m6id.xlarge",arch:"Intel"},{x:0.321,y:51541.33,r:8,label:"m6idn.xlarge",arch:"Intel"},{x:0.285,y:48727.89,r:8,label:"m6in.xlarge",arch:"Intel"},{x:0.194,y:45332.4,r:8,label:"m7g.xlarge",arch:"Graviton"},{x:0.231,y:42983.77,r:8,label:"m7gd.xlarge",arch:"Graviton"},{x:0.218,y:66847.68,r:8,label:"m7i-flex.xlarge",arch:"Intel"},{x:0.242,y:70929.32,r:8,label:"m7i.xlarge",arch:"Intel"},{x:0.185,y:72399.0,r:8,label:"m8g.xlarge",arch:"Graviton"},{x:0.254,y:82004.09,r:8,label:"m8i.xlarge",arch:"Intel"},{x:0.286,y:34374.19,r:8,label:"r5.xlarge",arch:"Intel"},{x:0.257,y:22599.97,r:8,label:"r5a.xlarge",arch:"AMD"},{x:0.308,y:22398.14,r:8,label:"r5ad.xlarge",arch:"AMD"},{x:0.343,y:34901.19,r:8,label:"r5b.xlarge",arch:"Intel"},{x:0.329,y:33459.44,r:8,label:"r5d.xlarge",arch:"Intel"},{x:0.377,y:33430.46,r:8,label:"r5dn.xlarge",arch:"Intel"},{x:0.343,y:32852.9,r:8,label:"r5n.xlarge",arch:"Intel"},{x:0.229,y:30809.23,r:8,label:"r6g.xlarge",arch:"Graviton"},{x:0.264,y:30772.76,r:8,label:"r6gd.xlarge",arch:"Graviton"},{x:0.286,y:52687.14,r:8,label:"r6i.xlarge",arch:"Intel"},{x:0.353,y:46771.15,r:8,label:"r6id.xlarge",arch:"Intel"},{x:0.24,y:47225.15,r:8,label:"r7g.xlarge",arch:"Graviton"},{x:0.287,y:46341.12,r:8,label:"r7gd.xlarge",arch:"Graviton"},{x:0.301,y:72864.27,r:8,label:"r7i.xlarge",arch:"Intel"},{x:0.229,y:71541.45,r:8,label:"r8g.xlarge",arch:"Graviton"},{x:0.294,y:83149.71,r:8,label:"r8i-flex.xlarge",arch:"Intel"},{x:0.316,y:78739.19,r:8,label:"r8i.xlarge",arch:"Intel"},{x:0.193,y:96573.46,r:8,label:"c7i-flex.xlarge",arch:"Intel"}];
+const archColors = { Graviton: 'rgba(16,185,129,0.6)', Intel: 'rgba(59,130,246,0.6)', AMD: 'rgba(239,68,68,0.6)' };
+const archBorders = { Graviton: 'rgb(16,185,129)', Intel: 'rgb(59,130,246)', AMD: 'rgb(239,68,68)' };
+
+const bubbleDatasets = ['Intel', 'Graviton', 'AMD'].map(arch => ({
+    label: arch,
+    data: bubbleRaw.filter(d => d.arch === arch),
+    backgroundColor: archColors[arch],
+    borderColor: archBorders[arch],
+    borderWidth: 1
+}));
+
+new Chart(document.getElementById('bubbleChart'), {
+    type: 'bubble',
+    data: { datasets: bubbleDatasets },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: ctx => {
+                        const d = ctx.raw;
+                        return d.label + ': $' + d.x.toFixed(3) + '/hr, ' + d.y.toLocaleString() + ' req/s';
+                    }
+                }
+            }
+        },
+        scales: {
+            x: { title: { display: true, text: 'Price ($/hr)' } },
+            y: { title: { display: true, text: 'Throughput (req/s @100conn)' },
+                 ticks: { callback: v => (v/1000).toFixed(0) + 'k' } }
+        }
+    }
+});
+
+// ── Perf/Dollar Chart ──
+new Chart(document.getElementById('perfDollarChart'), {
+    type: 'bar',
+    data: {
+        labels: ["c7i-flex.xlarge","c8g.xlarge","c8i-flex.xlarge","m8g.xlarge","c8i.xlarge","m8i.xlarge","r8g.xlarge","m7i-flex.xlarge","c7i.xlarge","m7i.xlarge","c7g.xlarge","r8i-flex.xlarge","c6i.xlarge","r8i.xlarge","r7i.xlarge"],
+        datasets: [{
+            data: [500381,480112,398617,391346,366903,322851,312408,306641,303341,293096,284158,282822,249333,249175,242074],
+            backgroundColor: ["rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)"],
+            borderColor: ["rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)"],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ctx.raw.toLocaleString() + ' req/s per $/hr' } }
+        },
+        scales: {
+            x: { beginAtZero: true, title: { display: true, text: 'req/s per $/hr' },
+                 ticks: { callback: v => (v/1000).toFixed(0) + 'k' } },
+            y: { ticks: { font: { size: 12 } } }
+        }
+    }
+});
+
+// ── Coldstart Charts ──
+new Chart(document.getElementById('coldstartChart'), {
+    type: 'bar',
+    data: {
+        labels: ["c8g.xlarge","c8i.xlarge","r8g.xlarge","c8i-flex.xlarge","m8g.xlarge","m8i.xlarge","r8i-flex.xlarge","r8i.xlarge","c7i-flex.xlarge","m7i-flex.xlarge","c7gd.xlarge","r7i.xlarge","c7g.xlarge","r7gd.xlarge","r7g.xlarge"],
+        datasets: [{
+            data: [4.016,4.313,4.417,4.543,4.545,4.68,4.759,4.831,5.189,5.263,5.4,5.517,5.573,5.609,5.631],
+            backgroundColor: ["rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)","rgba(16, 185, 129, 0.8)"],
+            borderColor: ["rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)","rgba(16, 185, 129, 1.0)"],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(3) + ' seconds' } } },
+        scales: {
+            x: { title: { display: true, text: 'Seconds (lower is better)' } },
+            y: { ticks: { font: { size: 12 } } }
+        }
+    }
+});
+
+new Chart(document.getElementById('coldstartSlowChart'), {
+    type: 'bar',
+    data: {
+        labels: ["r5n.xlarge","m5d.xlarge","m6gd.xlarge","r5d.xlarge","r5.xlarge","r5dn.xlarge","m5ad.xlarge","r5a.xlarge","r5ad.xlarge","m5a.xlarge"],
+        datasets: [{
+            data: [7.745,7.905,7.948,8.065,8.257,8.339,11.108,11.144,11.192,11.416],
+            backgroundColor: ["rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(16, 185, 129, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(59, 130, 246, 0.8)","rgba(239, 68, 68, 0.8)","rgba(239, 68, 68, 0.8)","rgba(239, 68, 68, 0.8)","rgba(239, 68, 68, 0.8)"],
+            borderColor: ["rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(16, 185, 129, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(59, 130, 246, 1.0)","rgba(239, 68, 68, 1.0)","rgba(239, 68, 68, 1.0)","rgba(239, 68, 68, 1.0)","rgba(239, 68, 68, 1.0)"],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(3) + ' seconds' } } },
+        scales: {
+            x: { title: { display: true, text: 'Seconds (lower is better)' } },
+            y: { ticks: { font: { size: 12 } } }
+        }
+    }
+});
+
+// ── Table Filtering & Sorting ──
+let currentArchFilter = 'all';
+let currentGenFilter = null;
+let currentFamilyFilter = null;
+
+function filterTable() {
+    const search = document.querySelector('.search').value.toLowerCase();
+    const rows = document.querySelectorAll('#resultsTable tbody tr');
+    rows.forEach(row => {
+        const inst = row.children[1].textContent.toLowerCase();
+        const arch = row.dataset.arch;
+        const gen = row.dataset.gen;
+        const family = row.dataset.family;
+
+        let show = inst.includes(search);
+        if (currentArchFilter !== 'all') show = show && arch === currentArchFilter;
+        if (currentGenFilter) show = show && gen === currentGenFilter;
+        if (currentFamilyFilter) show = show && family === currentFamilyFilter;
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function toggleFilter(btn, filter) {
+    if (filter === 'all' || filter === 'Intel' || filter === 'Graviton' || filter === 'AMD') {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            if (['all','Intel','Graviton','AMD'].some(f => b.textContent.includes(f) || b.onclick?.toString().includes("'all'")))
+                if (b.onclick?.toString().includes("'" + filter + "'") || (filter==='all' && b.textContent==='All'))
+                    { /* will be set below */ }
+        });
+        // Reset arch filters
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            const t = b.onclick?.toString() || '';
+            if (t.includes("'all'") || t.includes("'Intel'") || t.includes("'Graviton'") || t.includes("'AMD'"))
+                b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        currentArchFilter = filter;
+    } else if (filter.startsWith('gen-')) {
+        const gen = filter.split('-')[1];
+        if (currentGenFilter === gen) {
+            currentGenFilter = null;
+            btn.classList.remove('active');
+        } else {
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                if (b.onclick?.toString().includes("'gen-")) b.classList.remove('active');
             });
+            btn.classList.add('active');
+            currentGenFilter = gen;
         }
-
-        let sortDir = 1;
-        let lastCol = -1;
-        function sortTable(col) {
-            if (lastCol === col) sortDir *= -1;
-            else sortDir = 1;
-            lastCol = col;
-            
-            const tbody = document.querySelector('#resultsTable tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            
-            rows.sort((a, b) => {
-                let aVal = a.cells[col].textContent.replace(/[,$%]/g, '');
-                let bVal = b.cells[col].textContent.replace(/[,$%]/g, '');
-                
-                if (!isNaN(parseFloat(aVal))) {
-                    return (parseFloat(aVal) - parseFloat(bVal)) * sortDir;
-                }
-                return aVal.localeCompare(bVal) * sortDir;
+    } else if (filter.startsWith('family-')) {
+        const fam = filter.split('-')[1];
+        if (currentFamilyFilter === fam) {
+            currentFamilyFilter = null;
+            btn.classList.remove('active');
+        } else {
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                if (b.onclick?.toString().includes("'family-")) b.classList.remove('active');
             });
-            
-            rows.forEach(row => tbody.appendChild(row));
+            btn.classList.add('active');
+            currentFamilyFilter = fam;
         }
-    </script>
+    }
+    filterTable();
+}
+
+let sortCol = -1, sortDir = 1;
+function sortTable(col) {
+    const tbody = document.querySelector('#resultsTable tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    if (sortCol === col) sortDir *= -1;
+    else { sortCol = col; sortDir = 1; }
+
+    rows.sort((a, b) => {
+        let va = a.children[col].textContent.replace(/[$,]/g, '');
+        let vb = b.children[col].textContent.replace(/[$,]/g, '');
+        const na = parseFloat(va), nb = parseFloat(vb);
+        if (!isNaN(na) && !isNaN(nb)) return (na - nb) * sortDir;
+        return va.localeCompare(vb) * sortDir;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+}
+</script>
 </body>
 </html>

@@ -1,0 +1,53 @@
+===== Spring Boot Benchmark (wrk) =====
+Instance Type: m6g.xlarge
+Spring Boot Host: springboot-server-m6g-xlarge
+
+--- Warm-up Phase (30s) ---
+Warm-up complete
+
+--- Main Page - 2 threads, 50 connections, 60s ---
+Running 1m test @ http://springboot-server-m6g-xlarge:8080/
+  2 threads and 50 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.81ms  786.31us  25.97ms   86.33%
+    Req/Sec    14.08k   746.59    25.32k    73.69%
+  Latency Distribution
+     50%    1.73ms
+     75%    1.98ms
+     90%    2.53ms
+     99%    4.16ms
+  1683024 requests in 1.00m, 225.01MB read
+Requests/sec:  28003.72
+Transfer/sec:      3.74MB
+
+--- Main Page - 2 threads, 100 connections, 60s ---
+Running 1m test @ http://springboot-server-m6g-xlarge:8080/
+  2 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.33ms    1.42ms 218.98ms   84.50%
+    Req/Sec    15.18k     1.00k   17.64k    73.00%
+  Latency Distribution
+     50%    3.21ms
+     75%    3.73ms
+     90%    4.65ms
+     99%    6.83ms
+  1812331 requests in 1.00m, 242.30MB read
+Requests/sec:  30168.36
+Transfer/sec:      4.03MB
+
+--- High Load - 2 threads, 200 connections, 30s ---
+Running 30s test @ http://springboot-server-m6g-xlarge:8080/
+  2 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     6.21ms    2.68ms 235.85ms   85.65%
+    Req/Sec    16.32k     0.99k   18.50k    66.72%
+  Latency Distribution
+     50%    5.95ms
+     75%    7.06ms
+     90%    8.41ms
+     99%   12.25ms
+  970636 requests in 30.00s, 129.77MB read
+Requests/sec:  32349.63
+Transfer/sec:      4.32MB
+
+===== Spring Boot Benchmark Complete =====

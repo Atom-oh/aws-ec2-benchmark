@@ -1,0 +1,53 @@
+===== Spring Boot Benchmark (wrk) =====
+Instance Type: c6g.xlarge
+Spring Boot Host: springboot-server-c6g-xlarge
+
+--- Warm-up Phase (30s) ---
+Warm-up complete
+
+--- Main Page - 2 threads, 50 connections, 60s ---
+Running 1m test @ http://springboot-server-c6g-xlarge:8080/
+  2 threads and 50 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.84ms    0.96ms  51.60ms   91.56%
+    Req/Sec    14.02k   769.54    15.99k    71.42%
+  Latency Distribution
+     50%    1.71ms
+     75%    1.97ms
+     90%    2.50ms
+     99%    4.84ms
+  1674326 requests in 1.00m, 223.85MB read
+Requests/sec:  27904.77
+Transfer/sec:      3.73MB
+
+--- Main Page - 2 threads, 100 connections, 60s ---
+Running 1m test @ http://springboot-server-c6g-xlarge:8080/
+  2 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.35ms    1.31ms  79.84ms   83.14%
+    Req/Sec    15.12k     0.88k   17.28k    68.53%
+  Latency Distribution
+     50%    3.24ms
+     75%    3.73ms
+     90%    4.59ms
+     99%    6.72ms
+  1802051 requests in 1.00m, 240.93MB read
+Requests/sec:  30029.13
+Transfer/sec:      4.01MB
+
+--- High Load - 2 threads, 200 connections, 30s ---
+Running 30s test @ http://springboot-server-c6g-xlarge:8080/
+  2 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     6.97ms   10.46ms 430.75ms   99.26%
+    Req/Sec    15.60k     1.38k   17.77k    77.42%
+  Latency Distribution
+     50%    6.19ms
+     75%    7.39ms
+     90%    8.91ms
+     99%   14.82ms
+  928518 requests in 30.01s, 124.14MB read
+Requests/sec:  30936.91
+Transfer/sec:      4.14MB
+
+===== Spring Boot Benchmark Complete =====

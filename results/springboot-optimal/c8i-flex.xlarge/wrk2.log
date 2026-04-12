@@ -1,0 +1,53 @@
+===== Spring Boot Benchmark (wrk) =====
+Instance Type: c8i-flex.xlarge
+Spring Boot Host: springboot-server-c8i-flex-xlarge
+
+--- Warm-up Phase (30s) ---
+Warm-up complete
+
+--- Main Page - 2 threads, 50 connections, 60s ---
+Running 1m test @ http://springboot-server-c8i-flex-xlarge:8080/
+  2 threads and 50 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   755.43us  314.81us  10.19ms   87.30%
+    Req/Sec    32.70k     3.90k   38.88k    53.75%
+  Latency Distribution
+     50%  640.00us
+     75%  756.00us
+     90%    1.21ms
+     99%    1.96ms
+  3904944 requests in 1.00m, 522.07MB read
+Requests/sec:  65076.67
+Transfer/sec:      8.70MB
+
+--- Main Page - 2 threads, 100 connections, 60s ---
+Running 1m test @ http://springboot-server-c8i-flex-xlarge:8080/
+  2 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.22ms  508.63us  31.06ms   82.53%
+    Req/Sec    39.71k     3.81k   47.35k    60.17%
+  Latency Distribution
+     50%    1.10ms
+     75%    1.31ms
+     90%    1.76ms
+     99%    3.08ms
+  4741556 requests in 1.00m, 633.92MB read
+Requests/sec:  78902.59
+Transfer/sec:     10.55MB
+
+--- High Load - 2 threads, 200 connections, 30s ---
+Running 30s test @ http://springboot-server-c8i-flex-xlarge:8080/
+  2 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.18ms  770.53us  47.04ms   81.42%
+    Req/Sec    44.42k     3.40k   50.91k    66.28%
+  Latency Distribution
+     50%    2.06ms
+     75%    2.38ms
+     90%    2.94ms
+     99%    5.34ms
+  2634403 requests in 30.01s, 352.21MB read
+Requests/sec:  87786.70
+Transfer/sec:     11.74MB
+
+===== Spring Boot Benchmark Complete =====

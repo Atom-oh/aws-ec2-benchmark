@@ -49,7 +49,7 @@ spec:
           env:
             # JVM 옵션 - 노드 메모리의 60%를 heap으로 사용
             - name: JAVA_OPTS
-              value: "-XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+              value: "-XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-TieredCompilation -XX:ReservedCodeCacheSize=64M -XX:InitialCodeCacheSize=64M"
             - name: INSTANCE_TYPE
               value: "${INSTANCE_TYPE}"
           readinessProbe:

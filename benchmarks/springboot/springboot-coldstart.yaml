@@ -47,7 +47,7 @@ spec:
               echo ""
 
               # Run java with output to file
-              java -XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC -jar /app/app.jar > /tmp/app.log 2>&1 &
+              java -XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC -XX:-TieredCompilation -XX:ReservedCodeCacheSize=64M -XX:InitialCodeCacheSize=64M -jar /app/app.jar > /tmp/app.log 2>&1 &
               JAVA_PID=$!
 
               # Wait for startup message (max 180s)

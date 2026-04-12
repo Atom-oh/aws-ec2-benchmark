@@ -6,12 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 51개)의 성능을 비교하는 Kubernetes 기반 벤치마크 프로젝트. Karpenter를 사용하여 노드를 동적 프로비저닝.
 
-## 현재 상태 (2026-01-20)
+## 현재 상태 (2026-04-10)
 
 ### 변경사항
 - **인스턴스 크기 **: 4 vCPU (xlarge)
 - **Anti-affinity 적용**: 모든 템플릿에 `podAntiAffinity` 추가 - 노드 격리 보장
 - **JVM Heap 60%**: Elasticsearch, SpringBoot에서 가용 메모리의 60%를 힙으로 설정
+- **JVM TieredCompilation OFF**: SpringBoot 벤치마크에서 `-XX:-TieredCompilation` 필수 적용 (아래 상세 설명)
 
 ### SpringBoot Docker 이미지
 
@@ -52,11 +53,12 @@ docker/springboot-petclinic/Dockerfile   # full PetClinic app
 | Redis | 51/51 | 5회 | `benchmarks/redis/redis-*.yaml` | `results/redis/<instance>/run<N>.log` |
 | Nginx (wrk) | 51/51 | 5회 | `benchmarks/nginx/nginx-*.yaml` | `results/nginx/<instance>/run<N>.log` |
 | ES Coldstart | 51/51 | 5회 | `benchmarks/elasticsearch/elasticsearch-coldstart.yaml` | `results/elasticsearch/<instance>/run<N>.log` |
-| SpringBoot Coldstart | 진행중 | 5회 | `benchmarks/springboot/springboot-coldstart.yaml` | `results/springboot/<instance>/coldstart<N>.log` |
-| SpringBoot wrk | 재측정 | 5회 | `benchmarks/springboot/springboot-benchmark.yaml` | `results/springboot/<instance>/wrk<N>.log` |
+| SpringBoot Coldstart | 51/51 | 5회 | `benchmarks/springboot/springboot-coldstart.yaml` | `results/springboot/<instance>/coldstart<N>.log` |
+| SpringBoot wrk | 50/51 | 5회 | `benchmarks/springboot/springboot-benchmark.yaml` | `results/springboot/<instance>/wrk<N>.log` |
 | iperf3 Network | 51/51 | 1회 | `benchmarks/system/iperf3-network.yaml` | `results/iperf3/<instance>.log` |
 
 ### 알려진 결과 문제
+- **SpringBoot wrk c7i-flex.xlarge 누락**: mall-apne2-mgmt 클러스터의 서브넷이 ap-northeast-2a/2c에만 존재하는데, c7i-flex.xlarge는 2b/2d에서만 제공되어 프로비저닝 불가. Coldstart 결과는 기존 클러스터에서 수집 완료.
 - **Nginx r8i.xlarge**: run3, run5에서 성능 저하 (80k vs 250k req/sec). 재테스트 필요.
   - 원인: 특정 노드에서 간헐적 성능 저하 (noisy neighbor 또는 CPU throttling 추정)
 
@@ -265,8 +267,32 @@ ES_JAVA_OPTS="-Xms${HEAP_MB}m -Xmx${HEAP_MB}m"
 ```yaml
 env:
   - name: JAVA_OPTS
-    value: "-XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC"
+    value: "-XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-TieredCompilation -XX:ReservedCodeCacheSize=64M -XX:InitialCodeCacheSize=64M"
 ```
+
+### JVM TieredCompilation OFF (필수)
+SpringBoot 벤치마크에서 **`-XX:-TieredCompilation`을 반드시 적용**해야 합니다.
+
+**적용 플래그:**
+```
+-XX:-TieredCompilation          # C1 JIT 건너뛰고 C2만 사용
+-XX:ReservedCodeCacheSize=64M   # C2 전용 코드 캐시 크기 최적화
+-XX:InitialCodeCacheSize=64M    # 초기 코드 캐시 할당
+```
+
+**이유:**
+- 기본 JVM은 C1(빠른 컴파일) → C2(최적화 컴파일) 2단계 TieredCompilation 사용
+- C2 컴파일러가 생성하는 네이티브 코드 품질이 아키텍처(ARM/x86)에 따라 다름
+- TieredCompilation OFF로 C2만 사용하면 아키텍처별 최적 네이티브 코드를 생성하여 **공정한 비교** 가능
+- wrk 벤치마크는 30초 warm-up 후 측정하므로 C2 워밍업 지연이 결과에 영향 없음
+
+**검증 결과 (c8g vs c8i, 100 connections 평균):**
+| 설정 | c8g (Graviton4) | c8i (Intel 8th) | Graviton vs Intel |
+|------|----------------|----------------|-------------------|
+| TieredCompilation ON (기본) | 66,933 req/s | 81,303 req/s | -17.6% |
+| TieredCompilation OFF (적용) | 72,867 req/s | 75,708 req/s | -3.7% |
+
+**⚠️ 주의: 이 플래그 없이 측정하면 JIT 컴파일 전략 차이가 인스턴스 성능 차이로 잘못 해석될 수 있음.**
 
 ### 노드 격리 (Anti-Affinity)
 모든 벤치마크 Pod는 `benchmark` 레이블이 있는 다른 Pod와 같은 노드에 스케줄링되지 않음:
