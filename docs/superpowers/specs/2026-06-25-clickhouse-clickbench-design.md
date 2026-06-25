@@ -107,9 +107,15 @@ Job Pod (인스턴스 타입별 1개)
   느릴 수 있음. 5세트×3런 구조로 hot 수치는 상대적으로 안정. 필요 시 FSR(Fast Snapshot Restore)로 사전 워밍(옵션, 비용 발생).
 - **메모리 차이**: C(8GB)/M(16GB)/R(32GB) — ClickHouse는 디스크 기반 컬럼 스토어라 8GB에서도 동작하나
   집계 쿼리에서 메모리 차이가 드러남 (의도된 비교 대상).
-- **OOM 처리**: self-JOIN/INSERT가 소메모리 인스턴스(8GB)에서 OOM될 수 있다. spill 설정
-  (`max_bytes_before_external_group_by`, `join_algorithm='grace_hash'`, `max_memory_usage`)을 적용하고,
-  그래도 실패하면 **해당 인스턴스의 그 항목을 "FAILED"로 명시 기록**(누락이 아니라 비교 가능한 실패 데이터점).
+- **메모리 정책 (C/M/R 비교 변수 보존)**: Job Pod에 **고정 메모리 limit을 두지 않는다** — ClickHouse가
+  노드 전체 가용 메모리를 인식해야 C(8GB)/M(16GB)/R(32GB) 차이가 의도된 비교 변수로 작동한다.
+  ClickHouse는 `max_server_memory_usage_to_ram_ratio`(기본 0.9)로 자동 스케일하므로 절대 메모리 한도를
+  하드코딩하지 않는다.
+- **OOM 처리 (RAM 상대 spill)**: self-JOIN/INSERT가 소메모리 인스턴스에서 OOM될 수 있다. spill 임계값은
+  **절대 바이트가 아닌 RAM 상대값**으로 설정한다 — `join_algorithm='grace_hash'`,
+  `max_bytes_ratio_before_external_group_by`(RAM 비율), `max_memory_usage_to_ram_ratio`. 고정 바이트값은
+  R패밀리에 조기 spill(→EBS 교란 재유입)을, C패밀리에 OOM을 유발하므로 금지. 그래도 실패하면 **해당
+  인스턴스의 그 항목을 "FAILED"로 명시 기록**(누락이 아니라 비교 가능한 실패 데이터점).
 - **실행 순서 고정 (행수 일관성)**: ① pristine 스냅샷에서 43쿼리×3×5세트 → ② INSERT 테스트 →
   ③ self-JOIN 테스트. INSERT가 테이블 행수를 바꾸므로 순서를 모든 인스턴스에 동일 적용해 비교 가능성 보장.
 
@@ -130,9 +136,12 @@ Job Pod (인스턴스 타입별 1개)
 `kubectl get storageclass gp3-clickhouse`, `kubectl get volumesnapshotclass gp3-clickhouse-snapclass`.
 (현재 모두 존재함을 확인 완료.)
 
+**버전 핀 정밀도**: `SELECT version()` 결과를 **full minor.patch까지** 캡처해(예: `24.8.3`, `24.8`만으로 핀 금지)
+`CLICKHOUSE_VERSION`에 고정한다 — 데이터 포맷 호환성·재현성 보장.
+
 **오프라인 기본값(authoring unblock)**: Task 0는 라이브 확인 단계지만, 그 결과를 기다리지 않고 산출물 작성을
 시작할 수 있도록 기본값을 둔다 — 테이블 `default.hits`, 이미지 `clickhouse/clickhouse-server:24.8`(LTS,
-스냅샷 호환 확인 후 정정). Task 0는 이 기본값의 **확정/정정** 역할.
+Task 0에서 정확한 minor.patch로 정정). Task 0는 이 기본값의 **확정/정정** 역할.
 
 ## 8. 산출물
 
@@ -152,29 +161,45 @@ CLAUDE.md                                            # ClickHouse 섹션 추가
 
 **기존 클러스터 자산(확인됨, 재생성 불필요)**: StorageClass `gp3-clickhouse`(gp3/16000/1000),
 VolumeSnapshotClass `gp3-clickhouse-snapclass`(Retain), EBS CSI driver, snapshot CRD,
-VolumeSnapshot `clickhouse-hits` 모두 클러스터에 존재. repo 매니페스트는 재현성/문서화 목적(멱등 apply).
+VolumeSnapshot `clickhouse-hits`(이미 content에 바인딩됨) 모두 클러스터에 존재.
+
+**⚠️ 정적 스냅샷 매니페스트 주의**: 라이브 클러스터의 `clickhouse-hits`는 이미 작동 중인 binding이
+**authoritative**다. `clickhouse-snapshot.yaml`을 그대로 live apply하면 동일 snapshotHandle/동일
+volumeSnapshotRef를 가리키는 **중복 content가 기존 binding을 깨뜨릴 수 있다**. 따라서 이 매니페스트는
+(a) **bootstrap(fresh cluster) 전용 / dry-run 검증 전용**으로 표시하고 기존 클러스터엔 apply하지 않거나,
+(b) `kubectl get volumesnapshotcontent`로 **기존 content 이름을 그대로 재사용**해 진짜 no-op이 되게 한다.
+SC/snapclass 매니페스트는 값이 동일하므로 멱등 apply 안전.
 
 ## 10. 결과 로그 포맷 (파서 계약)
 
-각 `results/clickhouse/<instance>/setN.log`는 헤더 + CSV 라인으로 구성:
+**세트/런 정의**: "5세트"는 **5회의 독립 Job 실행**을 의미하며, 각 실행이 `set1.log`~`set5.log` 하나씩 생성한다.
+각 setN.log 안에서 43쿼리는 **3런**(1 cold + 2 hot)으로 측정된다 → 인스턴스당 로그 5개.
+
+**쿼리 저장/실행**: 43쿼리는 **단일 파일 `queries.sql`**(한 줄당 1쿼리, 세미콜론 종결)에 저장하고,
+실행 스크립트가 **줄 단위로 분리해 개별 실행**한다(`q00`~`q42`는 줄 인덱스). `cat queries.sql | clickhouse-client`로
+한꺼번에 실행 금지 — per-query 타이밍이 사라짐. 각 쿼리는 `clickhouse-client --time`으로 측정.
+
+각 setN.log는 헤더 + CSV 라인으로 구성:
 ```
 INSTANCE: c8i.xlarge
 ARCH: amd64
-CLICKHOUSE_VERSION: <version>
+CLICKHOUSE_VERSION: <version, full minor.patch e.g. 24.8.3>
 SET: N
-# query results (per-query, 3 runs):
+# query results (per-query, 3 runs; 실패 시 해당 칸에 FAILED:<code>):
 QUERY,run,cold_ms,hot1_ms,hot2_ms
 q00,1,1234,210,205
+q01,1,FAILED:241,SKIPPED,SKIPPED   # 쿼리 실패 예 (cold 실패 시 hot 스킵)
 ...
 q42,1,...
 # insert test:
 INSERT_ROWS: 10000000
-INSERT_MS: <ms>
+INSERT_MS: <ms>            # 또는 INSERT_MS: FAILED:<reason>
 INSERT_ROWS_PER_SEC: <rps>
 # self-join test:
-JOIN_MS: <ms>   (또는 JOIN: FAILED:<reason>)
+JOIN_MS: <ms>             # 또는 JOIN_MS: FAILED:<reason>
 ```
-`scripts/generate-clickhouse-report.py`가 이 포맷을 파싱해 차트 데이터(JSON)를 리포트에 주입한다.
+`scripts/generate-clickhouse-report.py`가 이 포맷을 파싱해 차트 데이터(JSON)를 리포트에 주입하며,
+FAILED 항목은 "측정 불가(OOM 등)"로 표기한다.
 
 ## 9. 비범위 (YAGNI)
 
