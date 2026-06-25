@@ -1,0 +1,193 @@
+# ClickHouse ClickBench 벤치마크 Job (인스턴스별 1개, 1세트 = 1 Job 실행)
+#
+# placeholder: INSTANCE_SAFE / INSTANCE_TYPE / ARCH / RUN_NUMBER / CLICKHOUSE_VERSION
+# 데이터: snap 복구 VolumeSnapshot `clickhouse-hits` → PVC → /var/lib/clickhouse
+# 측정: 43쿼리 × 3런(cold/hot1/hot2) + INSERT(10M행) + self-JOIN.  로그 포맷: 설계 §10
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clickhouse-data-INSTANCE_SAFE-runRUN_NUMBER
+  namespace: benchmark
+  labels:
+    benchmark: clickhouse
+    instance-type: "INSTANCE_TYPE"
+spec:
+  storageClassName: gp3-clickhouse
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 100Gi
+  dataSource:
+    name: clickhouse-hits
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: clickhouse-clickbench-INSTANCE_SAFE-runRUN_NUMBER
+  namespace: benchmark
+  labels:
+    benchmark: clickhouse
+    instance-type: "INSTANCE_TYPE"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: clickhouse
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: INSTANCE_TYPE
+        kubernetes.io/arch: ARCH
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      securityContext:
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      initContainers:
+        # 복구된 볼륨의 소유권을 clickhouse(101)로 정정 (스냅샷 uid 불일치 방지)
+        - name: chown
+          image: public.ecr.aws/docker/library/busybox:1.36
+          securityContext:
+            runAsUser: 0
+          command: ["sh", "-c", "chown -R 101:101 /var/lib/clickhouse && echo chowned"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+      containers:
+        - name: clickhouse
+          image: clickhouse/clickhouse-server:CLICKHOUSE_VERSION
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -uo pipefail
+              INSTANCE="INSTANCE_TYPE"
+              ARCH="ARCH"
+              SET="RUN_NUMBER"
+              INSERT_ROWS=10000000
+
+              echo "INSTANCE: ${INSTANCE}"
+              echo "ARCH: ${ARCH}"
+
+              # RAM 상대 spill/메모리 한도 (모든 인스턴스에서 비율 동일 → 공정 비교)
+              MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+              MEM_BYTES=$((MEM_KB * 1024))
+              SPILL_BYTES=$((MEM_BYTES * 50 / 100))
+              MAX_MEM_BYTES=$((MEM_BYTES * 80 / 100))
+
+              # ClickHouse server 백그라운드 기동 (foreground 금지 - Job 미완료 방지)
+              clickhouse-server --config-file=/etc/clickhouse-server/config.xml \
+                > /var/lib/clickhouse/server-stdout.log 2>&1 &
+              CH_PID=$!
+
+              # ready 폴링 (최대 120s)
+              for i in $(seq 1 120); do
+                clickhouse-client --query "SELECT 1" >/dev/null 2>&1 && break
+                sleep 1
+              done
+              if ! clickhouse-client --query "SELECT 1" >/dev/null 2>&1; then
+                echo "ERROR: clickhouse-server did not become ready"
+                kill "${CH_PID}" 2>/dev/null || true
+                exit 1
+              fi
+
+              VERSION=$(clickhouse-client --query "SELECT version()")
+              echo "CLICKHOUSE_VERSION: ${VERSION}"
+              echo "SET: ${SET}"
+
+              run_query() {
+                # $1=query  → 출력: "cold_ms,hot1_ms,hot2_ms" (실패 시 FAILED:<rc>)
+                local q="$1" out="" rc s e ms
+                for r in 1 2 3; do
+                  s=$(date +%s%N)
+                  clickhouse-client --query "${q}" --format Null >/dev/null 2>/tmp/qerr
+                  rc=$?
+                  e=$(date +%s%N)
+                  if [ "${rc}" -ne 0 ]; then
+                    if [ "${r}" -eq 1 ]; then echo "FAILED:${rc},SKIPPED,SKIPPED"; return; fi
+                    out="${out},FAILED:${rc}"; continue
+                  fi
+                  ms=$(((e - s) / 1000000))
+                  if [ -z "${out}" ]; then out="${ms}"; else out="${out},${ms}"; fi
+                done
+                echo "${out}"
+              }
+
+              # 43쿼리 × 3런
+              echo "QUERY,run,cold_ms,hot1_ms,hot2_ms"
+              n=0
+              while IFS= read -r line; do
+                [ -z "${line}" ] && continue
+                q=$(printf '%s' "${line}" | sed 's/;[[:space:]]*$//')
+                res=$(run_query "${q}")
+                printf 'q%02d,1,%s\n' "${n}" "${res}"
+                n=$((n + 1))
+              done < /queries/queries.sql
+              echo "QUERIES_RUN: ${n}"
+
+              # INSERT 테스트 (43쿼리 이후)
+              INS_SQL=$(sed "s/INSERT_ROWS/${INSERT_ROWS}/" /queries/insert.sql)
+              s=$(date +%s%N)
+              clickhouse-client --multiquery --query "${INS_SQL}" >/dev/null 2>/tmp/inserr
+              rc=$?
+              e=$(date +%s%N)
+              echo "INSERT_ROWS: ${INSERT_ROWS}"
+              if [ "${rc}" -ne 0 ]; then
+                echo "INSERT_MS: FAILED:${rc}"
+                echo "INSERT_ROWS_PER_SEC: 0"
+              else
+                ins_ms=$(((e - s) / 1000000))
+                echo "INSERT_MS: ${ins_ms}"
+                [ "${ins_ms}" -gt 0 ] && echo "INSERT_ROWS_PER_SEC: $((INSERT_ROWS * 1000 / ins_ms))" || echo "INSERT_ROWS_PER_SEC: 0"
+              fi
+
+              # self-JOIN 테스트
+              JOIN_SQL=$(sed -e "s/SPILL_BYTES/${SPILL_BYTES}/" -e "s/MAX_MEM_BYTES/${MAX_MEM_BYTES}/" /queries/join.sql)
+              s=$(date +%s%N)
+              clickhouse-client --multiquery --query "${JOIN_SQL}" --format Null >/dev/null 2>/tmp/joinerr
+              rc=$?
+              e=$(date +%s%N)
+              if [ "${rc}" -ne 0 ]; then
+                echo "JOIN_MS: FAILED:${rc}"
+              else
+                echo "JOIN_MS: $(((e - s) / 1000000))"
+              fi
+
+              # server 정상 종료 후 exit 0
+              clickhouse-client --query "SYSTEM SHUTDOWN" >/dev/null 2>&1 || kill "${CH_PID}" 2>/dev/null || true
+              echo "===== Complete: ${INSTANCE} set ${SET} ====="
+              exit 0
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+            - name: queries
+              mountPath: /queries
+          resources:
+            requests:
+              cpu: "2"
+              memory: "2Gi"
+            # memory limit 미설정: ClickHouse가 노드 전체 메모리 인식 → C/M/R 비교 변수 보존
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: clickhouse-data-INSTANCE_SAFE-runRUN_NUMBER
+        - name: queries
+          configMap:
+            name: clickhouse-queries

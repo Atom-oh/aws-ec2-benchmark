@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClickHouse ClickBench 벤치마크 리포트</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--graviton:#10b981;--intel:#3b82f6;--amd:#ef4444;--bg:#f8fafc;--card:#fff;--text:#1e293b;--muted:#64748b}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+.container{max-width:1600px;margin:0 auto;padding:1.5rem}
+header{background:linear-gradient(135deg,#0f172a 0%,#334155 100%);color:#fff;padding:2.5rem 1.5rem;border-radius:1rem;margin-bottom:1.5rem}
+header h1{margin:0 0 .5rem}header p{margin:.2rem 0;opacity:.85}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem}
+.card{background:var(--card);border-radius:1rem;padding:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.card h3{margin:0 0 .4rem;font-size:.85rem;color:var(--muted);text-transform:uppercase}
+.card .val{font-size:1.6rem;font-weight:700}
+.chart-section{background:var(--card);border-radius:1rem;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.chart-container{position:relative;height:400px}.chart-container.tall{height:500px}.chart-container.extra-tall{height:900px}
+.insights{background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-left:4px solid #f59e0b;padding:1rem 1.25rem;border-radius:.5rem;margin:1rem 0}
+.warn{background:linear-gradient(135deg,#fee2e2 0%,#fecaca 100%);border-left:4px solid #ef4444;padding:1rem 1.25rem;border-radius:.5rem;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{padding:.5rem .75rem;text-align:right;border-bottom:1px solid #e2e8f0}
+th{cursor:pointer;background:#f1f5f9;position:sticky;top:0}th:first-child,td:first-child{text-align:left}
+.badge{padding:.15rem .5rem;border-radius:.4rem;font-size:.75rem;font-weight:600}
+.badge-graviton{background:#d1fae5;color:#065f46}.badge-intel{background:#dbeafe;color:#1e40af}.badge-amd{background:#fee2e2;color:#991b1b}
+.filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}.filters input,.filters select{padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:.4rem}
+a{color:var(--intel)}h2{border-bottom:2px solid #e2e8f0;padding-bottom:.4rem}
+.empty{color:var(--muted);font-style:italic;padding:2rem;text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>ClickHouse ClickBench 벤치마크</h1>
+  <p>51개 EC2 인스턴스(5~8세대 · Intel/AMD/Graviton) OLAP 분석 쿼리 성능 비교</p>
+  <p>데이터셋: ClickBench hits ~100M행 (13.44 GiB) · ClickHouse 24.8.14.39 · ap-northeast-2</p>
+</header>
+
+<div class="cards" id="summaryCards"></div>
+
+<nav class="chart-section">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#method">테스트 방법론</a></li>
+    <li><a href="#env">테스트 환경</a></li>
+    <li><a href="#hot">전체 쿼리 처리시간 (hot)</a></li>
+    <li><a href="#gen">세대별 / 패밀리별 비교</a></li>
+    <li><a href="#insert">INSERT 처리량 · JOIN 지연</a></li>
+    <li><a href="#table">전체 결과 테이블</a></li>
+    <li><a href="#conclusion">결론</a></li>
+  </ol>
+</nav>
+
+<section class="chart-section" id="method">
+  <h2>테스트 방법론</h2>
+  <p>ClickHouse 공식 <strong>ClickBench</strong> 43개 분석 쿼리를 각 인스턴스에서 3런(1 cold + 2 hot) × 5세트 실행하고,
+     추가로 INSERT(1천만 행)와 self-JOIN을 측정한다. 데이터는 EBS 스냅샷(snap-024c86faa00cd0448)에서 복구한
+     per-pod 볼륨(/var/lib/clickhouse)으로 공급되어 적재 단계 없이 즉시 쿼리한다.</p>
+  <div class="warn">
+    <strong>⚠️ EBS 대역폭 교란 — 결과 해석 주의</strong>
+    <ul>
+      <li>모든 인스턴스가 동일 gp3 스펙(16000 IOPS / 1000MB/s) 볼륨을 사용하나, 실제 처리량은
+          <strong>인스턴스 자체의 EBS 대역폭 상한</strong>에 종속된다(구형/소형은 볼륨 한도보다 낮을 수 있음).</li>
+      <li>hits(~13.4GiB)는 8GB(C패밀리) page cache에 들어가지 않아 <strong>hot 쿼리도 EBS를 다시 읽는다</strong>.</li>
+      <li>따라서 <strong>hot 처리시간은 "memory ≥ dataset"(아래 표 fits=✓) 인스턴스에서만 순수
+          page-cache-bound</strong>이며, 그 외는 CPU+EBS 혼합으로 해석한다. cold 런은 disk+CPU 혼합.</li>
+    </ul>
+  </div>
+  <p>수집 메트릭: 쿼리별 cold/hot 지연(ms), 43쿼리 hot 합계(s, 낮을수록 좋음), INSERT rows/sec(높을수록 좋음),
+     JOIN 지연(ms). OOM 등 실패 항목은 FAILED로 기록한다.</p>
+</section>
+
+<section class="chart-section" id="env">
+  <h2>테스트 환경</h2>
+  <ul>
+    <li>플랫폼: Amazon EKS + Karpenter (xlarge, 4 vCPU)</li>
+    <li>스토리지: gp3 16000 IOPS / 1000MB/s (StorageClass <code>gp3-clickhouse</code>), 스냅샷 복구 100GiB</li>
+    <li>메모리 정책: Pod 고정 limit 없음 — ClickHouse가 노드 전체 메모리 인식(C 8GB / M 16GB / R 32GB)</li>
+    <li>노드 격리: podAntiAffinity, 아키텍처: Intel/AMD(amd64), Graviton(arm64) 동일 스냅샷</li>
+  </ul>
+</section>
+
+<section class="chart-section" id="hot">
+  <h2>전체 43쿼리 처리시간 (hot 합계, 낮을수록 좋음)</h2>
+  <div class="chart-container extra-tall"><canvas id="hotChart"></canvas></div>
+</section>
+
+<section class="chart-section" id="gen">
+  <h2>세대별 / 패밀리별 평균 hot 합계</h2>
+  <div class="chart-container"><canvas id="genChart"></canvas></div>
+  <div class="chart-container" style="margin-top:1.5rem"><canvas id="famChart"></canvas></div>
+</section>
+
+<section class="chart-section" id="insert">
+  <h2>INSERT 처리량 (rows/sec) · self-JOIN 지연 (ms)</h2>
+  <div class="chart-container tall"><canvas id="insertChart"></canvas></div>
+  <div class="chart-container tall" style="margin-top:1.5rem"><canvas id="joinChart"></canvas></div>
+</section>
+
+<section class="chart-section" id="table">
+  <h2>전체 결과 테이블</h2>
+  <div class="filters">
+    <input id="fSearch" placeholder="인스턴스 검색...">
+    <select id="fArch"><option value="">전체 아키텍처</option><option>Graviton</option><option>Intel</option><option>AMD</option></select>
+    <select id="fGen"><option value="">전체 세대</option><option>5</option><option>6</option><option>7</option><option>8</option></select>
+    <select id="fFam"><option value="">전체 패밀리</option><option>C</option><option>M</option><option>R</option></select>
+  </div>
+  <div style="max-height:600px;overflow:auto">
+    <table id="resultTable">
+      <thead><tr>
+        <th data-k="instance">인스턴스</th><th data-k="arch">아키텍처</th><th data-k="gen">세대</th>
+        <th data-k="mem_mb">메모리(MB)</th><th data-k="fits_in_ram">RAM적합</th>
+        <th data-k="hot_total_ms">hot합계(ms)</th><th data-k="insert_rps">INSERT rps</th>
+        <th data-k="join_ms">JOIN(ms)</th><th data-k="failed_count">실패</th>
+      </tr></thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="chart-section" id="conclusion">
+  <h2>결론</h2>
+  <div class="insights" id="conclusionBox"><em>데이터 수집 후 generate-clickhouse-report.py 실행 시 자동 갱신됩니다.</em></div>
+</section>
+
+<footer style="text-align:center;color:var(--muted);padding:2rem">
+  ClickHouse ClickBench 벤치마크 · ap-northeast-2 · 생성: generate-clickhouse-report.py
+</footer>
+</div>
+
+<script id="ch-data" type="application/json">{"dataset": "ClickBench hits (~100M rows, 13.44GiB)", "note_ebs": "per-instance EBS 대역폭 상한이 교란변수. hot_total은 memory>=dataset(fits_in_ram=true) 인스턴스에서만 순수 page-cache-bound.", "instances": {}}</script>
+<script>
+const COLORS={Graviton:'#10b981',Intel:'#3b82f6',AMD:'#ef4444'};
+let PAYLOAD=null;
+try{PAYLOAD=JSON.parse(document.getElementById('ch-data').textContent);}catch(e){PAYLOAD=null;}
+const rows=PAYLOAD&&PAYLOAD.instances?Object.values(PAYLOAD.instances):[];
+
+function badge(a){const c={Graviton:'badge-graviton',Intel:'badge-intel',AMD:'badge-amd'}[a]||'';return `<span class="badge ${c}">${a}</span>`;}
+
+if(!rows.length){
+  document.getElementById('summaryCards').innerHTML='<div class="card"><h3>상태</h3><div class="val">데이터 없음</div></div>';
+  document.getElementById('resultBody').innerHTML='<tr><td colspan="9" class="empty">결과 로그가 아직 없습니다. 벤치마크 실행 후 generate-clickhouse-report.py 를 실행하세요.</td></tr>';
+}else{
+  renderAll();
+}
+
+function renderAll(){
+  const withHot=rows.filter(r=>r.hot_total_ms!=null);
+  const best=withHot.slice().sort((a,b)=>a.hot_total_ms-b.hot_total_ms)[0];
+  const bestIns=rows.filter(r=>r.insert_rps).sort((a,b)=>b.insert_rps-a.insert_rps)[0];
+  document.getElementById('summaryCards').innerHTML=`
+    <div class="card"><h3>측정 인스턴스</h3><div class="val">${rows.length}</div></div>
+    <div class="card"><h3>최速 hot 합계</h3><div class="val">${best?best.instance:'-'}</div><p>${best?(best.hot_total_ms/1000).toFixed(1)+'s':''}</p></div>
+    <div class="card"><h3>최고 INSERT</h3><div class="val">${bestIns?bestIns.instance:'-'}</div><p>${bestIns?bestIns.insert_rps.toLocaleString()+' rows/s':''}</p></div>
+    <div class="card"><h3>RAM≥dataset 인스턴스</h3><div class="val">${rows.filter(r=>r.fits_in_ram).length}</div><p>순수 page-cache-bound 비교 대상</p></div>`;
+
+  // Top hot (horizontal)
+  const sorted=withHot.slice().sort((a,b)=>a.hot_total_ms-b.hot_total_ms);
+  new Chart(document.getElementById('hotChart'),{type:'bar',data:{labels:sorted.map(r=>r.instance),
+    datasets:[{label:'hot 합계 (ms)',data:sorted.map(r=>r.hot_total_ms),backgroundColor:sorted.map(r=>COLORS[r.arch]||'#94a3b8')}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'ms (낮을수록 좋음)'}}}}});
+
+  // by generation label
+  const byLabel=groupAvg(withHot,'label','hot_total_ms');
+  new Chart(document.getElementById('genChart'),{type:'bar',data:{labels:Object.keys(byLabel),
+    datasets:[{label:'평균 hot 합계 (ms)',data:Object.values(byLabel),backgroundColor:'#3b82f6'}]},
+    options:{plugins:{legend:{display:false},title:{display:true,text:'세대별 평균'}}}});
+
+  const byFam=groupAvg(withHot,'family','hot_total_ms');
+  new Chart(document.getElementById('famChart'),{type:'bar',data:{labels:Object.keys(byFam),
+    datasets:[{label:'평균 hot 합계 (ms)',data:Object.values(byFam),backgroundColor:'#8b5cf6'}]},
+    options:{plugins:{legend:{display:false},title:{display:true,text:'패밀리별 평균 (C/M/R)'}}}});
+
+  // insert
+  const ins=rows.filter(r=>r.insert_rps).sort((a,b)=>b.insert_rps-a.insert_rps);
+  new Chart(document.getElementById('insertChart'),{type:'bar',data:{labels:ins.map(r=>r.instance),
+    datasets:[{label:'INSERT rows/sec',data:ins.map(r=>r.insert_rps),backgroundColor:ins.map(r=>COLORS[r.arch]||'#94a3b8')}]},
+    options:{plugins:{legend:{display:false},title:{display:true,text:'높을수록 좋음'}}}});
+
+  const jn=rows.filter(r=>r.join_ms!=null).sort((a,b)=>a.join_ms-b.join_ms);
+  new Chart(document.getElementById('joinChart'),{type:'bar',data:{labels:jn.map(r=>r.instance),
+    datasets:[{label:'JOIN 지연 (ms)',data:jn.map(r=>r.join_ms),backgroundColor:jn.map(r=>COLORS[r.arch]||'#94a3b8')}]},
+    options:{plugins:{legend:{display:false},title:{display:true,text:'낮을수록 좋음'}}}});
+
+  renderTable();
+  if(best){document.getElementById('conclusionBox').innerHTML=
+    `<h4>핵심 시사점</h4><ul>
+      <li><strong>${best.instance}</strong> 이 hot 합계 ${(best.hot_total_ms/1000).toFixed(1)}s 로 최速 (${best.arch}).</li>
+      <li>RAM≥dataset(${rows.filter(r=>r.fits_in_ram).length}개) 인스턴스만 순수 메모리/CPU 비교 — 그 외는 EBS 교란 포함.</li>
+      <li>실패(OOM 등) 항목이 있는 인스턴스는 표의 '실패' 열 참고.</li>
+    </ul>`;}
+}
+function groupAvg(arr,key,val){const g={};arr.forEach(r=>{(g[r[key]]=g[r[key]]||[]).push(r[val]);});
+  const o={};Object.keys(g).sort().forEach(k=>o[k]=Math.round(g[k].reduce((a,b)=>a+b,0)/g[k].length));return o;}
+
+let sortKey='hot_total_ms',sortAsc=true;
+function renderTable(){
+  const q=document.getElementById('fSearch').value.toLowerCase();
+  const fa=document.getElementById('fArch').value,fg=document.getElementById('fGen').value,ff=document.getElementById('fFam').value;
+  let r=rows.filter(x=>(!q||x.instance.includes(q))&&(!fa||x.arch===fa)&&(!fg||x.gen===fg)&&(!ff||x.family===ff));
+  r.sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(x==null)return 1;if(y==null)return -1;
+    return (typeof x==='string'?x.localeCompare(y):x-y)*(sortAsc?1:-1);});
+  document.getElementById('resultBody').innerHTML=r.map(x=>`<tr>
+    <td>${x.instance}</td><td>${badge(x.arch)}</td><td>${x.gen}</td><td>${x.mem_mb||'-'}</td>
+    <td>${x.fits_in_ram?'✓':'✗'}</td><td>${x.hot_total_ms??'-'}</td>
+    <td>${x.insert_rps?x.insert_rps.toLocaleString():'-'}</td><td>${x.join_ms??'-'}</td>
+    <td>${x.failed_count||0}</td></tr>`).join('');
+}
+['fSearch','fArch','fGen','fFam'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',renderTable);});
+document.querySelectorAll('#resultTable th').forEach(th=>th.addEventListener('click',()=>{
+  const k=th.dataset.k;if(k===sortKey)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true;}renderTable();}));
+</script>
+</body>
+</html>

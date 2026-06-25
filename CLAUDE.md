@@ -56,6 +56,7 @@ docker/springboot-petclinic/Dockerfile   # full PetClinic app
 | SpringBoot Coldstart | 51/51 | 5회 | `benchmarks/springboot/springboot-coldstart.yaml` | `results/springboot/<instance>/coldstart<N>.log` |
 | SpringBoot wrk | 50/51 | 5회 | `benchmarks/springboot/springboot-benchmark.yaml` | `results/springboot/<instance>/wrk<N>.log` |
 | iperf3 Network | 51/51 | 1회 | `benchmarks/system/iperf3-network.yaml` | `results/iperf3/<instance>.log` |
+| ClickHouse ClickBench | 0/51 | 5세트 | `benchmarks/clickhouse/clickhouse-clickbench.yaml` | `results/clickhouse/<instance>/set<N>.log` |
 
 ### 알려진 결과 문제
 - **SpringBoot wrk c7i-flex.xlarge 누락**: mall-apne2-mgmt 클러스터의 서브넷이 ap-northeast-2a/2c에만 존재하는데, c7i-flex.xlarge는 2b/2d에서만 제공되어 프로비저닝 불가. Coldstart 결과는 기존 클러스터에서 수집 완료.
@@ -591,6 +592,9 @@ sed -e "s/JOB_NAME/job-${safe_name}/g" \
 | springboot-server.yaml | ❌ | ✅ | ✅ | ❌ |
 | springboot-benchmark.yaml | ❌ | ✅ | ✅ | ❌ |
 | elasticsearch-coldstart.yaml | ❌ | ✅ | ✅ | ✅ |
+| clickhouse-clickbench.yaml | ❌ | ✅ | ✅ | ✅ |
+
+> clickhouse-clickbench.yaml 은 추가로 `RUN_NUMBER`(세트 번호)와 `CLICKHOUSE_VERSION`(=`24.8.14.39`) placeholder를 사용한다.
 
 ## 결과 저장 구조
 
@@ -721,6 +725,30 @@ results/iperf3/<instance>.log
   - 간단한 REST API로 throughput 측정에 집중
   - JVM이 warmed-up된 상태에서 테스트
   - Zone Affinity로 네트워크 지연 최소화
+
+### ClickHouse 벤치마크
+
+#### ClickHouse ClickBench
+- **목적**: OLAP 컬럼형 DB의 대용량 스캔·집계 쿼리 성능 측정 (기존 벤치마크와 다른 분석 워크로드)
+- **워크로드**: ClickHouse 공식 **ClickBench** 43쿼리 + INSERT(1천만 행) + self-JOIN
+- **템플릿**:
+  - `benchmarks/clickhouse/clickhouse-storageclass.yaml`: SC `gp3-clickhouse`(16000 IOPS/1000MB/s) + VolumeSnapshotClass (둘 다 클러스터에 이미 존재, 멱등 apply)
+  - `benchmarks/clickhouse/clickhouse-snapshot.yaml`: 정적 VolumeSnapshot (**bootstrap/dry-run 전용** — 기존 클러스터 live apply 금지)
+  - `benchmarks/clickhouse/clickhouse-clickbench.yaml`: Job + PVC(스냅샷 복구)
+  - `benchmarks/clickhouse/queries/{queries,insert,join}.sql`
+- **데이터**: EBS 스냅샷 **snap-024c86faa00cd0448**에서 PVC 복구 (적재 단계 생략).
+  ClickHouse **24.8.14.39**, `default.hits` (MergeTree), **99,997,497행 / 13.44GiB / 105컬럼**.
+- **이미지**: `clickhouse/clickhouse-server:24.8.14.39` (multi-arch — Intel/Graviton 동일 스냅샷)
+- **측정 방식**: 단일 컨테이너에서 server 백그라운드 기동 → 쿼리 개별 실행(per-query cold/hot 타이밍) →
+  INSERT → self-JOIN → 정상 종료. 5세트 = 5 Job 실행, 각 setN.log.
+- **실행/리포트**:
+  - `scripts/generate-clickhouse-benchmark.sh` (ConfigMap 생성 + 배치 12개 병렬 + 수집)
+  - `scripts/generate-clickhouse-report.py` (setN.log 파싱 → `report-charts.html` 데이터 주입)
+  - 검증: `bash tests/clickhouse/validate.sh`
+- **⚠️ 공정성 주의 (EBS 교란)**: 모든 인스턴스가 동일 gp3 스펙을 쓰지만 실제 처리량은 **per-instance EBS
+  대역폭 상한**에 종속되고, 13.44GiB는 8GB(C패밀리) page cache에 안 들어가 hot 쿼리도 EBS를 읽는다.
+  → hot 지연은 "memory ≥ dataset"(R패밀리 등) 인스턴스에서만 순수 page-cache-bound. Pod에 **고정 메모리
+  limit 미설정**(C/M/R 메모리 차이를 비교 변수로 보존). 자세한 내용은 `docs/superpowers/specs/2026-06-25-clickhouse-clickbench-design.md` §5.
 
 ## HTML 보고서 형식 (표준)
 
