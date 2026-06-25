@@ -31,9 +31,10 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 log() { echo -e "[$(date '+%H:%M:%S')] $*"; }
 
 # arch: instances-4vcpu.txt 2번째 컬럼(x86_64/arm64) → amd64/arm64
+# awk 사용 (grep -P 비호환 환경 대비, 공백/탭 모두 허용)
 get_arch() {
     local a
-    a=$(grep -P "^$1\t" "$INSTANCE_FILE" | awk '{print $2}')
+    a=$(awk -v i="$1" '$1==i {print $2}' "$INSTANCE_FILE")
     [ "$a" == "arm64" ] && echo "arm64" || echo "amd64"
 }
 
@@ -41,7 +42,19 @@ get_arch() {
 mapfile -t INSTANCES < <(grep -vE '^\s*#|^\s*$' "$INSTANCE_FILE" | awk '{print $1}')
 log "인스턴스 ${#INSTANCES[@]}개 로드"
 
-# 1) 쿼리 ConfigMap 생성 (멱등)
+# 1) snap-024 VolumeSnapshot(clickhouse-hits-024) 보장 + readyToUse 확인
+log "VolumeSnapshot clickhouse-hits-024 적용/확인..."
+kubectl apply -f "$BENCHMARK_DIR/clickhouse-snapshot.yaml" >/dev/null 2>&1 || true
+for i in $(seq 1 60); do
+    ready=$(kubectl get volumesnapshot clickhouse-hits-024 -n "$NAMESPACE" -o jsonpath='{.status.readyToUse}' 2>/dev/null)
+    [ "$ready" == "true" ] && break
+    sleep 2
+done
+if [ "$(kubectl get volumesnapshot clickhouse-hits-024 -n "$NAMESPACE" -o jsonpath='{.status.readyToUse}' 2>/dev/null)" != "true" ]; then
+    log "${RED}오류: VolumeSnapshot clickhouse-hits-024 가 ready 아님. 중단.${NC}"; exit 1
+fi
+
+# 2) 쿼리 ConfigMap 생성 (멱등)
 log "쿼리 ConfigMap 생성/갱신..."
 kubectl create configmap clickhouse-queries -n "$NAMESPACE" \
     --from-file="$QUERIES_DIR/queries.sql" \
@@ -94,7 +107,7 @@ run_instance() {
     log "[$instance] 5세트 완료"
 }
 
-# 2) 배치 병렬 실행
+# 3) 배치 병렬 실행
 i=0
 for instance in "${INSTANCES[@]}"; do
     run_instance "$instance" &

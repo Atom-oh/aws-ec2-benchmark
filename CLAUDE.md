@@ -733,7 +733,7 @@ results/iperf3/<instance>.log
 - **워크로드**: ClickHouse 공식 **ClickBench** 43쿼리 + INSERT(1천만 행) + self-JOIN
 - **템플릿**:
   - `benchmarks/clickhouse/clickhouse-storageclass.yaml`: SC `gp3-clickhouse`(16000 IOPS/1000MB/s) + VolumeSnapshotClass (둘 다 클러스터에 이미 존재, 멱등 apply)
-  - `benchmarks/clickhouse/clickhouse-snapshot.yaml`: 정적 VolumeSnapshot (**bootstrap/dry-run 전용** — 기존 클러스터 live apply 금지)
+  - `benchmarks/clickhouse/clickhouse-snapshot.yaml`: 정적 VolumeSnapshot `clickhouse-hits-024`(→ snap-024). 기존 `clickhouse-hits-snap`과 이름이 달라 live apply 안전(Retain). generate 스크립트가 실행 전 자동 apply
   - `benchmarks/clickhouse/clickhouse-clickbench.yaml`: Job + PVC(스냅샷 복구)
   - `benchmarks/clickhouse/queries/{queries,insert,join}.sql`
 - **데이터**: EBS 스냅샷 **snap-024c86faa00cd0448**에서 PVC 복구 (적재 단계 생략).

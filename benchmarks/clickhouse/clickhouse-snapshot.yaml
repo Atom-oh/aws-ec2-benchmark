@@ -1,22 +1,19 @@
-# ClickHouse hits 데이터 정적 VolumeSnapshot (snap-024c86faa00cd0448)
+# ClickHouse hits 데이터 정적 VolumeSnapshot — snap-024c86faa00cd0448 (사용자 지정)
 #
-# ⚠️⚠️ BOOTSTRAP / DRY-RUN 전용 — 기존 mall-apne2-mgmt 클러스터에 live apply 금지! ⚠️⚠️
+# 별도 이름 `clickhouse-hits-024`를 사용한다. 클러스터에 이미 있는 `clickhouse-hits-snap`
+# (snap-057... 최신본)과 이름이 다르므로 충돌 없이 **live apply 가능**하다.
+# deletionPolicy: Retain 이라 이 VolumeSnapshot을 지워도 원본 snap-024는 보존된다.
 #
-#   현재 클러스터에는 이미 작동 중인 VolumeSnapshot `clickhouse-hits-snap`이 있고,
-#   이것이 authoritative다. 이 매니페스트를 그대로 apply하면 동일 snapshotHandle을
-#   가리키는 중복 VolumeSnapshotContent가 생성되어 기존 binding을 깨뜨릴 수 있다.
+# 벤치마크 Job(clickhouse-clickbench.yaml)의 PVC dataSource 가 이 `clickhouse-hits-024`를 참조한다.
+# 데이터: ClickHouse 24.8.14.39, default.hits (MergeTree), 99,997,497행, 13.44GiB (Phase 0 확인)
 #
-#   - 신규(fresh) 클러스터 부트스트랩 시에만 사용.
-#   - 기존 클러스터에서는 `kubectl apply --dry-run=client`로 문법 검증만 하고,
-#     벤치마크 Job은 기존 `clickhouse-hits-snap`을 dataSource로 사용한다.
-#     (clickhouse-clickbench.yaml 의 PVC dataSource 이름 참고)
-#
-# 데이터: ClickHouse 24.8.14.39, default.hits (MergeTree), 99,997,497행, 13.44GiB
+# 적용: kubectl apply -f benchmarks/clickhouse/clickhouse-snapshot.yaml
+#       (generate-clickhouse-benchmark.sh 가 실행 전 자동 apply + readyToUse 확인)
 ---
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotContent
 metadata:
-  name: clickhouse-hits-content
+  name: clickhouse-hits-024-content
 spec:
   deletionPolicy: Retain
   driver: ebs.csi.aws.com
@@ -24,15 +21,15 @@ spec:
   source:
     snapshotHandle: snap-024c86faa00cd0448
   volumeSnapshotRef:
-    name: clickhouse-hits
+    name: clickhouse-hits-024
     namespace: benchmark
 ---
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
-  name: clickhouse-hits
+  name: clickhouse-hits-024
   namespace: benchmark
 spec:
   volumeSnapshotClassName: gp3-clickhouse-snapclass
   source:
-    volumeSnapshotContentName: clickhouse-hits-content
+    volumeSnapshotContentName: clickhouse-hits-024-content

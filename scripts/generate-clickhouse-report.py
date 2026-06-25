@@ -50,10 +50,10 @@ def gen_family(instance):
     """
     fam = instance[0].upper() if instance else "?"
     prefix = instance.split(".")[0]          # c5ad-... 형태 방지: '.' 기준
-    m = re.match(r"^([cmr])(\d)([a-z\-]*)", prefix)
+    m = re.match(r"^([cmr])(\d+)([a-z\-]*)", prefix)   # \d+ : 미래 두자리 세대 대비
     gen = m.group(2) if m else "?"
     suffix = m.group(3) if m else ""
-    if "g" in suffix:
+    if suffix.startswith("g"):                          # Graviton suffix는 g/gd/gn
         arch = "Graviton"
         label = {"6": "Graviton2", "7": "Graviton3", "8": "Graviton4"}.get(gen, "Graviton")
     elif suffix.startswith("a"):
@@ -130,7 +130,13 @@ def aggregate():
                     join_ms.append(r["join_ms"])
             # per-query: median of best-hot across sets; total = sum
             per_q = {q: round(statistics.median(v)) for q, v in q_hot.items() if v}
-            hot_total_ms = sum(per_q.values()) if per_q else None
+            # 공정성: 43쿼리가 모두 측정된 경우에만 hot_total 산출 (잘린 로그가
+            # 부분 합으로 인위적으로 빨라 보이는 것 방지). 누락분은 실패로 계상.
+            if len(per_q) >= NQUERIES:
+                hot_total_ms = sum(per_q.values())
+            else:
+                hot_total_ms = None
+                failed += NQUERIES - len(per_q)
             cls = gen_family(instance)
             mem_mb = meta.get(instance, {}).get("mem_mb")
             instances[instance] = {

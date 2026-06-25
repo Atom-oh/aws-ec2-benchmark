@@ -19,12 +19,14 @@ yaml_ok "$f" && ok "YAML 파싱" || no "YAML 파싱"
 grep -q 'iops: "16000"' "$f" && grep -q 'throughput: "1000"' "$f" && ok "gp3 16000/1000" || no "gp3 스펙"
 grep -q "gp3-clickhouse-snapclass" "$f" && ok "snapclass 포함" || no "snapclass"
 
-echo "== Task 2: 정적 VolumeSnapshot (bootstrap-only) =="
+echo "== Task 2: 정적 VolumeSnapshot (clickhouse-hits-024 → snap-024) =="
 f="$CH/clickhouse-snapshot.yaml"
 yaml_ok "$f" && ok "YAML 파싱" || no "YAML 파싱"
 grep -q "snap-024c86faa00cd0448" "$f" && ok "snapshotHandle" || no "snapshotHandle"
-grep -qi "bootstrap" "$f" && ok "bootstrap-only 주석" || no "bootstrap 주석"
+grep -q "clickhouse-hits-024" "$f" && ok "고유 이름 clickhouse-hits-024 (라이브 충돌 없음)" || no "고유 이름"
 grep -q "volumeSnapshotContentName" "$f" && grep -q "volumeSnapshotRef" "$f" && ok "정적 바인딩 API 필드" || no "바인딩 필드"
+# Job PVC dataSource 가 동일 이름 참조하는지 (CRITICAL 정합성)
+grep -q "name: clickhouse-hits-024" "$CH/clickhouse-clickbench.yaml" && ok "Job PVC dataSource 이름 정합" || no "PVC dataSource 이름 불일치"
 
 echo "== Task 3: ClickBench 43쿼리 =="
 n=$(grep -c ';' "$Q/queries.sql")
