@@ -60,10 +60,15 @@ Job Pod (인스턴스 타입별 1개)
    - DeletionPolicy: Retain (스냅샷 보존)
 
 2. **ClickBench Job 템플릿** (`benchmarks/clickhouse/clickhouse-clickbench.yaml`)
-   - 인스턴스별 PVC를 `dataSource: VolumeSnapshot`으로 동적 복구
-   - nodeSelector(인스턴스 타입), arch, podAntiAffinity(노드 격리), benchmark toleration — 기존 패턴 동일
-   - 컨테이너 이미지: `clickhouse/clickhouse-server:<버전>` (Phase 0에서 확정)
-   - placeholder: `INSTANCE_SAFE`, `INSTANCE_TYPE`, `ARCH` (기존 규칙)
+   - 인스턴스별 PVC를 `dataSource: VolumeSnapshot`으로 동적 복구 (다중 문서 YAML: PVC + Job)
+   - **initContainer**: 복구된 볼륨 소유권 정정 `chown -R 101:101 /var/lib/clickhouse` (스냅샷 uid 불일치 방지)
+   - **메인 컨테이너 실행 스크립트**: clickhouse-server를 **백그라운드 기동** → TCP/HTTP ready 폴링 →
+     쿼리를 **개별 실행**(per-query 타이밍, 3런 cold/hot) → 결과 로그(§10 포맷) 출력 → server graceful stop → **정상 종료**
+     (foreground 기동 금지 — Job이 완료되지 않음)
+   - 쿼리 SQL은 **ConfigMap**으로 마운트(`/queries/`), generate 스크립트가 `kubectl create configmap --from-file`로 생성
+   - nodeSelector(인스턴스 타입), arch, podAntiAffinity(노드 격리), benchmark toleration, `backoffLimit: 0` (OOM 시 무한 재시작 방지)
+   - 컨테이너 이미지: `clickhouse/clickhouse-server:CLICKHOUSE_VERSION` (placeholder, Phase 0에서 확정)
+   - placeholder: `INSTANCE_SAFE`, `INSTANCE_TYPE`, `ARCH`, `RUN_NUMBER`, `CLICKHOUSE_VERSION`
 
 3. **쿼리 SQL** (`benchmarks/clickhouse/queries/`)
    - `queries.sql`: ClickBench 공식 43쿼리
@@ -84,15 +89,29 @@ Job Pod (인스턴스 타입별 1개)
 | INSERT 처리량 | rows/sec | ⬆️ higher is better |
 | JOIN 지연 | ms | ⬇️ lower is better |
 
-## 5. 공정성 보장
+## 5. 공정성 보장 및 교란변수 (consensus P2 반영)
 
-- **디스크 동일화**: 모든 인스턴스가 동일 gp3 스펙(16000 IOPS/1000MB/s) PVC 사용 → 디스크 성능 차이 제거,
-  순수 CPU/메모리 차이만 측정
-- **노드 격리**: podAntiAffinity로 다른 벤치마크 Pod와 노드 분리
+- **볼륨 스펙 동일화**: 모든 인스턴스가 동일 gp3 스펙(16000 IOPS/1000MB/s) PVC 사용 → **볼륨 자체의
+  IOPS/throughput 차이는 제거**.
+- **⚠️ 한계 — per-instance EBS 대역폭 교란**: gp3 볼륨이 16000 IOPS/1000MB/s로 설정돼도, 실제 처리량은
+  **인스턴스 자체의 EBS 대역폭 상한**에 종속된다. 구형/소형 인스턴스(예: 5세대 일부 ~593MB/s, baseline)는
+  볼륨 한도보다 낮아 I/O가 인스턴스 EBS 대역폭에 병목된다. 또한 hits 데이터셋(~14GB)은 8GB C패밀리의
+  OS page cache에 들어가지 않으므로 **hot 쿼리도 EBS를 다시 읽는다**. 따라서 "디스크 완전 중립화"는 성립하지
+  않으며, 본 벤치마크는 다음으로 대응한다:
+  1. 각 인스턴스의 **per-instance EBS baseline/burst 대역폭을 리포트에 함께 표기**(교란 가시화).
+  2. **주 비교 지표는 hot 지연**으로 하되, "메모리 ≥ 데이터셋"인 인스턴스(R패밀리 32GB 등)에서만
+     순수 page-cache-bound로 간주하고, 그 외는 "CPU+EBS 혼합"으로 명시.
+  3. cold 런 지연은 **disk+CPU 혼합**으로 라벨링(순수 CPU/메모리 아님).
+- **노드 격리**: podAntiAffinity로 다른 벤치마크 Pod와 노드 분리.
 - **EBS lazy-load 주의**: 스냅샷 복구 볼륨은 첫 블록 접근 시 S3에서 lazy-load됨 → 첫 cold 런이
-  느릴 수 있음. 5세트×3런 구조로 hot 수치는 깨끗함. 필요 시 FSR(Fast Snapshot Restore)로 사전 워밍(옵션, 비용 발생).
+  느릴 수 있음. 5세트×3런 구조로 hot 수치는 상대적으로 안정. 필요 시 FSR(Fast Snapshot Restore)로 사전 워밍(옵션, 비용 발생).
 - **메모리 차이**: C(8GB)/M(16GB)/R(32GB) — ClickHouse는 디스크 기반 컬럼 스토어라 8GB에서도 동작하나
   집계 쿼리에서 메모리 차이가 드러남 (의도된 비교 대상).
+- **OOM 처리**: self-JOIN/INSERT가 소메모리 인스턴스(8GB)에서 OOM될 수 있다. spill 설정
+  (`max_bytes_before_external_group_by`, `join_algorithm='grace_hash'`, `max_memory_usage`)을 적용하고,
+  그래도 실패하면 **해당 인스턴스의 그 항목을 "FAILED"로 명시 기록**(누락이 아니라 비교 가능한 실패 데이터점).
+- **실행 순서 고정 (행수 일관성)**: ① pristine 스냅샷에서 43쿼리×3×5세트 → ② INSERT 테스트 →
+  ③ self-JOIN 테스트. INSERT가 테이블 행수를 바꾸므로 순서를 모든 인스턴스에 동일 적용해 비교 가능성 보장.
 
 ## 6. 실행 전략
 
@@ -102,23 +121,60 @@ Job Pod (인스턴스 타입별 1개)
 
 ## 7. Phase 0 (구현 첫 단계, 필수)
 
-`snap-024c86faa00cd0448`에서 볼륨 1개를 복구해 마운트 → 적재된 데이터의 **ClickHouse 버전**과
-**테이블/DB 이름**(`hits` 테이블이 어느 DB에 있는지), **행 수**를 확인한다. 이 버전으로 쿼리 컨테이너
-이미지를 핀하고(데이터 호환성 보장), 쿼리 SQL의 테이블 참조를 맞춘다.
+`snap-024c86faa00cd0448`에서 볼륨 1개를 복구해 마운트 → 적재된 데이터의 **ClickHouse 버전**(`SELECT version()`),
+**DB/테이블 이름**(`SELECT database,name FROM system.tables WHERE name='hits'` — ClickBench 표준은 `default.hits`),
+**행 수**(`SELECT count() FROM hits` — ~100M 기대)를 확인한다. 이 버전으로 쿼리 컨테이너 이미지를 핀하고
+(데이터 호환성 보장), 쿼리 SQL의 `FROM` 절을 확정한다.
+
+**사전 검증**: Task 0 전에 클러스터 자산 존재 확인 — `kubectl get crd volumesnapshots.snapshot.storage.k8s.io`,
+`kubectl get storageclass gp3-clickhouse`, `kubectl get volumesnapshotclass gp3-clickhouse-snapclass`.
+(현재 모두 존재함을 확인 완료.)
+
+**오프라인 기본값(authoring unblock)**: Task 0는 라이브 확인 단계지만, 그 결과를 기다리지 않고 산출물 작성을
+시작할 수 있도록 기본값을 둔다 — 테이블 `default.hits`, 이미지 `clickhouse/clickhouse-server:24.8`(LTS,
+스냅샷 호환 확인 후 정정). Task 0는 이 기본값의 **확정/정정** 역할.
 
 ## 8. 산출물
 
 ```
-benchmarks/clickhouse/clickhouse-snapshot.yaml      # 정적 VolumeSnapshot (snap-024)
-benchmarks/clickhouse/clickhouse-clickbench.yaml    # Job 템플릿
+benchmarks/clickhouse/clickhouse-storageclass.yaml  # SC gp3-clickhouse + VolumeSnapshotClass (재현성; 이미 클러스터에 존재, 멱등 apply)
+benchmarks/clickhouse/clickhouse-snapshot.yaml      # 정적 VolumeSnapshot (snap-024) + VolumeSnapshotContent
+benchmarks/clickhouse/clickhouse-clickbench.yaml    # Job + PVC(dataSource) + 쿼리 ConfigMap 마운트
 benchmarks/clickhouse/queries/queries.sql           # ClickBench 43쿼리
 benchmarks/clickhouse/queries/insert.sql            # INSERT 테스트
-benchmarks/clickhouse/queries/join.sql              # self-JOIN 테스트
-scripts/generate-clickhouse-benchmark.sh            # 배포+수집 스크립트 (기존 패턴)
-results/clickhouse/<instance>/setN.log              # 결과 로그
+benchmarks/clickhouse/queries/join.sql              # self-JOIN 테스트 (grace_hash)
+scripts/generate-clickhouse-benchmark.sh            # ConfigMap 생성 + 배포 + 수집 (기존 패턴)
+scripts/generate-clickhouse-report.py               # setN.log 파싱 → 리포트 데이터 주입
+results/clickhouse/<instance>/setN.log              # 결과 로그 (포맷 §10)
 results/clickhouse/report-charts.html               # 표준 리포트
 CLAUDE.md                                            # ClickHouse 섹션 추가
 ```
+
+**기존 클러스터 자산(확인됨, 재생성 불필요)**: StorageClass `gp3-clickhouse`(gp3/16000/1000),
+VolumeSnapshotClass `gp3-clickhouse-snapclass`(Retain), EBS CSI driver, snapshot CRD,
+VolumeSnapshot `clickhouse-hits` 모두 클러스터에 존재. repo 매니페스트는 재현성/문서화 목적(멱등 apply).
+
+## 10. 결과 로그 포맷 (파서 계약)
+
+각 `results/clickhouse/<instance>/setN.log`는 헤더 + CSV 라인으로 구성:
+```
+INSTANCE: c8i.xlarge
+ARCH: amd64
+CLICKHOUSE_VERSION: <version>
+SET: N
+# query results (per-query, 3 runs):
+QUERY,run,cold_ms,hot1_ms,hot2_ms
+q00,1,1234,210,205
+...
+q42,1,...
+# insert test:
+INSERT_ROWS: 10000000
+INSERT_MS: <ms>
+INSERT_ROWS_PER_SEC: <rps>
+# self-join test:
+JOIN_MS: <ms>   (또는 JOIN: FAILED:<reason>)
+```
+`scripts/generate-clickhouse-report.py`가 이 포맷을 파싱해 차트 데이터(JSON)를 리포트에 주입한다.
 
 ## 9. 비범위 (YAGNI)
 
