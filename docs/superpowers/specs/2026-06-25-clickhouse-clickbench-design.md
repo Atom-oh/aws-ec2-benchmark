@@ -127,6 +127,17 @@ Job Pod (인스턴스 타입별 1개)
 
 ## 7. Phase 0 (구현 첫 단계, 필수)
 
+### ✅ Phase 0 확인 결과 (2026-06-25 실측, snap-024c86faa00cd0448)
+- **ClickHouse 서버 버전**: `24.8.14.39` — 이 버전이 스냅샷 데이터를 오류 없이 read함 → **이미지 핀: `clickhouse/clickhouse-server:24.8.14.39`**
+- **DB/테이블**: `default.hits` (engine MergeTree)
+- **행 수**: `99,997,497` (~100M, 표준 ClickBench)
+- **on-disk**: 13.44 GiB, active parts 1개 (fully merged)
+- **컬럼 수**: 105 (WatchID/JavaEnable/Title/EventTime… = 표준 ClickBench hits 스키마 확정)
+- **사전 자산 확인**: snapshot CRD, SC `gp3-clickhouse`, VolumeSnapshotClass `gp3-clickhouse-snapclass` 모두 존재
+- → 쿼리 SQL `FROM` 절은 `default.hits` 사용, 이미지는 `24.8.14.39` 핀으로 확정.
+
+
+
 `snap-024c86faa00cd0448`에서 볼륨 1개를 복구해 마운트 → 적재된 데이터의 **ClickHouse 버전**(`SELECT version()`),
 **DB/테이블 이름**(`SELECT database,name FROM system.tables WHERE name='hits'` — ClickBench 표준은 `default.hits`),
 **행 수**(`SELECT count() FROM hits` — ~100M 기대)를 확인한다. 이 버전으로 쿼리 컨테이너 이미지를 핀하고
@@ -139,9 +150,8 @@ Job Pod (인스턴스 타입별 1개)
 **버전 핀 정밀도**: `SELECT version()` 결과를 **full minor.patch까지** 캡처해(예: `24.8.3`, `24.8`만으로 핀 금지)
 `CLICKHOUSE_VERSION`에 고정한다 — 데이터 포맷 호환성·재현성 보장.
 
-**오프라인 기본값(authoring unblock)**: Task 0는 라이브 확인 단계지만, 그 결과를 기다리지 않고 산출물 작성을
-시작할 수 있도록 기본값을 둔다 — 테이블 `default.hits`, 이미지 `clickhouse/clickhouse-server:24.8`(LTS,
-Task 0에서 정확한 minor.patch로 정정). Task 0는 이 기본값의 **확정/정정** 역할.
+**확정값(Task 0 완료)**: 테이블 `default.hits`, 이미지 `clickhouse/clickhouse-server:24.8.14.39`
+(Docker Hub 태그 존재 확인). `CLICKHOUSE_VERSION` placeholder는 `24.8.14.39`로 치환.
 
 ## 8. 산출물
 
