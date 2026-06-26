@@ -184,12 +184,29 @@ def aggregate():
     return instances
 
 
+def load_queries():
+    """queries.sql(43줄) + insert.sql + join.sql 원문을 리포트에 주입."""
+    qdir = BASE_DIR / "benchmarks" / "clickhouse" / "queries"
+    out = {"clickbench": [], "insert": "", "join": ""}
+    qf = qdir / "queries.sql"
+    if qf.exists():
+        lines = [ln.strip() for ln in qf.read_text().splitlines() if ln.strip()]
+        out["clickbench"] = [{"id": f"q{i:02d}", "sql": ln} for i, ln in enumerate(lines)]
+    for k, fn in (("insert", "insert.sql"), ("join", "join.sql")):
+        p = qdir / fn
+        if p.exists():
+            # 주석(--) 제외한 SQL 본문
+            out[k] = "\n".join(ln for ln in p.read_text().splitlines() if not ln.strip().startswith("--")).strip()
+    return out
+
+
 def main():
     data = aggregate()
     payload = {
         "dataset": "ClickBench hits (~100M rows, 13.44GiB)",
         "note_ebs": "per-instance EBS 대역폭 상한이 교란변수. hot_total은 memory>=dataset(fits_in_ram=true) 인스턴스에서만 순수 page-cache-bound.",
         "instances": data,
+        "queries": load_queries(),
     }
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     JSON_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
