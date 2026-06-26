@@ -19,7 +19,8 @@ INSTANCE_FILE="$BASE_DIR/config/instances-4vcpu.txt"
 
 NAMESPACE="benchmark"
 SETS=5
-MAX_PARALLEL=12          # 동시 실행 인스턴스 수 (EBS 복구 부하 관리)
+# 인스턴스 간 완전 병렬 (스냅샷 독립 복구). benchmark-server NodePool CPU limit=480(120노드)이라
+# 51개(204 CPU) 동시 실행 여유. 스케줄 불가 인스턴스는 wait_schedulable이 빠르게 skip.
 CLICKHOUSE_VERSION="24.8.14.39"
 JOB_TIMEOUT=2400         # 세트당 최대 대기 (초)
 TEMPLATE="$BENCHMARK_DIR/clickhouse-clickbench.yaml"
@@ -62,7 +63,19 @@ kubectl create configmap clickhouse-queries -n "$NAMESPACE" \
     --from-file="$QUERIES_DIR/join.sql" \
     --dry-run=client -o yaml | kubectl apply -f -
 
-# 한 인스턴스의 5세트 순차 실행
+# 스케줄 가능 여부 확인: pod이 SCHED_WAIT 내에 Running/Succeeded 도달하면 0, 아니면 1(스케줄 불가)
+SCHED_WAIT=300   # 5분 내 노드 미배정 시 프로비저닝 불가로 판단 (예: c7i-flex 2a/2c 미제공)
+wait_schedulable() {
+    local job="$1" t phase
+    for t in $(seq 1 $((SCHED_WAIT / 5))); do
+        phase=$(kubectl get pods -n "$NAMESPACE" -l job-name="${job}" --no-headers -o jsonpath='{.items[0].status.phase}' 2>/dev/null)
+        [ "$phase" = "Running" ] || [ "$phase" = "Succeeded" ] && return 0
+        sleep 5
+    done
+    return 1
+}
+
+# 한 인스턴스의 5세트 순차 실행 (스냅샷 독립 복구이므로 인스턴스 간 완전 병렬)
 run_instance() {
     local instance="$1"
     local safe_name arch
@@ -87,6 +100,14 @@ run_instance() {
             sed "s|kubernetes.io/arch: ARCH|kubernetes.io/arch: ${arch}|g" | \
             kubectl apply -f - >/dev/null 2>&1
 
+        # 스케줄 불가(프로비저닝 불가) 인스턴스는 빠르게 skip — 다른 인스턴스 블로킹 방지
+        if ! wait_schedulable "$job"; then
+            log "${YELLOW}스케줄 불가(프로비저닝 불가) — skip${NC}: $instance (남은 세트 생략)"
+            kubectl delete job "$job" -n "$NAMESPACE" --wait=false >/dev/null 2>&1
+            kubectl delete pvc "$pvc" -n "$NAMESPACE" --wait=false >/dev/null 2>&1
+            return
+        fi
+
         # 완료 대기
         if kubectl wait --for=condition=complete "job/${job}" -n "$NAMESPACE" --timeout="${JOB_TIMEOUT}s" >/dev/null 2>&1; then
             local pod
@@ -107,15 +128,11 @@ run_instance() {
     log "[$instance] 5세트 완료"
 }
 
-# 3) 배치 병렬 실행
-i=0
+# 3) 전체 동시 실행 (스냅샷 독립 복구 → 직렬 배치 불필요).
+#    동시 실행 수는 Karpenter NodePool CPU limit(160=40노드)이 자연 throttle.
+#    스케줄 불가 인스턴스는 wait_schedulable이 빠르게 skip하므로 healthy 인스턴스를 막지 않음.
 for instance in "${INSTANCES[@]}"; do
     run_instance "$instance" &
-    i=$((i + 1))
-    if [ $((i % MAX_PARALLEL)) -eq 0 ]; then
-        wait
-        log "${YELLOW}배치 ${i}/${#INSTANCES[@]} 완료${NC}"
-    fi
 done
 wait
 
