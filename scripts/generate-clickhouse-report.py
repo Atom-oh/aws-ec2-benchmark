@@ -72,7 +72,7 @@ def parse_log(path):
            "version": None, "arch": None}
     for line in text.splitlines():
         line = line.strip()
-        if line.startswith("CLICKHOUSE_VERSION:"):
+        if line.startswith("SERVER_VERSION:"):
             out["version"] = line.split(":", 1)[1].strip()
         elif line.startswith("ARCH:"):
             out["arch"] = line.split(":", 1)[1].strip()
