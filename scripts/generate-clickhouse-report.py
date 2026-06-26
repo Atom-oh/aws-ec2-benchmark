@@ -24,6 +24,23 @@ DATASET_BYTES = 13.44 * 1024 * 1024 * 1024  # 13.44 GiB hits on-disk
 
 NQUERIES = 43
 
+# On-demand 시간당 가격 (USD, ap-northeast-2) — nginx/redis 리포트와 동일 출처
+PRICE = {
+    "c5.xlarge": 0.192, "c5a.xlarge": 0.172, "c5d.xlarge": 0.220, "c5n.xlarge": 0.244,
+    "c6g.xlarge": 0.154, "c6gd.xlarge": 0.176, "c6gn.xlarge": 0.195, "c6i.xlarge": 0.192,
+    "c6id.xlarge": 0.231, "c6in.xlarge": 0.256, "c7g.xlarge": 0.163, "c7gd.xlarge": 0.208,
+    "c7i-flex.xlarge": 0.192, "c7i.xlarge": 0.202, "c8g.xlarge": 0.180, "c8i-flex.xlarge": 0.201,
+    "c8i.xlarge": 0.212, "m5.xlarge": 0.236, "m5a.xlarge": 0.212, "m5ad.xlarge": 0.254,
+    "m5d.xlarge": 0.278, "m5zn.xlarge": 0.406, "m6g.xlarge": 0.188, "m6gd.xlarge": 0.222,
+    "m6i.xlarge": 0.236, "m6id.xlarge": 0.292, "m6idn.xlarge": 0.386, "m6in.xlarge": 0.337,
+    "m7g.xlarge": 0.201, "m7gd.xlarge": 0.263, "m7i-flex.xlarge": 0.235, "m7i.xlarge": 0.248,
+    "m8g.xlarge": 0.221, "m8i.xlarge": 0.260, "r5.xlarge": 0.304, "r5a.xlarge": 0.272,
+    "r5ad.xlarge": 0.316, "r5b.xlarge": 0.356, "r5d.xlarge": 0.346, "r5dn.xlarge": 0.398,
+    "r5n.xlarge": 0.356, "r6g.xlarge": 0.244, "r6gd.xlarge": 0.277, "r6i.xlarge": 0.304,
+    "r6id.xlarge": 0.363, "r7g.xlarge": 0.258, "r7gd.xlarge": 0.327, "r7i.xlarge": 0.319,
+    "r8g.xlarge": 0.284, "r8i-flex.xlarge": 0.318, "r8i.xlarge": 0.335,
+}
+
 
 def load_instance_meta():
     """instance -> {arch, mem_mb} (instances-4vcpu.txt: type<TAB>arch<TAB>mem_mb)."""
@@ -139,6 +156,11 @@ def aggregate():
                 failed += NQUERIES - len(per_q)
             cls = gen_family(instance)
             mem_mb = meta.get(instance, {}).get("mem_mb")
+            price = PRICE.get(instance)
+            hot_s = hot_total_ms / 1000 if hot_total_ms else None
+            # speed score: 데이터셋(43쿼리) 처리율 환산 (높을수록 좋음). value = speed/price.
+            speed = round(1000 / hot_s, 2) if hot_s else None
+            value = round(speed / price, 2) if (speed and price) else None
             instances[instance] = {
                 "instance": instance,
                 "arch": cls["arch"],
@@ -147,8 +169,12 @@ def aggregate():
                 "family": cls["family"],
                 "mem_mb": mem_mb,
                 "fits_in_ram": (mem_mb * 1024 * 1024 > DATASET_BYTES) if mem_mb else None,
+                "price": price,
                 "version": version,
                 "hot_total_ms": hot_total_ms,
+                "hot_total_s": round(hot_s, 2) if hot_s else None,
+                "speed": speed,              # 1000/hot_s (높을수록 빠름)
+                "value": value,              # speed/$ (가성비, 높을수록 좋음)
                 "queries_measured": len(per_q),
                 "per_query_ms": per_q,
                 "insert_rps": round(statistics.median(insert_rps)) if insert_rps else None,

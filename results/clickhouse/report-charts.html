@@ -13,27 +13,33 @@ header{background:linear-gradient(135deg,#0f172a 0%,#334155 100%);color:#fff;pad
 header h1{margin:0 0 .5rem}header p{margin:.2rem 0;opacity:.85}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem}
 .card{background:var(--card);border-radius:1rem;padding:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.card h3{margin:0 0 .4rem;font-size:.85rem;color:var(--muted);text-transform:uppercase}
-.card .val{font-size:1.6rem;font-weight:700}
+.card h3{margin:0 0 .4rem;font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.card .val{font-size:1.5rem;font-weight:700}.card .sub{font-size:.8rem;color:var(--muted)}
+.card.graviton .val{color:var(--graviton)}.card.intel .val{color:var(--intel)}.card.amd .val{color:var(--amd)}
 .chart-section{background:var(--card);border-radius:1rem;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.chart-container{position:relative;height:400px}.chart-container.tall{height:500px}.chart-container.extra-tall{height:900px}
+.chart-container{position:relative;height:400px}.chart-container.tall{height:520px}.chart-container.extra-tall{height:1100px}
 .insights{background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-left:4px solid #f59e0b;padding:1rem 1.25rem;border-radius:.5rem;margin:1rem 0}
+.insights h4{color:#92400e;margin:0 0 .5rem}
 .warn{background:linear-gradient(135deg,#fee2e2 0%,#fecaca 100%);border-left:4px solid #ef4444;padding:1rem 1.25rem;border-radius:.5rem;margin:1rem 0}
-table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{padding:.5rem .75rem;text-align:right;border-bottom:1px solid #e2e8f0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{padding:.5rem .7rem;text-align:right;border-bottom:1px solid #e2e8f0}
 th{cursor:pointer;background:#f1f5f9;position:sticky;top:0}th:first-child,td:first-child{text-align:left}
-.badge{padding:.15rem .5rem;border-radius:.4rem;font-size:.75rem;font-weight:600}
+.badge{padding:.15rem .5rem;border-radius:.4rem;font-size:.72rem;font-weight:600}
 .badge-graviton{background:#d1fae5;color:#065f46}.badge-intel{background:#dbeafe;color:#1e40af}.badge-amd{background:#fee2e2;color:#991b1b}
 .filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}.filters input,.filters select{padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:.4rem}
+.tabs{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+.tab-btn{padding:.45rem .9rem;border:1px solid #cbd5e1;background:#fff;border-radius:.5rem;cursor:pointer;font-size:.85rem}
+.tab-btn.active{background:#0f172a;color:#fff;border-color:#0f172a}
 a{color:var(--intel)}h2{border-bottom:2px solid #e2e8f0;padding-bottom:.4rem}
 .empty{color:var(--muted);font-style:italic;padding:2rem;text-align:center}
+.prog{font-size:.85rem;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="container">
 <header>
   <h1>ClickHouse ClickBench 벤치마크</h1>
-  <p>51개 EC2 인스턴스(5~8세대 · Intel/AMD/Graviton) OLAP 분석 쿼리 성능 비교</p>
-  <p>데이터셋: ClickBench hits ~100M행 (13.44 GiB) · ClickHouse 24.8.14.39 · ap-northeast-2</p>
+  <p>51개 EC2 인스턴스(5~8세대 · Intel/AMD/Graviton) OLAP 분석 쿼리 성능·가성비 비교</p>
+  <p>데이터셋: ClickBench hits ~100M행 (13.44 GiB) · ClickHouse 24.8.14.39 · ap-northeast-2 · 가격 = On-Demand $/hr</p>
 </header>
 
 <div class="cards" id="summaryCards"></div>
@@ -44,7 +50,8 @@ a{color:var(--intel)}h2{border-bottom:2px solid #e2e8f0;padding-bottom:.4rem}
     <li><a href="#method">테스트 방법론</a></li>
     <li><a href="#env">테스트 환경</a></li>
     <li><a href="#hot">전체 쿼리 처리시간 (hot)</a></li>
-    <li><a href="#gen">세대별 / 패밀리별 비교</a></li>
+    <li><a href="#breakdown">아키텍처 / 세대 / 패밀리별 비교 (탭)</a></li>
+    <li><a href="#value">가격 대비 성능 (버블 · 가성비 Top15)</a></li>
     <li><a href="#insert">INSERT 처리량 · JOIN 지연</a></li>
     <li><a href="#table">전체 결과 테이블</a></li>
     <li><a href="#conclusion">결론</a></li>
@@ -54,41 +61,51 @@ a{color:var(--intel)}h2{border-bottom:2px solid #e2e8f0;padding-bottom:.4rem}
 <section class="chart-section" id="method">
   <h2>테스트 방법론</h2>
   <p>ClickHouse 공식 <strong>ClickBench</strong> 43개 분석 쿼리를 각 인스턴스에서 3런(1 cold + 2 hot) × 5세트 실행하고,
-     추가로 INSERT(1천만 행)와 self-JOIN을 측정한다. 데이터는 EBS 스냅샷(snap-024c86faa00cd0448)에서 복구한
-     per-pod 볼륨(/var/lib/clickhouse)으로 공급되어 적재 단계 없이 즉시 쿼리한다.</p>
+     INSERT(1천만 행)와 self-JOIN을 추가 측정한다. 데이터는 EBS 스냅샷(snap-024c86faa00cd0448)에서 복구한
+     per-pod 볼륨(/var/lib/clickhouse)으로 공급되어 적재 단계 없이 즉시 쿼리한다. 지표: 43쿼리 hot 합계(s, 낮을수록 좋음),
+     speed=1000/hot_s, value=speed/$.</p>
   <div class="warn">
-    <strong>⚠️ EBS 대역폭 교란 — 결과 해석 주의</strong>
+    <strong>⚠️ EBS 대역폭 교란 — 해석 주의</strong>
     <ul>
-      <li>모든 인스턴스가 동일 gp3 스펙(16000 IOPS / 1000MB/s) 볼륨을 사용하나, 실제 처리량은
-          <strong>인스턴스 자체의 EBS 대역폭 상한</strong>에 종속된다(구형/소형은 볼륨 한도보다 낮을 수 있음).</li>
-      <li>hits(~13.4GiB)는 8GB(C패밀리) page cache에 들어가지 않아 <strong>hot 쿼리도 EBS를 다시 읽는다</strong>.</li>
-      <li>따라서 <strong>hot 처리시간은 "memory ≥ dataset"(아래 표 fits=✓) 인스턴스에서만 순수
-          page-cache-bound</strong>이며, 그 외는 CPU+EBS 혼합으로 해석한다. cold 런은 disk+CPU 혼합.</li>
+      <li>동일 gp3 스펙(16000 IOPS / 1000MB/s)이나 실제 처리량은 <strong>인스턴스별 EBS 대역폭 상한</strong>에 종속.</li>
+      <li>hits(~13.4GiB)는 8GB(C패밀리) page cache에 안 들어가 <strong>hot 쿼리도 EBS를 다시 읽음</strong>.</li>
+      <li><strong>hot 지연은 fits=✓(memory≥dataset) 인스턴스에서만 순수 page-cache-bound</strong>, 그 외는 CPU+EBS 혼합.</li>
     </ul>
   </div>
-  <p>수집 메트릭: 쿼리별 cold/hot 지연(ms), 43쿼리 hot 합계(s, 낮을수록 좋음), INSERT rows/sec(높을수록 좋음),
-     JOIN 지연(ms). OOM 등 실패 항목은 FAILED로 기록한다.</p>
 </section>
 
 <section class="chart-section" id="env">
   <h2>테스트 환경</h2>
   <ul>
-    <li>플랫폼: Amazon EKS + Karpenter (xlarge, 4 vCPU)</li>
-    <li>스토리지: gp3 16000 IOPS / 1000MB/s (StorageClass <code>gp3-clickhouse</code>), 스냅샷 복구 100GiB</li>
+    <li>플랫폼: Amazon EKS + Karpenter (xlarge, 4 vCPU) · 노드 격리(podAntiAffinity)</li>
+    <li>스토리지: gp3 16000 IOPS / 1000MB/s (<code>gp3-clickhouse</code>), 스냅샷 복구 100GiB</li>
     <li>메모리 정책: Pod 고정 limit 없음 — ClickHouse가 노드 전체 메모리 인식(C 8GB / M 16GB / R 32GB)</li>
-    <li>노드 격리: podAntiAffinity, 아키텍처: Intel/AMD(amd64), Graviton(arm64) 동일 스냅샷</li>
+    <li>아키텍처: Intel/AMD(amd64), Graviton(arm64) 동일 스냅샷 (데이터 포맷 아키텍처 독립)</li>
   </ul>
 </section>
 
 <section class="chart-section" id="hot">
   <h2>전체 43쿼리 처리시간 (hot 합계, 낮을수록 좋음)</h2>
+  <p class="prog" id="hotNote"></p>
   <div class="chart-container extra-tall"><canvas id="hotChart"></canvas></div>
 </section>
 
-<section class="chart-section" id="gen">
-  <h2>세대별 / 패밀리별 평균 hot 합계</h2>
-  <div class="chart-container"><canvas id="genChart"></canvas></div>
-  <div class="chart-container" style="margin-top:1.5rem"><canvas id="famChart"></canvas></div>
+<section class="chart-section" id="breakdown">
+  <h2>그룹별 평균 비교</h2>
+  <div class="tabs" id="bdTabs">
+    <button class="tab-btn active" data-k="arch">아키텍처별</button>
+    <button class="tab-btn" data-k="label">세대별</button>
+    <button class="tab-btn" data-k="family">패밀리별 (C/M/R)</button>
+  </div>
+  <div class="chart-container"><canvas id="bdChart"></canvas></div>
+</section>
+
+<section class="chart-section" id="value">
+  <h2>가격 대비 성능</h2>
+  <p class="prog">버블: X=시간당 가격($), Y=hot 합계(s). <strong>왼쪽 아래일수록 저렴+빠름</strong>. 색=아키텍처.</p>
+  <div class="chart-container tall"><canvas id="bubbleChart"></canvas></div>
+  <h3 style="margin-top:1.5rem">가성비 Top 15 (speed/$ — 높을수록 좋음)</h3>
+  <div class="chart-container tall"><canvas id="valueChart"></canvas></div>
 </section>
 
 <section class="chart-section" id="insert">
@@ -105,12 +122,13 @@ a{color:var(--intel)}h2{border-bottom:2px solid #e2e8f0;padding-bottom:.4rem}
     <select id="fGen"><option value="">전체 세대</option><option>5</option><option>6</option><option>7</option><option>8</option></select>
     <select id="fFam"><option value="">전체 패밀리</option><option>C</option><option>M</option><option>R</option></select>
   </div>
-  <div style="max-height:600px;overflow:auto">
+  <div style="max-height:640px;overflow:auto">
     <table id="resultTable">
       <thead><tr>
         <th data-k="instance">인스턴스</th><th data-k="arch">아키텍처</th><th data-k="gen">세대</th>
-        <th data-k="mem_mb">메모리(MB)</th><th data-k="fits_in_ram">RAM적합</th>
-        <th data-k="hot_total_ms">hot합계(ms)</th><th data-k="insert_rps">INSERT rps</th>
+        <th data-k="mem_mb">메모리</th><th data-k="fits_in_ram">RAM</th>
+        <th data-k="hot_total_s">hot(s)</th><th data-k="price">$/hr</th>
+        <th data-k="value">가성비</th><th data-k="insert_rps">INSERT rps</th>
         <th data-k="join_ms">JOIN(ms)</th><th data-k="failed_count">실패</th>
       </tr></thead>
       <tbody id="resultBody"></tbody>
@@ -128,87 +146,90 @@ a{color:var(--intel)}h2{border-bottom:2px solid #e2e8f0;padding-bottom:.4rem}
 </footer>
 </div>
 
-<script id="ch-data" type="application/json">{"dataset": "ClickBench hits (~100M rows, 13.44GiB)", "note_ebs": "per-instance EBS 대역폭 상한이 교란변수. hot_total은 memory>=dataset(fits_in_ram=true) 인스턴스에서만 순수 page-cache-bound.", "instances": {"r8g.xlarge": {"instance": "r8g.xlarge", "arch": "Graviton", "label": "Graviton4", "gen": "8", "family": "R", "mem_mb": 32768, "fits_in_ram": true, "version": "24.8.14.39", "hot_total_ms": 68473, "queries_measured": 43, "per_query_ms": {"q00": 27, "q01": 48, "q02": 72, "q03": 111, "q04": 578, "q05": 959, "q06": 49, "q07": 45, "q08": 677, "q09": 794, "q10": 231, "q11": 290, "q12": 938, "q13": 1366, "q14": 1213, "q15": 695, "q16": 3502, "q17": 2522, "q18": 6715, "q19": 52, "q20": 1479, "q21": 1540, "q22": 2311, "q23": 4571, "q24": 408, "q25": 335, "q26": 407, "q27": 1356, "q28": 18263, "q29": 77, "q30": 777, "q31": 967, "q32": 4100, "q33": 5027, "q34": 5012, "q35": 558, "q36": 75, "q37": 49, "q38": 45, "q39": 126, "q40": 36, "q41": 35, "q42": 35}, "insert_rps": 232379, "join_ms": 1152, "failed_count": 0}}}</script>
+<script id="ch-data" type="application/json">{"dataset": "ClickBench hits (~100M rows, 13.44GiB)", "note_ebs": "per-instance EBS 대역폭 상한이 교란변수. hot_total은 memory>=dataset(fits_in_ram=true) 인스턴스에서만 순수 page-cache-bound.", "instances": {"c6i.xlarge": {"instance": "c6i.xlarge", "arch": "Intel", "label": "Intel 6th", "gen": "6", "family": "C", "mem_mb": 8192, "fits_in_ram": false, "price": 0.192, "version": null, "hot_total_ms": null, "hot_total_s": null, "speed": null, "value": null, "queries_measured": 0, "per_query_ms": {}, "insert_rps": null, "join_ms": null, "failed_count": 43}, "c7g.xlarge": {"instance": "c7g.xlarge", "arch": "Graviton", "label": "Graviton3", "gen": "7", "family": "C", "mem_mb": 8192, "fits_in_ram": false, "price": 0.163, "version": "24.8.14.39", "hot_total_ms": null, "hot_total_s": null, "speed": null, "value": null, "queries_measured": 18, "per_query_ms": {"q00": 31, "q01": 54, "q02": 140, "q03": 164, "q04": 957, "q05": 1382, "q06": 61, "q07": 54, "q08": 894, "q09": 1030, "q10": 292, "q11": 350, "q12": 1146, "q13": 1717, "q14": 1494, "q15": 842, "q16": 4134, "q17": 2919}, "insert_rps": null, "join_ms": null, "failed_count": 51}, "c8i-flex.xlarge": {"instance": "c8i-flex.xlarge", "arch": "Intel", "label": "Intel 8th", "gen": "8", "family": "C", "mem_mb": 8192, "fits_in_ram": false, "price": 0.201, "version": "24.8.14.39", "hot_total_ms": null, "hot_total_s": null, "speed": null, "value": null, "queries_measured": 18, "per_query_ms": {"q00": 25, "q01": 35, "q02": 99, "q03": 129, "q04": 997, "q05": 1486, "q06": 40, "q07": 41, "q08": 1097, "q09": 1226, "q10": 263, "q11": 309, "q12": 1329, "q13": 1924, "q14": 1687, "q15": 1096, "q16": 4802, "q17": 2970}, "insert_rps": null, "join_ms": null, "failed_count": 51}, "c8i.xlarge": {"instance": "c8i.xlarge", "arch": "Intel", "label": "Intel 8th", "gen": "8", "family": "C", "mem_mb": 8192, "fits_in_ram": false, "price": 0.212, "version": "24.8.14.39", "hot_total_ms": null, "hot_total_s": null, "speed": null, "value": null, "queries_measured": 18, "per_query_ms": {"q00": 20, "q01": 31, "q02": 100, "q03": 125, "q04": 925, "q05": 1435, "q06": 36, "q07": 33, "q08": 975, "q09": 1119, "q10": 249, "q11": 297, "q12": 1220, "q13": 1742, "q14": 1525, "q15": 1017, "q16": 4253, "q17": 2761}, "insert_rps": null, "join_ms": null, "failed_count": 51}, "r8g.xlarge": {"instance": "r8g.xlarge", "arch": "Graviton", "label": "Graviton4", "gen": "8", "family": "R", "mem_mb": 32768, "fits_in_ram": true, "price": 0.284, "version": "24.8.14.39", "hot_total_ms": 68473, "hot_total_s": 68.47, "speed": 14.6, "value": 51.41, "queries_measured": 43, "per_query_ms": {"q00": 27, "q01": 48, "q02": 72, "q03": 111, "q04": 578, "q05": 959, "q06": 49, "q07": 45, "q08": 677, "q09": 794, "q10": 231, "q11": 290, "q12": 938, "q13": 1366, "q14": 1213, "q15": 695, "q16": 3502, "q17": 2522, "q18": 6715, "q19": 52, "q20": 1479, "q21": 1540, "q22": 2311, "q23": 4571, "q24": 408, "q25": 335, "q26": 407, "q27": 1356, "q28": 18263, "q29": 77, "q30": 777, "q31": 967, "q32": 4100, "q33": 5027, "q34": 5012, "q35": 558, "q36": 75, "q37": 49, "q38": 45, "q39": 126, "q40": 36, "q41": 35, "q42": 35}, "insert_rps": 232379, "join_ms": 1152, "failed_count": 0}}}</script>
 <script>
 const COLORS={Graviton:'#10b981',Intel:'#3b82f6',AMD:'#ef4444'};
-let PAYLOAD=null;
-try{PAYLOAD=JSON.parse(document.getElementById('ch-data').textContent);}catch(e){PAYLOAD=null;}
+let PAYLOAD=null;try{PAYLOAD=JSON.parse(document.getElementById('ch-data').textContent);}catch(e){PAYLOAD=null;}
 const rows=PAYLOAD&&PAYLOAD.instances?Object.values(PAYLOAD.instances):[];
-
-function badge(a){const c={Graviton:'badge-graviton',Intel:'badge-intel',AMD:'badge-amd'}[a]||'';return `<span class="badge ${c}">${a}</span>`;}
+const charts={};
+const badge=a=>`<span class="badge ${ {Graviton:'badge-graviton',Intel:'badge-intel',AMD:'badge-amd'}[a]||'' }">${a}</span>`;
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
 
 if(!rows.length){
   document.getElementById('summaryCards').innerHTML='<div class="card"><h3>상태</h3><div class="val">데이터 없음</div></div>';
-  document.getElementById('resultBody').innerHTML='<tr><td colspan="9" class="empty">결과 로그가 아직 없습니다. 벤치마크 실행 후 generate-clickhouse-report.py 를 실행하세요.</td></tr>';
-}else{
-  renderAll();
-}
+  document.getElementById('resultBody').innerHTML='<tr><td colspan="11" class="empty">결과 로그가 아직 없습니다. 수집 후 generate-clickhouse-report.py 를 실행하세요.</td></tr>';
+}else{ renderAll(); }
 
 function renderAll(){
-  const withHot=rows.filter(r=>r.hot_total_ms!=null);
-  const best=withHot.slice().sort((a,b)=>a.hot_total_ms-b.hot_total_ms)[0];
+  const wh=rows.filter(r=>r.hot_total_s!=null);
+  const best=wh.slice().sort((a,b)=>a.hot_total_s-b.hot_total_s)[0];
+  const bestVal=rows.filter(r=>r.value).sort((a,b)=>b.value-a.value)[0];
   const bestIns=rows.filter(r=>r.insert_rps).sort((a,b)=>b.insert_rps-a.insert_rps)[0];
+  const gAvg=avg(wh.filter(r=>r.arch==='Graviton').map(r=>r.hot_total_s));
+  const iAvg=avg(wh.filter(r=>r.arch==='Intel').map(r=>r.hot_total_s));
+  const gi=(gAvg&&iAvg)?(((iAvg-gAvg)/iAvg)*100).toFixed(1):'-';
   document.getElementById('summaryCards').innerHTML=`
-    <div class="card"><h3>측정 인스턴스</h3><div class="val">${rows.length}</div></div>
-    <div class="card"><h3>최速 hot 합계</h3><div class="val">${best?best.instance:'-'}</div><p>${best?(best.hot_total_ms/1000).toFixed(1)+'s':''}</p></div>
-    <div class="card"><h3>최고 INSERT</h3><div class="val">${bestIns?bestIns.instance:'-'}</div><p>${bestIns?bestIns.insert_rps.toLocaleString()+' rows/s':''}</p></div>
-    <div class="card"><h3>RAM≥dataset 인스턴스</h3><div class="val">${rows.filter(r=>r.fits_in_ram).length}</div><p>순수 page-cache-bound 비교 대상</p></div>`;
+    <div class="card ${best?best.arch.toLowerCase():''}"><h3>최速 (hot 합계)</h3><div class="val">${best?best.instance:'-'}</div><div class="sub">${best?best.hot_total_s+'s':''}</div></div>
+    <div class="card ${bestVal?bestVal.arch.toLowerCase():''}"><h3>최고 가성비</h3><div class="val">${bestVal?bestVal.instance:'-'}</div><div class="sub">${bestVal?'speed/$ '+bestVal.value+' · $'+bestVal.price+'/hr':''}</div></div>
+    <div class="card ${bestIns?bestIns.arch.toLowerCase():''}"><h3>최고 INSERT</h3><div class="val">${bestIns?bestIns.instance:'-'}</div><div class="sub">${bestIns?bestIns.insert_rps.toLocaleString()+' rows/s':''}</div></div>
+    <div class="card graviton"><h3>Graviton vs Intel (hot 평균)</h3><div class="val">${gi}%</div><div class="sub">${gi!=='-'?(gi>0?'Graviton 빠름':'Intel 빠름'):'데이터 부족'}</div></div>
+    <div class="card"><h3>측정 / RAM≥dataset</h3><div class="val">${rows.length} / ${rows.filter(r=>r.fits_in_ram).length}</div><div class="sub">순수 page-cache-bound 대상</div></div>`;
+  document.getElementById('hotNote').textContent=`측정 ${wh.length}개 · 43쿼리 모두 성공한 인스턴스만 hot 합계 산출`;
 
-  // Top hot (horizontal)
-  const sorted=withHot.slice().sort((a,b)=>a.hot_total_ms-b.hot_total_ms);
-  new Chart(document.getElementById('hotChart'),{type:'bar',data:{labels:sorted.map(r=>r.instance),
-    datasets:[{label:'hot 합계 (ms)',data:sorted.map(r=>r.hot_total_ms),backgroundColor:sorted.map(r=>COLORS[r.arch]||'#94a3b8')}]},
-    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'ms (낮을수록 좋음)'}}}}});
+  const sorted=wh.slice().sort((a,b)=>a.hot_total_s-b.hot_total_s);
+  mk('hotChart','bar',{labels:sorted.map(r=>r.instance),datasets:[{label:'hot 합계 (s)',data:sorted.map(r=>r.hot_total_s),backgroundColor:sorted.map(r=>COLORS[r.arch])}]},
+     {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'초 (낮을수록 좋음)'}}}});
 
-  // by generation label
-  const byLabel=groupAvg(withHot,'label','hot_total_ms');
-  new Chart(document.getElementById('genChart'),{type:'bar',data:{labels:Object.keys(byLabel),
-    datasets:[{label:'평균 hot 합계 (ms)',data:Object.values(byLabel),backgroundColor:'#3b82f6'}]},
-    options:{plugins:{legend:{display:false},title:{display:true,text:'세대별 평균'}}}});
+  drawBreakdown('arch');
+  document.querySelectorAll('#bdTabs .tab-btn').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#bdTabs .tab-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');drawBreakdown(b.dataset.k);});
 
-  const byFam=groupAvg(withHot,'family','hot_total_ms');
-  new Chart(document.getElementById('famChart'),{type:'bar',data:{labels:Object.keys(byFam),
-    datasets:[{label:'평균 hot 합계 (ms)',data:Object.values(byFam),backgroundColor:'#8b5cf6'}]},
-    options:{plugins:{legend:{display:false},title:{display:true,text:'패밀리별 평균 (C/M/R)'}}}});
+  const byArch={};wh.filter(r=>r.price).forEach(r=>{(byArch[r.arch]=byArch[r.arch]||[]).push({x:r.price,y:r.hot_total_s,label:r.instance});});
+  mk('bubbleChart','scatter',{datasets:Object.entries(byArch).map(([a,pts])=>({label:a,data:pts,backgroundColor:COLORS[a],pointRadius:6,pointHoverRadius:9}))},
+     {plugins:{tooltip:{callbacks:{label:c=>`${c.raw.label}: $${c.raw.x}/hr, ${c.raw.y}s`}}},
+      scales:{x:{title:{display:true,text:'시간당 가격 ($)'}},y:{title:{display:true,text:'hot 합계 (s) — 낮을수록 좋음'}}}});
 
-  // insert
+  const val=rows.filter(r=>r.value).sort((a,b)=>b.value-a.value).slice(0,15);
+  mk('valueChart','bar',{labels:val.map(r=>r.instance),datasets:[{label:'가성비 (speed/$)',data:val.map(r=>r.value),backgroundColor:val.map(r=>COLORS[r.arch])}]},
+     {indexAxis:'y',plugins:{legend:{display:false}}});
+
   const ins=rows.filter(r=>r.insert_rps).sort((a,b)=>b.insert_rps-a.insert_rps);
-  new Chart(document.getElementById('insertChart'),{type:'bar',data:{labels:ins.map(r=>r.instance),
-    datasets:[{label:'INSERT rows/sec',data:ins.map(r=>r.insert_rps),backgroundColor:ins.map(r=>COLORS[r.arch]||'#94a3b8')}]},
-    options:{plugins:{legend:{display:false},title:{display:true,text:'높을수록 좋음'}}}});
-
+  mk('insertChart','bar',{labels:ins.map(r=>r.instance),datasets:[{label:'INSERT rows/sec',data:ins.map(r=>r.insert_rps),backgroundColor:ins.map(r=>COLORS[r.arch])}]},
+     {plugins:{legend:{display:false},title:{display:true,text:'높을수록 좋음'}},scales:{x:{ticks:{autoSkip:false,maxRotation:90,minRotation:90}}}});
   const jn=rows.filter(r=>r.join_ms!=null).sort((a,b)=>a.join_ms-b.join_ms);
-  new Chart(document.getElementById('joinChart'),{type:'bar',data:{labels:jn.map(r=>r.instance),
-    datasets:[{label:'JOIN 지연 (ms)',data:jn.map(r=>r.join_ms),backgroundColor:jn.map(r=>COLORS[r.arch]||'#94a3b8')}]},
-    options:{plugins:{legend:{display:false},title:{display:true,text:'낮을수록 좋음'}}}});
+  mk('joinChart','bar',{labels:jn.map(r=>r.instance),datasets:[{label:'JOIN 지연 (ms)',data:jn.map(r=>r.join_ms),backgroundColor:jn.map(r=>COLORS[r.arch])}]},
+     {plugins:{legend:{display:false},title:{display:true,text:'낮을수록 좋음'}},scales:{x:{ticks:{autoSkip:false,maxRotation:90,minRotation:90}}}});
 
   renderTable();
-  if(best){document.getElementById('conclusionBox').innerHTML=
-    `<h4>핵심 시사점</h4><ul>
-      <li><strong>${best.instance}</strong> 이 hot 합계 ${(best.hot_total_ms/1000).toFixed(1)}s 로 최速 (${best.arch}).</li>
-      <li>RAM≥dataset(${rows.filter(r=>r.fits_in_ram).length}개) 인스턴스만 순수 메모리/CPU 비교 — 그 외는 EBS 교란 포함.</li>
-      <li>실패(OOM 등) 항목이 있는 인스턴스는 표의 '실패' 열 참고.</li>
-    </ul>`;}
+  if(best)document.getElementById('conclusionBox').innerHTML=`<h4>핵심 시사점</h4><ul>
+    <li><strong>${best.instance}</strong> 최速 (hot ${best.hot_total_s}s, ${best.arch}).</li>
+    <li>가성비 1위 <strong>${bestVal?bestVal.instance:'-'}</strong> (speed/$ ${bestVal?bestVal.value:'-'}).</li>
+    <li>Graviton hot 평균이 Intel 대비 ${gi}% ${gi>0?'빠름':'느림'}.</li>
+    <li>RAM≥dataset(${rows.filter(r=>r.fits_in_ram).length}개)만 순수 메모리/CPU 비교 — 그 외는 EBS 교란 포함.</li></ul>`;
 }
-function groupAvg(arr,key,val){const g={};arr.forEach(r=>{(g[r[key]]=g[r[key]]||[]).push(r[val]);});
-  const o={};Object.keys(g).sort().forEach(k=>o[k]=Math.round(g[k].reduce((a,b)=>a+b,0)/g[k].length));return o;}
-
-let sortKey='hot_total_ms',sortAsc=true;
+function mk(id,type,data,opts){if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),{type,data,options:Object.assign({responsive:true,maintainAspectRatio:false},opts)});}
+function drawBreakdown(key){
+  const wh=rows.filter(r=>r.hot_total_s!=null);const g={};
+  wh.forEach(r=>{(g[r[key]]=g[r[key]]||[]).push(r.hot_total_s);});
+  const keys=Object.keys(g).sort();
+  mk('bdChart','bar',{labels:keys,datasets:[{label:'평균 hot 합계 (s)',data:keys.map(k=>+avg(g[k]).toFixed(2)),
+    backgroundColor:keys.map(k=>COLORS[k]||'#8b5cf6')}]},{plugins:{legend:{display:false},title:{display:true,text:key+'별 평균 (낮을수록 좋음)'}}});
+}
+let sortKey='hot_total_s',sortAsc=true;
 function renderTable(){
   const q=document.getElementById('fSearch').value.toLowerCase();
   const fa=document.getElementById('fArch').value,fg=document.getElementById('fGen').value,ff=document.getElementById('fFam').value;
   let r=rows.filter(x=>(!q||x.instance.includes(q))&&(!fa||x.arch===fa)&&(!fg||x.gen===fg)&&(!ff||x.family===ff));
-  r.sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(x==null)return 1;if(y==null)return -1;
-    return (typeof x==='string'?x.localeCompare(y):x-y)*(sortAsc?1:-1);});
+  r.sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y):x-y)*(sortAsc?1:-1);});
   document.getElementById('resultBody').innerHTML=r.map(x=>`<tr>
-    <td>${x.instance}</td><td>${badge(x.arch)}</td><td>${x.gen}</td><td>${x.mem_mb||'-'}</td>
-    <td>${x.fits_in_ram?'✓':'✗'}</td><td>${x.hot_total_ms??'-'}</td>
-    <td>${x.insert_rps?x.insert_rps.toLocaleString():'-'}</td><td>${x.join_ms??'-'}</td>
-    <td>${x.failed_count||0}</td></tr>`).join('');
+    <td>${x.instance}</td><td>${badge(x.arch)}</td><td>${x.gen}</td><td>${x.mem_mb?(x.mem_mb/1024)+'G':'-'}</td>
+    <td>${x.fits_in_ram?'✓':'✗'}</td><td>${x.hot_total_s??'-'}</td><td>${x.price?'$'+x.price:'-'}</td>
+    <td>${x.value??'-'}</td><td>${x.insert_rps?x.insert_rps.toLocaleString():'-'}</td><td>${x.join_ms??'-'}</td>
+    <td>${x.failed_count||0}</td></tr>`).join('')||'<tr><td colspan="11" class="empty">필터 결과 없음</td></tr>';
 }
-['fSearch','fArch','fGen','fFam'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',renderTable);});
-document.querySelectorAll('#resultTable th').forEach(th=>th.addEventListener('click',()=>{
-  const k=th.dataset.k;if(k===sortKey)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true;}renderTable();}));
+['fSearch','fArch','fGen','fFam'].forEach(id=>document.getElementById(id).addEventListener('input',renderTable));
+document.querySelectorAll('#resultTable th').forEach(th=>th.addEventListener('click',()=>{const k=th.dataset.k;if(k===sortKey)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true;}renderTable();}));
 </script>
 </body>
 </html>
