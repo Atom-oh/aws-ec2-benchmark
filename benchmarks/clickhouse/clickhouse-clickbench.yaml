@@ -87,10 +87,15 @@ spec:
               echo "ARCH: ${ARCH}"
 
               # RAM 상대 spill/메모리 한도 (모든 인스턴스에서 비율 동일 → 공정 비교)
+              # 고카디널리티 GROUP BY/ORDER BY가 OS OOM-kill을 일으키지 않도록:
+              #  - SPILL(40%): max_bytes_before_external_group_by/sort → 디스크로 spill
+              #  - MAXMEM(70%): 쿼리 하드 상한 → 초과 시 MEMORY_LIMIT_EXCEEDED로 graceful fail(서버 생존)
               MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
               MEM_BYTES=$((MEM_KB * 1024))
-              SPILL_BYTES=$((MEM_BYTES * 50 / 100))
-              MAX_MEM_BYTES=$((MEM_BYTES * 80 / 100))
+              SPILL_BYTES=$((MEM_BYTES * 40 / 100))
+              MAX_MEM_BYTES=$((MEM_BYTES * 70 / 100))
+              # 모든 쿼리에 적용할 공통 옵션 (서버 OOM-kill 방지 핵심)
+              CH_OPTS="--max_memory_usage=${MAX_MEM_BYTES} --max_bytes_before_external_group_by=${SPILL_BYTES} --max_bytes_before_external_sort=${SPILL_BYTES}"
 
               # ClickHouse server 백그라운드 기동 (foreground 금지 - Job 미완료 방지)
               clickhouse-server --config-file=/etc/clickhouse-server/config.xml \
@@ -117,7 +122,7 @@ spec:
                 local q="$1" out="" rc s e ms
                 for r in 1 2 3; do
                   s=$(date +%s%N)
-                  clickhouse-client --query "${q}" --format Null >/dev/null 2>/tmp/qerr
+                  clickhouse-client ${CH_OPTS} --query "${q}" --format Null >/dev/null 2>/tmp/qerr
                   rc=$?
                   e=$(date +%s%N)
                   if [ "${rc}" -ne 0 ]; then
@@ -145,7 +150,7 @@ spec:
               # INSERT 테스트 (43쿼리 이후)
               INS_SQL=$(sed "s/INSERT_ROWS/${INSERT_ROWS}/" /queries/insert.sql)
               s=$(date +%s%N)
-              clickhouse-client --multiquery --query "${INS_SQL}" >/dev/null 2>/tmp/inserr
+              clickhouse-client ${CH_OPTS} --multiquery --query "${INS_SQL}" >/dev/null 2>/tmp/inserr
               rc=$?
               e=$(date +%s%N)
               echo "INSERT_ROWS: ${INSERT_ROWS}"
