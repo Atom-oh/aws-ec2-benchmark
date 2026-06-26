@@ -56,7 +56,7 @@ docker/springboot-petclinic/Dockerfile   # full PetClinic app
 | SpringBoot Coldstart | 51/51 | 5회 | `benchmarks/springboot/springboot-coldstart.yaml` | `results/springboot/<instance>/coldstart<N>.log` |
 | SpringBoot wrk | 50/51 | 5회 | `benchmarks/springboot/springboot-benchmark.yaml` | `results/springboot/<instance>/wrk<N>.log` |
 | iperf3 Network | 51/51 | 1회 | `benchmarks/system/iperf3-network.yaml` | `results/iperf3/<instance>.log` |
-| ClickHouse ClickBench | 0/51 | 5세트 | `benchmarks/clickhouse/clickhouse-clickbench.yaml` | `results/clickhouse/<instance>/set<N>.log` |
+| ClickHouse ClickBench | 50/51 | 5세트 | `benchmarks/clickhouse/clickhouse-clickbench.yaml` | `results/clickhouse/<instance>/set<N>.log` |
 
 ### 알려진 결과 문제
 - **SpringBoot wrk c7i-flex.xlarge 누락**: mall-apne2-mgmt 클러스터의 서브넷이 ap-northeast-2a/2c에만 존재하는데, c7i-flex.xlarge는 2b/2d에서만 제공되어 프로비저닝 불가. Coldstart 결과는 기존 클러스터에서 수집 완료.
