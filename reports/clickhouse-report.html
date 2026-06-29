@@ -48,6 +48,10 @@ details{margin:.3rem 0}summary{cursor:pointer;font-weight:600}
 .navbar-links a:hover{background:rgba(255,255,255,.1);color:#fff}
 .navbar-links a.active{background:rgba(99,102,241,.3);color:#a5b4fc}
 @media(max-width:768px){.navbar{padding:.5rem 1rem}.navbar-links a{padding:.3rem .5rem;font-size:.75rem}}
+.env-table{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}
+.env-item{background:#f8fafc;padding:1rem;border-radius:.5rem;border-left:3px solid var(--intel)}
+.env-item h4{font-size:.85rem;color:var(--muted);margin:0 0 .4rem}
+.env-item p{font-weight:600;margin:0}
 </style>
 </head>
 <body>
@@ -87,8 +91,26 @@ details{margin:.3rem 0}summary{cursor:pointer;font-weight:600}
 <section class="chart-section" id="method">
   <h2>1. 테스트 방법론 · 환경</h2>
   <p>ClickHouse 공식 <strong>ClickBench</strong> 43쿼리 × 3런(1 cold + 2 hot) × 5세트 + INSERT(1천만 행) + self-JOIN.
-     데이터는 EBS 스냅샷(snap-024c86faa00cd0448)에서 per-pod 복구. 동일 gp3(16000 IOPS/1000MB/s), Pod 고정 메모리 limit 없음.
+     데이터는 사전 적재된 EBS 스냅샷에서 인스턴스별로 복구해 적재 단계 없이 즉시 쿼리.
      지표: 43쿼리 <strong>hot 합계(s, 낮을수록 좋음)</strong>, speed=1000/hot_s(높을수록 좋음), value=speed/$.</p>
+  <div class="env-table">
+    <div class="env-item"><h4>테스트 도구</h4><p>ClickHouse 24.8.14.39 · ClickBench 43쿼리</p></div>
+    <div class="env-item"><h4>클러스터</h4><p>EKS 1.36 / Karpenter</p></div>
+    <div class="env-item"><h4>스토리지</h4><p>gp3 16000 IOPS / 1000 MB/s (전 인스턴스 동일)</p></div>
+    <div class="env-item"><h4>메모리 정책</h4><p>Pod 고정 limit 없음 · 쿼리 RAM 상대(spill 40% / 상한 70%)</p></div>
+    <div class="env-item"><h4>인스턴스 크기</h4><p>xlarge (4 vCPU) · C 8GB / M 16GB / R 32GB</p></div>
+    <div class="env-item"><h4>데이터셋</h4><p>hits ~100M행 / 13.44 GiB</p></div>
+    <div class="env-item"><h4>테스트 인스턴스</h4><p>50 / 51 (Intel / AMD / Graviton)</p></div>
+    <div class="env-item"><h4>리전</h4><p>ap-northeast-2 (서울)</p></div>
+  </div>
+  <div class="analysis">
+    <h4>메모리 설정 (공정성 핵심)</h4>
+    <ul>
+      <li><strong>Pod 고정 메모리 limit 없음</strong> — ClickHouse가 노드 전체 RAM(C 8GB / M 16GB / R 32GB)을 인식하도록 해, 메모리 차이가 의도된 비교 변수로 작동.</li>
+      <li><strong>RAM 상대 spill</strong> — <code>max_bytes_before_external_group_by</code> / <code>_external_sort</code> = RAM의 <strong>40%</strong> → 무거운 GROUP BY·정렬은 디스크로 spill하여 OOM 방지.</li>
+      <li><strong>쿼리 메모리 상한</strong> — <code>max_memory_usage</code> = RAM의 <strong>70%</strong> → 초과 시 graceful fail(서버 생존, FAILED 기록). 절대 바이트가 아닌 <strong>RAM 비율</strong>이라 RAM이 클수록 spill이 적어 유리.</li>
+    </ul>
+  </div>
   <div class="warn">
     <strong>⚠️ EBS 대역폭 교란 — 해석 주의</strong>
     <ul>
