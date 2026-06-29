@@ -316,7 +316,7 @@ function renderCharts(){
   const rad=v=>vmax===vmin?14:8+(v-vmin)/(vmax-vmin)*26;   // 8..34 px
   const byA={};WH.filter(r=>r.price&&r.value).forEach(r=>{(byA[r.arch]=byA[r.arch]||[]).push({x:r.price,y:r.hot_total_s,r:rad(r.value),val:r.value,label:r.instance});});
   mk('bubbleChart','bubble',{datasets:Object.entries(byA).map(([a,p])=>({label:a,data:p,backgroundColor:COLORS[a]+'b3',borderColor:COLORS[a],borderWidth:1}))},
-     {plugins:{tooltip:{callbacks:{label:c=>`${c.raw.label}: $${c.raw.x}/hr · ${c.raw.y}s · 가성비 ${c.raw.val}`}}},scales:{x:{title:{display:true,text:'시간당 가격 ($) — 왼쪽일수록 저렴'}},y:{title:{display:true,text:'hot 합계 (s) — 아래일수록 빠름'}}}});
+     {plugins:{tooltip:{callbacks:{label:c=>`${c.raw.label}: $${c.raw.x}/hr · ${c.raw.y}s · 가성비 ${c.raw.val}`}}},scales:{x:{beginAtZero:true,min:0,title:{display:true,text:'시간당 가격 ($) — 왼쪽일수록 저렴'}},y:{beginAtZero:true,min:0,title:{display:true,text:'hot 합계 (s) — 아래일수록 빠름'}}}});
   // 4. gen x arch
   const gens=['5','6','7','8'];
   mk('genArchChart','bar',{labels:gens.map(g=>g+'세대'),datasets:[
