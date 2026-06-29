@@ -1,0 +1,26 @@
+{
+  "skill_name": "ec2-benchmark",
+  "evals": [
+    {
+      "id": 0,
+      "name": "scaffold-new-benchmark",
+      "prompt": "Postgres pgbench 벤치마크를 이 프로젝트에 추가하고 싶어. 51개 인스턴스에서 돌릴 수 있게 Job 템플릿이랑 실행 스크립트, 리포트 생성기까지 스캐폴드해줘. 실제 클러스터에 배포하진 말고 파일만 만들어줘.",
+      "expected_output": "benchmarks/postgres/ Job 템플릿(placeholder, podAntiAffinity, backoffLimit 0, 고정 메모리 limit 없음), scripts/generate-postgres-benchmark.sh(전체병렬 + wait_schedulable + awk arch + chained sed), scripts/generate-postgres-report.py(Chart.js 인라인 언급) 생성",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "diagnose-failed-cascade",
+      "prompt": "벤치마크 돌렸는데 로그를 보니 q16 까지는 시간이 찍히다가 q17 부터 끝까지 전부 'FAILED:210, SKIPPED, SKIPPED' 이렇게 나와. 8GB짜리 c 패밀리 인스턴스들에서만 이래. 왜 이러는지랑 어떻게 고치는지 알려줘.",
+      "expected_output": "OOM으로 서버가 OS에 의해 kill되어 이후 연결 실패(210) cascade임을 진단. 고카디널리티 GROUP BY 등 메모리 헤비 op 원인. 수정: 모든 op에 RAM-상대 spill(max_bytes_before_external_group_by ~40%) + per-op 메모리 상한(~70%) 적용. 절대 바이트 금지 이유 설명.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "generate-report",
+      "prompt": "results/redis/ 밑에 인스턴스별 로그가 다 모여있어. 이걸로 다른 벤치마크들처럼 표준 HTML 리포트 만들어줘. code-server 프리뷰에서 차트가 보여야 해.",
+      "expected_output": "표준 리포트 생성 — Chart.js를 인라인 임베드(CDN 아님, 프리뷰에서 차트 보이도록), 데이터/표는 차트와 독립 렌더, 가성비/세대/아키텍처 차트, reports/ 발행본 + index.html 카드 언급",
+      "files": []
+    }
+  ]
+}
