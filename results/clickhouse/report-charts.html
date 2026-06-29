@@ -94,7 +94,7 @@ details{margin:.3rem 0}summary{cursor:pointer;font-weight:600}
 
 <section class="chart-section" id="bubble">
   <h2>3. 처리속도 vs 가격 (가성비 영역)</h2>
-  <p class="prog">X=시간당 가격($), Y=hot 합계(s). <strong>왼쪽 아래일수록 저렴+빠름(최적)</strong>.</p>
+  <p class="prog">X=시간당 가격($), Y=hot 합계(s), <strong>원 크기 = 가성비(speed/$, 클수록 고가성비)</strong>. 왼쪽 아래 + 큰 원이 최적.</p>
   <div class="chart-container tall"><canvas id="bubbleChart"></canvas></div>
 </section>
 
@@ -310,10 +310,13 @@ function renderCharts(){
      {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'초 (낮을수록 좋음)'}}}});
   const best=sorted[0],worst=sorted[sorted.length-1];
   document.getElementById('hotInsight').innerHTML=`<h4>핵심</h4><ul><li>최速 <strong>${best.instance}</strong> ${best.hot_total_s}s vs 최저 ${worst.instance} ${worst.hot_total_s}s (${(worst.hot_total_s/best.hot_total_s).toFixed(1)}배 차이)</li><li>상위권은 32GB(R)·16GB(M) Graviton이 점유</li></ul>`;
-  // 3. bubble
-  const byA={};WH.filter(r=>r.price).forEach(r=>{(byA[r.arch]=byA[r.arch]||[]).push({x:r.price,y:r.hot_total_s,label:r.instance});});
-  mk('bubbleChart','scatter',{datasets:Object.entries(byA).map(([a,p])=>({label:a,data:p,backgroundColor:COLORS[a],pointRadius:6,pointHoverRadius:9}))},
-     {plugins:{tooltip:{callbacks:{label:c=>`${c.raw.label}: $${c.raw.x}/hr, ${c.raw.y}s`}}},scales:{x:{title:{display:true,text:'시간당 가격 ($)'}},y:{title:{display:true,text:'hot 합계 (s)'}}}});
+  // 3. bubble — 원 크기 = 가성비(value=speed/$)
+  const vAll=WH.filter(r=>r.price&&r.value).map(r=>r.value);
+  const vmin=Math.min(...vAll), vmax=Math.max(...vAll);
+  const rad=v=>vmax===vmin?14:8+(v-vmin)/(vmax-vmin)*26;   // 8..34 px
+  const byA={};WH.filter(r=>r.price&&r.value).forEach(r=>{(byA[r.arch]=byA[r.arch]||[]).push({x:r.price,y:r.hot_total_s,r:rad(r.value),val:r.value,label:r.instance});});
+  mk('bubbleChart','bubble',{datasets:Object.entries(byA).map(([a,p])=>({label:a,data:p,backgroundColor:COLORS[a]+'b3',borderColor:COLORS[a],borderWidth:1}))},
+     {plugins:{tooltip:{callbacks:{label:c=>`${c.raw.label}: $${c.raw.x}/hr · ${c.raw.y}s · 가성비 ${c.raw.val}`}}},scales:{x:{title:{display:true,text:'시간당 가격 ($) — 왼쪽일수록 저렴'}},y:{title:{display:true,text:'hot 합계 (s) — 아래일수록 빠름'}}}});
   // 4. gen x arch
   const gens=['5','6','7','8'];
   mk('genArchChart','bar',{labels:gens.map(g=>g+'세대'),datasets:[
