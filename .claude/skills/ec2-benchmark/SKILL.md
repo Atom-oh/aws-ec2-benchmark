@@ -1,16 +1,19 @@
 ---
 name: ec2-benchmark
 description: >-
-  Add and run a new EC2 instance-type benchmark in this aws-ec2-benchmark project
-  (51 xlarge instances across 5~8세대 Intel/AMD/Graviton, on EKS + Karpenter) and
-  produce the standard HTML report. Use this skill whenever the user wants to add,
-  build, run, or report on ANY benchmark workload in this repo — e.g. "ClickHouse
-  벤치마크 하자", "add a Kafka/Postgres/MySQL benchmark", "run the nginx benchmark on
-  all instances", "generate the report", "왜 일부 인스턴스만 실패하지", "벤치마크 결과
-  리포트 만들어줘". It also applies when the user reports benchmark Jobs failing,
-  cascading errors (FAILED:210), OOM, stuck/Pending pods, or charts not rendering —
-  these have known causes captured here. Prefer this skill over ad-hoc kubectl even
-  if the user doesn't say the word "benchmark".
+  Add, run, debug, or report on an EC2 instance-type benchmark in THIS
+  aws-ec2-benchmark project — the suite comparing 51 xlarge instances (5~8세대
+  Intel/AMD/Graviton) as K8s Jobs on EKS + Karpenter with a standard HTML report.
+  Use whenever the user wants to add/build a new benchmark workload ("ClickHouse
+  벤치마크 하자", "add a Kafka/Postgres/MySQL benchmark", "스냅샷 복구해서 mysql 벤치마크"),
+  run an existing one across the instances ("nginx 벤치마크 51개 다 돌려줘"), or generate
+  the report ("redis 로그로 리포트 만들어줘", "벤치마크 차트가 프리뷰에서 안 보여"). ALSO for
+  diagnosing failing runs — cascading FAILED:210, OOM-killed servers, Jobs stuck
+  Pending, flex instances not scheduling — which have known root causes here. Prefer
+  this over ad-hoc kubectl even if the user doesn't say "benchmark". Do NOT use for
+  keyword look-alikes that aren't this suite: tuning a production ClickHouse/DB query,
+  adding instance types to the Karpenter NodePool, general EC2/EBS questions, or an
+  unrelated Chart.js dashboard.
 ---
 
 # EC2 Instance Benchmark Workflow
