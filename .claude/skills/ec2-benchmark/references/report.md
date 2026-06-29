@@ -62,13 +62,17 @@ chart-section, filterable table). Match the richness of `reports/nginx-report.ht
 
 ### Two non-negotiables learned the hard way
 
-- **Inline Chart.js, do not use a CDN.** code-server's Live Preview blocks external scripts, so
-  a `<script src="https://cdn…">` leaves every chart blank. Download `chart.umd.min.js` once and
-  inline it into the HTML (`<script>…lib…</script>`), escaping any `</script>` as `<\/script>`.
-  The parser only rewrites the `ch-data` script, so the inlined lib persists across re-runs.
+- **A blank chart is almost always a JS error, not a blocked CDN.** The CDN works in code-server
+  Live Preview — `reports/elasticsearch-report.html` loads `cdn.jsdelivr.net/npm/chart.js` and
+  renders fine, so just use the same `<script src="https://cdn.jsdelivr.net/npm/chart.js">`.
+  The real killer is a script that throws before drawing — most often a **temporal-dead-zone
+  (TDZ)** error: a `let`/`const` such as `sortKey` that an on-load function reads but that is
+  declared *below* the execution block. The entire `<script>` aborts and every chart (and the
+  table) stays empty. **Declare all module-level state at the top, before the on-load calls.**
+  (Inlining the lib is possible but unnecessary — it won't fix a JS error, and it bloats the file.)
 - **Render data independently of charts.** Build the cards, table, query list, and per-op table
-  first, then wrap the Chart.js calls in `try/catch` and show a small "charts unavailable"
-  banner on failure. That way a charting error (or blocked lib) never blanks the whole report.
+  first, then wrap the Chart.js calls in `try/catch` with a small "charts unavailable" banner.
+  That way a charting error degrades gracefully instead of blanking the whole report.
 
 ## Validation (`tests/<name>/validate.sh`)
 

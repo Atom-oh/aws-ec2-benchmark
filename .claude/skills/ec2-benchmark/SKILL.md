@@ -98,9 +98,14 @@ When the user reports a failure, match the symptom before debugging from scratch
   AZs (the flex types — e.g. `c7i-flex` — are only in 2b/2d, but subnets are 2a/2c). The run
   script must **fast-skip** such instances instead of waiting out the Job timeout. This is why
   the run is full-parallel with a `wait_schedulable` probe, not serial batches.
-- **Charts blank in code-server preview**: the Live Preview blocks external CDNs. Chart.js
-  must be **inlined into the HTML**. The data table/sections must also render independently of
-  Chart.js (wrap chart code in try/catch) so a chart error never blanks the page.
+- **Charts blank in code-server preview**: almost always a **JS runtime error that aborts the
+  script before any chart draws** — not a blocked CDN. The CDN works fine in the preview (the
+  `reports/elasticsearch-report.html` uses `cdn.jsdelivr.net/npm/chart.js` and renders). The
+  classic culprit is a **temporal-dead-zone (TDZ) error**: a `let`/`const` (e.g. `sortKey`) used
+  by a function that runs on load but declared *below* the execution block — the whole `<script>`
+  throws there and nothing renders. Declare module-level state at the top, before the on-load
+  calls. Also render the table/data independently of charts (try/catch around chart code) so a
+  charting error degrades gracefully instead of blanking the page.
 - **A subset of queries/ops error with UNKNOWN_IDENTIFIER**: the dataset's schema differs from
   what the workload assumes (e.g. the ClickBench `hits` snapshot uses `TraficSourceID`, one
   'f'). Verify the real schema with a Phase-0 probe before trusting upstream query files.
