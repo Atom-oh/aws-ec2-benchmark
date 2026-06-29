@@ -224,6 +224,11 @@ def main():
             html = pattern.sub(lambda m: m.group(1) + blob + m.group(3), html, count=1)
             HTML_FILE.write_text(html)
             print(f"리포트 데이터 주입 완료 → {HTML_FILE}")
+            # 발행본 복사 (reports/ 컨벤션, 자체완결 — Chart.js 인라인 포함)
+            pub = BASE_DIR / "reports" / "clickhouse-report.html"
+            if pub.parent.exists():
+                pub.write_text(html)
+                print(f"발행본 생성 → {pub}")
         elif "__CLICKHOUSE_DATA__" in html:
             html = html.replace("__CLICKHOUSE_DATA__", blob)
             HTML_FILE.write_text(html)
