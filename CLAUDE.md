@@ -54,14 +54,15 @@ docker/springboot-petclinic/Dockerfile   # full PetClinic app
 | Nginx (wrk) | 51/51 | 5회 | `benchmarks/nginx/nginx-*.yaml` | `results/nginx/<instance>/run<N>.log` |
 | ES Coldstart | 51/51 | 5회 | `benchmarks/elasticsearch/elasticsearch-coldstart.yaml` | `results/elasticsearch/<instance>/run<N>.log` |
 | SpringBoot Coldstart | 51/51 | 5회 | `benchmarks/springboot/springboot-coldstart.yaml` | `results/springboot/<instance>/coldstart<N>.log` |
-| SpringBoot wrk | 50/51 | 5회 | `benchmarks/springboot/springboot-benchmark.yaml` | `results/springboot/<instance>/wrk<N>.log` |
+| SpringBoot wrk | 51/51 | 5회 | `benchmarks/springboot/springboot-benchmark.yaml` | `results/springboot/<instance>/wrk<N>.log` |
 | iperf3 Network | 51/51 | 1회 | `benchmarks/system/iperf3-network.yaml` | `results/iperf3/<instance>.log` |
 | ClickHouse ClickBench | 51/51 | 5세트 | `benchmarks/clickhouse/clickhouse-clickbench.yaml` | `results/clickhouse/<instance>/set<N>.log` |
 
 ### 알려진 결과 문제
-- ~~**SpringBoot wrk c7i-flex.xlarge 누락**~~: mall-apne2-mgmt 클러스터 서브넷이 ap-northeast-2a/2c에만 존재해 2b/2d 전용인
-  c7i-flex.xlarge가 프로비저닝 불가했던 문제. **2026-06-29 ap-northeast-2b 서브넷이 클러스터에 추가되어 해결됨**
-  (ClickHouse ClickBench는 51/51로 재수집 완료). SpringBoot wrk는 아직 50/51 — 필요 시 동일하게 재실행해 백필 가능.
+- ~~**c7i-flex.xlarge 프로비저닝 불가**~~: mall-apne2-mgmt 클러스터 서브넷이 ap-northeast-2a/2c에만 존재해 2b/2d 전용인
+  c7i-flex.xlarge가 프로비저닝 불가했던 문제. SpringBoot wrk는 2026-01-20 수집 시점에 이미 51/51 정상 완료(당시
+  "50/51 누락" 기록은 오기). ClickHouse ClickBench는 실제로 누락 상태였다가 **2026-06-29 ap-northeast-2b 서브넷
+  추가로 해결**되어 51/51로 재수집 완료.
 - **Nginx r8i.xlarge**: run3, run5에서 성능 저하 (80k vs 250k req/sec). 재테스트 필요.
   - 원인: 특정 노드에서 간헐적 성능 저하 (noisy neighbor 또는 CPU throttling 추정)
 
