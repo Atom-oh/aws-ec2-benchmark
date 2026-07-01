@@ -1,5 +1,12 @@
 # Karpenter NodePool for 4 vCPU (xlarge) Benchmark Testing
 # 8세대 최신 인스턴스 및 다양한 변형 타입 지원
+#
+# ⚠️ 2026-06-29 확인: 이 파일은 라이브 클러스터(mall-apne2-mgmt)와 드리프트되어 있음.
+# 실제 스케줄링에 쓰이는 NodePool은 이름이 다른 `benchmark-server`/`benchmark-client`
+# (nodeClass: benchmark)이며, 이 파일을 apply하면 별개의(NotReady) NodePool이 생성될 뿐
+# 실제 스케줄링에 영향을 주지 않는다. 인스턴스 타입 추가 시 라이브 NodePool을 직접
+# `kubectl patch nodepool benchmark-server --type=json ...`로 갱신할 것 (CLAUDE.md 참고).
+# 이 파일의 인스턴스 목록은 참고/문서화 목적으로만 최신화되어 있음.
 ---
 apiVersion: karpenter.sh/v1
 kind: NodePool
@@ -24,6 +31,7 @@ spec:
             - c8i.xlarge        # Emerald Rapids, Compute
             - c8i-flex.xlarge   # Emerald Rapids Flex
             - m8i.xlarge        # Emerald Rapids, General
+            - m8i-flex.xlarge   # Emerald Rapids Flex
             - r8i.xlarge        # Emerald Rapids, Memory
             - r8i-flex.xlarge   # Emerald Rapids Flex
             # === 7세대 Intel ===
@@ -137,8 +145,10 @@ spec:
           values:
             # === Graviton4 (8세대) ===
             - c8g.xlarge        # Graviton4, Compute
+            - c8gn.xlarge       # Graviton4, Compute Network-optimized
             - m8g.xlarge        # Graviton4, General
             - r8g.xlarge        # Graviton4, Memory
+            - r8gd.xlarge       # Graviton4, Memory + local NVMe
             # === Graviton3 (7세대) ===
             - c7g.xlarge        # Graviton3, Compute
             - c7gd.xlarge       # Graviton3 + NVMe

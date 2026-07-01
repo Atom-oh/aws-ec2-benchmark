@@ -4,9 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 51개)의 성능을 비교하는 Kubernetes 기반 벤치마크 프로젝트. Karpenter를 사용하여 노드를 동적 프로비저닝.
+EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54개)의 성능을 비교하는 Kubernetes 기반 벤치마크 프로젝트. Karpenter를 사용하여 노드를 동적 프로비저닝.
 
-## 현재 상태 (2026-04-10)
+## 현재 상태 (2026-06-29)
+
+### 인스턴스 목록 51→54 확장
+`ap-northeast-2a/b/c` 서브넷이 모두 열리면서(이전 a/c만) 8세대에서 빠져 있던 3개 인스턴스를 정본 목록에
+추가함(다른 세대는 이미 대응 변형이 있었음 — 5/6/7세대 전체 스윕으로 추가 누락 없음 확인):
+- **c8gn.xlarge** (Graviton4, 네트워크 최적화 — c6gn 대응)
+- **r8gd.xlarge** (Graviton4 + 로컬 NVMe — r6gd/r7gd 대응)
+- **m8i-flex.xlarge** (Intel 8세대 flex — c8i-flex/r8i-flex 대응)
+
+**⚠️ 라이브 NodePool과 `karpenter/nodepool-4vcpu.yaml` 드리프트 발견**: 이 파일은 실제 클러스터에서 쓰이지
+않음(다른 NodePool 이름/존재하지 않는 nodeClass 참조). 실제 인스턴스 타입 제약은 라이브 `benchmark-server`
+NodePool의 `requirements`에 있으며, 3개 신규 타입은 `kubectl patch nodepool benchmark-server --type=json`으로
+직접 추가함(파일도 참고용으로 동기화해 둠). 향후 인스턴스 타입 추가 시 **라이브 NodePool을 직접 patch**할 것.
+
+**백필 상태** (신규 3개 인스턴스, 기존 51개는 이미 수집 완료): sysbench CPU/Memory, Redis, Nginx,
+Elasticsearch, SpringBoot(Coldstart+wrk), iperf3, ClickHouse ClickBench — 8종 전부 진행 중. 각 벤치마크
+상세 표(아래)에 완료되는 대로 51/51 → 54/54로 갱신.
+
+## 이전 상태 (2026-04-10)
 
 ### 변경사항
 - **인스턴스 크기 **: 4 vCPU (xlarge)

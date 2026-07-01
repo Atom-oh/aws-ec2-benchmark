@@ -70,7 +70,7 @@ s="$BASE/scripts/generate-clickhouse-benchmark.sh"
 bash -n "$s" 2>/dev/null && ok "bash -n" || no "bash -n"
 grep -q "create configmap clickhouse-queries" "$s" && ok "ConfigMap 생성" || no "ConfigMap"
 ni=$(grep -vE '^\s*#|^\s*$' "$BASE/config/instances-4vcpu.txt" | awk '{print $1}' | grep -c xlarge)
-[ "$ni" -eq 51 ] && ok "인스턴스 51개" || no "인스턴스=$ni"
+[ "$ni" -eq 54 ] && ok "인스턴스 54개" || no "인스턴스=$ni"
 
 echo "== Task 8: 리포트 파서 =="
 p="$BASE/scripts/generate-clickhouse-report.py"
