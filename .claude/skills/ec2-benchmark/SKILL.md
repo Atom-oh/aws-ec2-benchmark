@@ -2,11 +2,11 @@
 name: ec2-benchmark
 description: >-
   Add, run, debug, or report on an EC2 instance-type benchmark in THIS
-  aws-ec2-benchmark project — the suite comparing 51 xlarge instances (5~8세대
+  aws-ec2-benchmark project — the suite comparing ~54 xlarge instances (5~8세대
   Intel/AMD/Graviton) as K8s Jobs on EKS + Karpenter with a standard HTML report.
   Use whenever the user wants to add/build a new benchmark workload ("ClickHouse
   벤치마크 하자", "add a Kafka/Postgres/MySQL benchmark", "스냅샷 복구해서 mysql 벤치마크"),
-  run an existing one across the instances ("nginx 벤치마크 51개 다 돌려줘"), or generate
+  run an existing one across the instances ("nginx 벤치마크 다 돌려줘"), or generate
   the report ("redis 로그로 리포트 만들어줘", "벤치마크 차트가 프리뷰에서 안 보여"). ALSO for
   diagnosing failing runs — cascading FAILED:210, OOM-killed servers, Jobs stuck
   Pending, flex instances not scheduling — which have known root causes here. Prefer
@@ -18,7 +18,7 @@ description: >-
 
 # EC2 Instance Benchmark Workflow
 
-This repo benchmarks **51 xlarge (4 vCPU) EC2 instance types** — Intel/AMD/Graviton,
+This repo benchmarks **~54 xlarge (4 vCPU) EC2 instance types (grows over time — check config/instances-4vcpu.txt for the current count)** — Intel/AMD/Graviton,
 5~8세대 — on an EKS cluster (`mall-apne2-mgmt`) with Karpenter dynamic node provisioning.
 Each benchmark runs as Kubernetes Jobs (one per instance, N repeats), collects logs to
 `results/<name>/`, and renders a standard interactive HTML report.
@@ -31,7 +31,7 @@ Elasticsearch, SpringBoot, ClickHouse) on the first try.
 ## The 8 stages
 
 Work through these in order. Most live benchmarks are multi-hour cloud runs, so get the
-template and report right *before* launching all 51.
+template and report right *before* launching the full fleet.
 
 1. **Design** — pick the workload, the metric and its direction (higher- or lower-is-better),
    the data source, and the repeat count. Write a short spec. See "Fairness" below — decide
@@ -43,7 +43,7 @@ template and report right *before* launching all 51.
    `references/job-template.md`. This is where most mistakes happen — read it.
 
 3. **Data supply (optional)** — if the workload needs a large preloaded dataset, restore a
-   per-pod volume from an EBS snapshot instead of downloading 51×. See the snapshot section in
+   per-pod volume from an EBS snapshot instead of downloading N×. See the snapshot section in
    `references/job-template.md`, including how to avoid breaking existing snapshot bindings and
    how to verify the dataset (a "Phase 0" probe) before committing the template.
 
@@ -58,8 +58,10 @@ template and report right *before* launching all 51.
 
 6. **Report** → `scripts/generate-<name>-report.py` + `results/<name>/report-charts.html`.
    Parser aggregates logs → injects JSON into the HTML → publishes a self-contained copy to
-   `reports/<name>-report.html` and links it from `reports/index.html`. **Chart.js must be
-   inlined, not loaded from a CDN.** Full conventions in `references/report.md`.
+   `reports/<name>-report.html` and links it from `reports/index.html`. **Load Chart.js from the
+   CDN** (`reports/elasticsearch-report.html` proves it works in code-server preview) — a blank
+   chart is almost always a JS error in your own script, not the CDN. Full conventions in
+   `references/report.md`.
 
 7. **Validation** → `tests/<name>/validate.sh`. YAML parse, `kubectl apply --dry-run=client`
    on a couple of substituted instances (amd64 + arm64), placeholder-leak check, `bash -n`,
@@ -109,6 +111,22 @@ When the user reports a failure, match the symptom before debugging from scratch
 - **A subset of queries/ops error with UNKNOWN_IDENTIFIER**: the dataset's schema differs from
   what the workload assumes (e.g. the ClickBench `hits` snapshot uses `TraficSourceID`, one
   'f'). Verify the real schema with a Phase-0 probe before trusting upstream query files.
+- **A Graviton instance permanently `FailedScheduling` with a nonsensical requirement combo**
+  (e.g. `arch In [amd64] AND instance-type In [c8gn.xlarge]`, which can never both hold): your
+  own `get_arch()` guessed wrong. A naive regex like `[[ "$1" =~ g\. ]]` only matches instance
+  names ending literally in `g.` (`c8g.`, `r7g.`) — it misses any "g"-family variant with a
+  suffix after the g, e.g. `c8gn.xlarge` (network-optimized) or `r8gd.xlarge` (+NVMe), silently
+  mis-detecting them as amd64. This looks exactly like an AWS capacity problem (Pending forever)
+  but isn't — check the FailedScheduling event's `requirements=` line for an impossible arch
+  combo before assuming capacity. Never guess arch from a name pattern: look it up from
+  `config/instances-4vcpu.txt` column 2 with `awk`, the same way the ClickHouse script does.
+- **A benchmark's client can't reach the server / prints a literal placeholder name** (e.g.
+  `Server: IPERF_SERVER_IP`): a template placeholder that isn't one of the standard four
+  (`INSTANCE_SAFE`/`INSTANCE_TYPE`/`ARCH`/`RUN_NUMBER`) got missed. Some templates need a
+  *runtime-discovered* value substituted in — e.g. a server's ClusterIP fetched via
+  `kubectl get svc ... -o jsonpath='{.spec.clusterIP}'` after the server deploys, *before* the
+  client Job is applied. `grep` the template for every placeholder token first; don't assume
+  the standard four cover every template.
 
 ## Fairness — the confounders to neutralize or document
 

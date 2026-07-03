@@ -116,7 +116,7 @@ thresholds make that happen.
 
 ## EBS snapshot data supply
 
-To avoid 51× large downloads, preload the dataset once, snapshot the volume, and restore a
+To avoid N× large downloads (one per instance), preload the dataset once, snapshot the volume, and restore a
 per-pod PVC from it. Conventions:
 
 - **Unique snapshot name.** Don't reuse a name already bound in-cluster — a second
@@ -134,8 +134,8 @@ per-pod PVC from it. Conventions:
 
 ## Scheduling reality
 
-- The `benchmark-server` NodePool CPU limit is large (480 = ~120 nodes), so all 51 instances
+- The `benchmark-server` NodePool CPU limit is large (480 = ~120 nodes), so the whole fleet
   can run concurrently — no need to batch.
 - **Flex instances** (`c7i-flex`, etc.) are offered only in AZs 2b/2d, but the cluster subnets
   are 2a/2c → they never schedule. The run script must detect "Pending and not scheduling
-  within ~5 min" and skip the whole instance, or it stalls. Expect ≤50/51 to actually run.
+  within ~5 min" and skip the whole instance, or it stalls. Expect a few less than the full count to actually run.

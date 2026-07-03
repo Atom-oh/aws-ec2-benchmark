@@ -81,6 +81,8 @@ The project's stand-in for unit tests — no live cluster needed:
 - Substitute a sample amd64 (c8i.xlarge) and arm64 (c8g.xlarge) instance and run
   `kubectl apply --dry-run=client`; assert **zero placeholder leaks**.
 - Assert `podAntiAffinity`, `backoffLimit: 0`, no hardcoded memory limit, RAM-relative settings.
-- `bash -n` the run script; assert the 51-instance list and chained-pipe sed.
+- `bash -n` the run script; assert the instance-list count matches config/instances-4vcpu.txt and chained-pipe sed.
 - `python3 -m py_compile` the parser and run it on empty/partial input (graceful).
-- Report HTML parses; Chart.js is inlined (no external `src=`).
+- Report HTML parses; Chart.js is loaded from the CDN (`cdn.jsdelivr.net/npm/chart.js`), and the
+  module-level `let`/`const` state used by on-load functions is declared above the execution
+  block (no TDZ risk).
