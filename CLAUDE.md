@@ -1017,8 +1017,46 @@ results/<benchmark>/report-charts.html
 - **패턴 B**(geekbench/sysbench/passmark/stress-ng/redis — f-string으로 HTML 전체 생성, 과거 수동 집계
   로직이라 재생성 금지 대상)는 이번에 건드리지 않음. 이 5개를 재갱신할 일이 생기면 그때 헤더에 2줄
   추가 + navbar 마크업 제거를 적용할 것(스크립트 f-string 템플릿에 위 헤더 예시를 반영).
-- `reports/index.html`(랜딩 페이지, 다크 테마 — 표준과 무관한 별도 디자인)의 리포트 링크는 형제 상대경로
-  (`href="kafka-report.html"`)로 통일되어 있음. `reports/`를 통째로 옮기지 않는 한 건드릴 필요 없음.
+- **`reports/index.html`(랜딩 페이지, 다크 테마)의 카드 링크는 `href="reports/kafka-report.html"`처럼
+  `reports/` 접두사가 붙어 있고, `report-nav.js`의 브랜드 링크는 `../index.html`이다 — 둘 다 main
+  저장소 안에서 보면(같은 `reports/` 폴더에 있으니 깨진 것처럼 보임) 틀린 것 같지만 **실제 배포
+  레이아웃(아래 "배포" 섹션) 기준으로는 정확한 경로**다. main 안에서 "정합성"만 보고 sibling 경로로
+  고치면 실제 서비스가 깨진다 — 아래 배포 섹션을 먼저 읽고 판단할 것.
+
+## 배포 (GitHub Pages / `docs` 브랜치) — 매우 중요, 오판하기 쉬움
+
+실제 서비스 주소는 `https://benchmark.aws.atomai.click/`이며, **GitHub Pages가 `docs` 브랜치의
+루트에서** 서빙한다(`gh api repos/Atom-oh/aws-ec2-benchmark/pages`로 확인 가능). code-server Live
+Preview는 로컬 개발 중 차트 렌더링 확인용일 뿐, **실서비스는 `main`이 아니라 `docs` 브랜치**다.
+
+### main과 docs의 디렉터리 구조가 다르다 (핵심 함정)
+- `main`: `reports/index.html`과 `reports/*-report.html`이 **같은 `reports/` 폴더에 나란히** 있음.
+- `docs`: `index.html`이 **저장소 루트**에, 리포트들은 `reports/` **하위 폴더**에 있음(+ `CNAME`,
+  `favicon.png`이 루트에 있는데 이 둘은 `main`에는 없고 `docs`에만 수동으로 존재).
+- 그래서 `reports/index.html`의 카드 링크(`href="reports/x.html"`)와 navbar 브랜드 링크
+  (`../index.html`)는 **docs 배포 기준으로 작성된 것**이고, `main`의 `reports/` 폴더 안에서 직접 열면
+  (형제 파일인데 `reports/` 접두사·`../`를 쓰니) 깨진 것처럼 보인다 — **이건 버그가 아니라 배포
+  레이아웃과 main 레이아웃이 다른 데서 오는 의도된 결과**다. 2026-07-07 세션에서 이걸 "버그"로
+  오판해 sibling 경로로 고쳤다가, 실제 배포본(docs)이 깨지는 걸 발견하고 되돌린 적이 있음 — 재현 시
+  같은 실수 반복하지 말 것.
+
+### 배포 절차 (수동, 자동화 안 되어 있음)
+`docs` 브랜치는 CI로 자동 배포되지 않는다 — 사람이 직접 `git worktree add <tmp> docs`로 체크아웃해서
+아래처럼 파일을 복사·커밋·푸시해야 실제 사이트에 반영된다:
+```bash
+WT=/tmp/docs-deploy
+git worktree add "$WT" docs
+cp reports/index.html "$WT/index.html"                    # main reports/index.html → docs 루트
+cp reports/*.html reports/report-common.css reports/report-nav.js "$WT/reports/"
+cd "$WT" && git add -A && git commit -m "Deploy: ..." && git push origin docs
+cd - && git worktree remove "$WT"
+```
+- `report-common.css`/`report-nav.js`는 `reports/` 하위 형제 파일이라 경로가 `main`/`docs` 양쪽에서
+  그대로 동작(상대경로가 상위 구조에 의존하지 않음) — 이 둘은 그냥 복사만 하면 됨.
+- `results/kafka/report-charts.html`, `results/clickhouse/report-charts.html`(패턴 A 템플릿)은 배포
+  대상이 아님 — 이미 `reports/*-report.html`로 발행된 사본만 `docs`에 올린다.
+- 리포트를 수정했는데 실서비스에 반영이 안 됐다면, `main`에 커밋만 하고 `docs` 브랜치 배포를 빼먹은
+  경우가 가장 흔한 원인이다. **`main` 커밋 = 저장, `docs` 브랜치 push = 실제 배포**라는 걸 항상 기억.
 
 ### 참고 보고서
 - `results/nginx/report-charts.html` - 가장 완성도 높음
