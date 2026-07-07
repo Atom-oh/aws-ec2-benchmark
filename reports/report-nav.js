@@ -25,7 +25,7 @@
     nav.className = 'navbar';
     nav.innerHTML =
         '<div class="navbar-container">' +
-        '<a href="index.html" class="navbar-brand">EC2 Benchmark</a>' +
+        '<a href="../index.html" class="navbar-brand">EC2 Benchmark</a>' +
         '<div class="navbar-links">' + links + '</div>' +
         '</div>';
 
