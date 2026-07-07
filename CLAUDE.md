@@ -931,9 +931,13 @@ results/<benchmark>/report-charts.html
     <meta charset="UTF-8">
     <title>{벤치마크명} 벤치마크 리포트</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>/* CSS 변수 및 스타일 */</style>
+    <script src="report-nav.js" defer></script>
+    <link rel="stylesheet" href="report-common.css">
+    <style>/* 벤치마크별 고유 스타일만 (공통 변수/카드/차트/badge/navbar는 report-common.css에 있음) */</style>
 </head>
 ```
+**`<link>`는 반드시 `<style>`보다 앞**에 둘 것 — 인라인 `<style>`의 규칙이 캐스케이드에서 항상 이겨서
+파일별 오버라이드가 안전하게 동작한다.
 
 #### 2. CSS 변수 (색상 표준)
 ```css
@@ -995,6 +999,26 @@ results/<benchmark>/report-charts.html
 - 세대 필터 (5/6/7/8세대)
 - 패밀리 필터 (C/M/R)
 - 열 헤더 클릭 정렬
+
+#### 8. 공통 navbar/CSS (`reports/` 발행본 전용, 2026-07-07 도입)
+`reports/*-report.html` 11개가 각자 navbar를 하드코딩하던 걸 걷어내고 2개 공유 파일로 뺐다.
+새 벤치마크 리포트를 추가할 때 **11개 파일을 고치지 말고**:
+1. `reports/report-nav.js`의 `REPORTS` 배열에 `{ file: '<name>-report.html', name: '<표시명>' }` 1줄만 추가.
+   (navbar `<nav>` 마크업은 이 스크립트가 `document.body` 맨 위에 런타임 주입 — HTML에는 없음)
+2. 새 리포트 `<head>`에 위 헤더 예시처럼 `<script src="report-nav.js" defer>` + `<link href="report-common.css">` 추가.
+3. `report-common.css`에는 `:root` 변수, `.container/header/.card/.chart-section/.chart-container/.grid-*/
+   .tab-*/.metric-tab/.legend-*/.insights/.analysis-box/table/.badge-*/footer/.navbar*`가 들어있음(기준본:
+   `nginx-report.html`). 벤치마크 고유 스타일(예: 커스텀 탭 UI)만 자체 `<style>`에 남길 것.
+- **`results/kafka/report-charts.html`, `results/clickhouse/report-charts.html`**(패턴 A, 스크립트가
+  데이터 주입 후 `reports/`로 복사)는 위치가 달라 `../../reports/report-common.css`,
+  `../../reports/report-nav.js` 상대경로를 쓴다. `scripts/generate-{kafka,clickhouse}-report.py`가
+  `reports/`로 복사할 때 `../../reports/` → `` 치환을 자동으로 해줌 — 새로 패턴 A 스크립트를 만들 때
+  이 치환 한 줄을 그대로 가져다 쓸 것.
+- **패턴 B**(geekbench/sysbench/passmark/stress-ng/redis — f-string으로 HTML 전체 생성, 과거 수동 집계
+  로직이라 재생성 금지 대상)는 이번에 건드리지 않음. 이 5개를 재갱신할 일이 생기면 그때 헤더에 2줄
+  추가 + navbar 마크업 제거를 적용할 것(스크립트 f-string 템플릿에 위 헤더 예시를 반영).
+- `reports/index.html`(랜딩 페이지, 다크 테마 — 표준과 무관한 별도 디자인)의 리포트 링크는 형제 상대경로
+  (`href="kafka-report.html"`)로 통일되어 있음. `reports/`를 통째로 옮기지 않는 한 건드릴 필요 없음.
 
 ### 참고 보고서
 - `results/nginx/report-charts.html` - 가장 완성도 높음

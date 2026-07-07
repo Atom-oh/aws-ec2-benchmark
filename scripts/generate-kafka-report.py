@@ -353,7 +353,8 @@ def main():
             print(f"리포트 데이터 주입 완료 → {HTML_FILE}")
             pub = BASE_DIR / "reports" / "kafka-report.html"
             if pub.parent.exists():
-                pub.write_text(html)
+                # results/ 템플릿은 ../../reports/ 상대경로를 쓰지만, 발행본은 reports/의 형제 파일이므로 제거
+                pub.write_text(html.replace("../../reports/", ""))
                 print(f"발행본 생성 → {pub}")
         else:
             print("ⓘ report-charts.html 에 kafka-data 스크립트 없음 (주입 생략)")

@@ -51,6 +51,24 @@ Follow the standard look (CSS vars `--graviton:#10b981 --intel:#3b82f6 --amd:#ef
 chart-section, filterable table). Match the richness of `reports/nginx-report.html` /
 `reports/clickhouse-report.html` (~14 charts):
 
+### Shared navbar + CSS (`reports/report-nav.js` + `reports/report-common.css`, added 2026-07-07)
+
+The 11 published reports no longer hardcode a navbar or duplicate the common CSS — that used to
+mean editing all 11 files every time a report was added. Now:
+- Add `<script src="report-nav.js" defer></script>` + `<link rel="stylesheet" href="report-common.css">`
+  to the `<head>`, **before** the report's own `<style>` block (so per-file overrides still win the
+  cascade). `report-nav.js` injects the `<nav class="navbar">` markup at runtime — don't hand-write it.
+- Add one line to the `REPORTS` array in `reports/report-nav.js` for the new report; that's the only
+  cross-file edit needed.
+- `report-common.css` already has `:root`, `.container/header/.card/.chart-section/.chart-container/
+  .grid-*/.tab-*/.metric-tab/.legend-*/.insights/.analysis-box/table/.badge-*/footer/.navbar*` — put
+  only benchmark-specific rules in the report's own `<style>`.
+- If your generator follows the "inject into `results/<name>/report-charts.html` then copy to
+  `reports/`" pattern (like kafka/clickhouse), the `results/` template lives one level deeper, so its
+  head must reference `../../reports/report-common.css` and `../../reports/report-nav.js`; have the
+  copy step do `html.replace("../../reports/", "")` before writing to `reports/` (see
+  `scripts/generate-kafka-report.py` / `generate-clickhouse-report.py` for the exact pattern).
+
 - Top-N ranking (horizontal bar), the primary metric
 - **gen × arch** grouped bar, **family × arch** grouped bar
 - **RAM tier** (8/16/32GB) average + a same-CPU RAM-pair chart (shows memory advantage)

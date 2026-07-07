@@ -228,7 +228,8 @@ def main():
             # 발행본 복사 (reports/ 컨벤션, 자체완결 — Chart.js 인라인 포함)
             pub = BASE_DIR / "reports" / "clickhouse-report.html"
             if pub.parent.exists():
-                pub.write_text(html)
+                # results/ 템플릿은 ../../reports/ 상대경로를 쓰지만, 발행본은 reports/의 형제 파일이므로 제거
+                pub.write_text(html.replace("../../reports/", ""))
                 print(f"발행본 생성 → {pub}")
         elif "__CLICKHOUSE_DATA__" in html:
             html = html.replace("__CLICKHOUSE_DATA__", blob)
