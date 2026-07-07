@@ -1,0 +1,6336 @@
+{
+  "dataset": "produce/consume 5,000,000 records x 1024B (~4.77 GiB/run)",
+  "note_network": "produce/consume 각 ~4.8GB가 네트워크를 지나므로 인스턴스별 네트워크 baseline/burst 대역폭이 결과에 반영됨 (iperf3 결과와 교차 참조 권장).",
+  "note_disk": "gp3 16000 IOPS/2000MB/s(gp3 절대 최대)로 스펙 통일. 1차 시도(1000MB/s)에서 gen6~8 다수가 볼륨 캡 근처에 몰려 세대 순위가 역전되는 현상을 발견해 상향 — io2(4000MiB/s)로도 전환을 시도했으나 계정 단위 io2 IOPS 쿼터(리전 전체 100,000)에 걸려 54개 병렬 실행이 실패해 gp3 최대치로 재조정. 재측정 결과 전 인스턴스가 2000MB/s 캡의 90%에도 못 미쳐 스토리지가 더 이상 병목이 아님을 확인(최고 c6in.xlarge 1123MB/s). 베이스라인(싱글, 200~300MB/s)은 캡과 무관.",
+  "note_heap": "브로커 힙=RAM의 25%, 나머지는 OS page cache. 클라이언트는 항상 c6in.2xlarge(amd64)로 통일.",
+  "max_dataset": "포화 시나리오: producer/consumer 8-way 병렬 x uncompressed/lz4/zstd 토픽 압축, 3회 중앙값. 압축은 producer-props가 아니라 토픽 설정(compression.type)으로 강제 — 압축 CPU 비용이 클라이언트가 아닌 측정 대상 브로커(대상 인스턴스)에 실린다.",
+  "ramp_dataset": "Phase 3 램프업: 90초 버스트크레딧 고갈 → 8-way produce 목표치를 Phase 2 uncompressed 실측치의 20~160%로 8단계 증가시키며 지연-대-처리량 곡선 측정. 실제/목표 비율이 99.5% 미달하는 첫 단계를 포화점으로 판정(1회 측정, AWS 공식 performance-testing-framework-for-apache-kafka의 점진 램프업+정지조건 방법론을 축소 적용).",
+  "instances": {
+    "c5.xlarge": {
+      "instance": "c5.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.192,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1488.8,
+      "failed_count": 0,
+      "produce_records_per_sec": 292705.77,
+      "produce_mb_per_sec": 285.85,
+      "produce_lat_avg_ms": 1.1,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 7.0,
+      "produce_lat_p999_ms": 18.0,
+      "consume_mb_per_sec": 148.24,
+      "consume_records_per_sec": 151795.74,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 571643.0,
+          "produce_mb_per_sec": 558.24,
+          "produce_lat_avg_ms": 426.3,
+          "produce_lat_p99_ms": 1235.0,
+          "log_bytes_on_disk": 20679547371.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 440.396,
+          "consume_records_per_sec": 450967.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 652269.0,
+          "produce_mb_per_sec": 636.99,
+          "produce_lat_avg_ms": 372.94,
+          "produce_lat_p99_ms": 825.0,
+          "log_bytes_on_disk": 15579777771.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 515.781,
+          "consume_records_per_sec": 528160.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 196492.0,
+          "produce_mb_per_sec": 191.89,
+          "produce_lat_avg_ms": 1289.05,
+          "produce_lat_p99_ms": 1720.0,
+          "log_bytes_on_disk": 10965377765.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 683.735,
+          "consume_records_per_sec": 700144.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.95,
+      "zstd_cost": 0.344,
+      "ramp": {
+        "baseline_mb": 558.24,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 523.63,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 526.98,
+        "saturation_lat_p99_ms": 1023.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 111.65,
+            "achieved_mb": 111.55,
+            "ratio": 0.9991,
+            "lat_avg_ms": 16.55,
+            "lat_p99_ms": 355.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 223.3,
+            "achieved_mb": 223.12,
+            "ratio": 0.9992,
+            "lat_avg_ms": 76.86,
+            "lat_p99_ms": 910.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 334.94,
+            "achieved_mb": 334.62,
+            "ratio": 0.999,
+            "lat_avg_ms": 125.85,
+            "lat_p99_ms": 1031.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 446.59,
+            "achieved_mb": 446.23,
+            "ratio": 0.9992,
+            "lat_avg_ms": 154.6,
+            "lat_p99_ms": 983.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 558.24,
+            "achieved_mb": 526.98,
+            "ratio": 0.944,
+            "lat_avg_ms": 414.67,
+            "lat_p99_ms": 1023.0
+          }
+        ]
+      }
+    },
+    "c5a.xlarge": {
+      "instance": "c5a.xlarge",
+      "arch": "AMD",
+      "label": "AMD",
+      "gen": "5",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.172,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1473.9,
+      "failed_count": 0,
+      "produce_records_per_sec": 259591.92,
+      "produce_mb_per_sec": 253.51,
+      "produce_lat_avg_ms": 4.36,
+      "produce_lat_p50_ms": 3.0,
+      "produce_lat_p95_ms": 15.0,
+      "produce_lat_p99_ms": 32.0,
+      "produce_lat_p999_ms": 47.0,
+      "consume_mb_per_sec": 147.65,
+      "consume_records_per_sec": 151189.86,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 392827.0,
+          "produce_mb_per_sec": 383.62,
+          "produce_lat_avg_ms": 633.41,
+          "produce_lat_p99_ms": 1387.0,
+          "log_bytes_on_disk": 20679552636.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 293.403,
+          "consume_records_per_sec": 300444.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 513459.0,
+          "produce_mb_per_sec": 501.43,
+          "produce_lat_avg_ms": 479.21,
+          "produce_lat_p99_ms": 897.0,
+          "log_bytes_on_disk": 15580522565.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 389.914,
+          "consume_records_per_sec": 399270.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 209207.0,
+          "produce_mb_per_sec": 204.29,
+          "produce_lat_avg_ms": 1208.97,
+          "produce_lat_p99_ms": 1691.0,
+          "log_bytes_on_disk": 10965271642.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 508.22,
+          "consume_records_per_sec": 520415.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.51,
+      "zstd_cost": 0.533,
+      "ramp": {
+        "baseline_mb": 383.62,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 373.77,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 379.34,
+        "saturation_lat_p99_ms": 2267.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 76.72,
+            "achieved_mb": 76.65,
+            "ratio": 0.9991,
+            "lat_avg_ms": 10.96,
+            "lat_p99_ms": 206.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 153.45,
+            "achieved_mb": 153.36,
+            "ratio": 0.9994,
+            "lat_avg_ms": 19.26,
+            "lat_p99_ms": 401.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 230.17,
+            "achieved_mb": 229.98,
+            "ratio": 0.9992,
+            "lat_avg_ms": 56.23,
+            "lat_p99_ms": 828.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 306.9,
+            "achieved_mb": 306.63,
+            "ratio": 0.9991,
+            "lat_avg_ms": 76.84,
+            "lat_p99_ms": 760.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 383.62,
+            "achieved_mb": 383.29,
+            "ratio": 0.9991,
+            "lat_avg_ms": 80.9,
+            "lat_p99_ms": 709.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 460.34,
+            "achieved_mb": 379.34,
+            "ratio": 0.824,
+            "lat_avg_ms": 599.14,
+            "lat_p99_ms": 2267.0
+          }
+        ]
+      }
+    },
+    "c5d.xlarge": {
+      "instance": "c5d.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.22,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1195.68,
+      "failed_count": 0,
+      "produce_records_per_sec": 269367.53,
+      "produce_mb_per_sec": 263.05,
+      "produce_lat_avg_ms": 3.34,
+      "produce_lat_p50_ms": 2.0,
+      "produce_lat_p95_ms": 8.0,
+      "produce_lat_p99_ms": 32.0,
+      "produce_lat_p999_ms": 41.0,
+      "consume_mb_per_sec": 121.9,
+      "consume_records_per_sec": 124825.24,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 578038.0,
+          "produce_mb_per_sec": 564.5,
+          "produce_lat_avg_ms": 421.95,
+          "produce_lat_p99_ms": 1205.0,
+          "log_bytes_on_disk": 20679540924.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 403.31,
+          "consume_records_per_sec": 412990.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 674082.0,
+          "produce_mb_per_sec": 658.28,
+          "produce_lat_avg_ms": 358.01,
+          "produce_lat_p99_ms": 778.0,
+          "log_bytes_on_disk": 15580517563.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 524.894,
+          "consume_records_per_sec": 537493.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 190708.0,
+          "produce_mb_per_sec": 186.24,
+          "produce_lat_avg_ms": 1327.95,
+          "produce_lat_p99_ms": 1786.0,
+          "log_bytes_on_disk": 10965359435.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 671.515,
+          "consume_records_per_sec": 687631.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.15,
+      "zstd_cost": 0.33,
+      "ramp": {
+        "baseline_mb": 564.5,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 563.8,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 553.92,
+        "saturation_lat_p99_ms": 777.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 112.9,
+            "achieved_mb": 112.8,
+            "ratio": 0.9991,
+            "lat_avg_ms": 11.27,
+            "lat_p99_ms": 253.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 225.8,
+            "achieved_mb": 225.63,
+            "ratio": 0.9992,
+            "lat_avg_ms": 35.26,
+            "lat_p99_ms": 623.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 338.7,
+            "achieved_mb": 338.45,
+            "ratio": 0.9993,
+            "lat_avg_ms": 89.25,
+            "lat_p99_ms": 956.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 451.6,
+            "achieved_mb": 450.98,
+            "ratio": 0.9986,
+            "lat_avg_ms": 85.06,
+            "lat_p99_ms": 799.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 564.5,
+            "achieved_mb": 553.92,
+            "ratio": 0.9813,
+            "lat_avg_ms": 288.5,
+            "lat_p99_ms": 777.0
+          }
+        ]
+      }
+    },
+    "c5n.xlarge": {
+      "instance": "c5n.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "C",
+      "mem_mb": 10752,
+      "fits_in_ram": true,
+      "price": 0.244,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1185.37,
+      "failed_count": 0,
+      "produce_records_per_sec": 296173.44,
+      "produce_mb_per_sec": 289.23,
+      "produce_lat_avg_ms": 1.09,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 4.0,
+      "produce_lat_p999_ms": 12.0,
+      "consume_mb_per_sec": 164.88,
+      "consume_records_per_sec": 168839.06,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 580232.0,
+          "produce_mb_per_sec": 566.64,
+          "produce_lat_avg_ms": 419.07,
+          "produce_lat_p99_ms": 1273.0,
+          "log_bytes_on_disk": 20679542308.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 410.185,
+          "consume_records_per_sec": 420030.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 690537.0,
+          "produce_mb_per_sec": 674.36,
+          "produce_lat_avg_ms": 350.71,
+          "produce_lat_p99_ms": 705.0,
+          "log_bytes_on_disk": 15580949082.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 480.139,
+          "consume_records_per_sec": 491662.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 204791.0,
+          "produce_mb_per_sec": 199.99,
+          "produce_lat_avg_ms": 1233.66,
+          "produce_lat_p99_ms": 1670.0,
+          "log_bytes_on_disk": 10965160537.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 679.704,
+          "consume_records_per_sec": 696016.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.96,
+      "zstd_cost": 0.353,
+      "ramp": {
+        "baseline_mb": 566.64,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 559.5,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 570.07,
+        "saturation_lat_p99_ms": 835.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 113.33,
+            "achieved_mb": 113.25,
+            "ratio": 0.9993,
+            "lat_avg_ms": 11.98,
+            "lat_p99_ms": 275.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 226.66,
+            "achieved_mb": 226.54,
+            "ratio": 0.9995,
+            "lat_avg_ms": 31.18,
+            "lat_p99_ms": 663.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 339.98,
+            "achieved_mb": 339.5,
+            "ratio": 0.9986,
+            "lat_avg_ms": 81.16,
+            "lat_p99_ms": 799.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 453.31,
+            "achieved_mb": 452.83,
+            "ratio": 0.9989,
+            "lat_avg_ms": 85.87,
+            "lat_p99_ms": 784.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 566.64,
+            "achieved_mb": 566.13,
+            "ratio": 0.9991,
+            "lat_avg_ms": 113.3,
+            "lat_p99_ms": 863.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 679.97,
+            "achieved_mb": 570.07,
+            "ratio": 0.8384,
+            "lat_avg_ms": 405.52,
+            "lat_p99_ms": 835.0
+          }
+        ]
+      }
+    },
+    "c6g.xlarge": {
+      "instance": "c6g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton2",
+      "gen": "6",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.154,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1869.35,
+      "failed_count": 0,
+      "produce_records_per_sec": 294793.94,
+      "produce_mb_per_sec": 287.88,
+      "produce_lat_avg_ms": 1.19,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 9.0,
+      "produce_lat_p999_ms": 16.0,
+      "consume_mb_per_sec": 143.53,
+      "consume_records_per_sec": 146976.69,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 577236.0,
+          "produce_mb_per_sec": 563.71,
+          "produce_lat_avg_ms": 423.12,
+          "produce_lat_p99_ms": 1532.0,
+          "log_bytes_on_disk": 20679554350.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 409.616,
+          "consume_records_per_sec": 419447.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 739201.0,
+          "produce_mb_per_sec": 721.86,
+          "produce_lat_avg_ms": 325.53,
+          "produce_lat_p99_ms": 1003.0,
+          "log_bytes_on_disk": 15580269057.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 519.802,
+          "consume_records_per_sec": 532279.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 248768.0,
+          "produce_mb_per_sec": 242.94,
+          "produce_lat_avg_ms": 1012.36,
+          "produce_lat_p99_ms": 1404.0,
+          "log_bytes_on_disk": 10965381390.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 591.563,
+          "consume_records_per_sec": 605761.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.96,
+      "zstd_cost": 0.431,
+      "ramp": {
+        "baseline_mb": 563.71,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 592.77,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 555.71,
+        "saturation_lat_p99_ms": 875.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 112.74,
+            "achieved_mb": 112.65,
+            "ratio": 0.9992,
+            "lat_avg_ms": 13.06,
+            "lat_p99_ms": 306.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 225.48,
+            "achieved_mb": 225.32,
+            "ratio": 0.9993,
+            "lat_avg_ms": 57.11,
+            "lat_p99_ms": 786.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 338.23,
+            "achieved_mb": 337.97,
+            "ratio": 0.9992,
+            "lat_avg_ms": 78.07,
+            "lat_p99_ms": 766.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 450.97,
+            "achieved_mb": 450.66,
+            "ratio": 0.9993,
+            "lat_avg_ms": 86.56,
+            "lat_p99_ms": 874.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 563.71,
+            "achieved_mb": 555.71,
+            "ratio": 0.9858,
+            "lat_avg_ms": 265.29,
+            "lat_p99_ms": 875.0
+          }
+        ]
+      }
+    },
+    "c6gd.xlarge": {
+      "instance": "c6gd.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton2",
+      "gen": "6",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.176,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1625.45,
+      "failed_count": 0,
+      "produce_records_per_sec": 292945.86,
+      "produce_mb_per_sec": 286.08,
+      "produce_lat_avg_ms": 1.22,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 3.0,
+      "produce_lat_p99_ms": 8.0,
+      "produce_lat_p999_ms": 15.0,
+      "consume_mb_per_sec": 135.13,
+      "consume_records_per_sec": 138373.83,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 585671.0,
+          "produce_mb_per_sec": 571.94,
+          "produce_lat_avg_ms": 416.56,
+          "produce_lat_p99_ms": 1731.0,
+          "log_bytes_on_disk": 20679553360.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 388.129,
+          "consume_records_per_sec": 397445.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 511159.0,
+          "produce_mb_per_sec": 499.16,
+          "produce_lat_avg_ms": 490.7,
+          "produce_lat_p99_ms": 862.0,
+          "log_bytes_on_disk": 15580505529.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 448.207,
+          "consume_records_per_sec": 458965.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 259749.0,
+          "produce_mb_per_sec": 253.66,
+          "produce_lat_avg_ms": 969.2,
+          "produce_lat_p99_ms": 1324.0,
+          "log_bytes_on_disk": 10965377466.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 612.48,
+          "consume_records_per_sec": 627179.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.0,
+      "zstd_cost": 0.444,
+      "ramp": {
+        "baseline_mb": 571.94,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 478.49,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 442.18,
+        "saturation_lat_p99_ms": 915.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 114.39,
+            "achieved_mb": 114.3,
+            "ratio": 0.9992,
+            "lat_avg_ms": 15.63,
+            "lat_p99_ms": 355.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 228.78,
+            "achieved_mb": 228.62,
+            "ratio": 0.9993,
+            "lat_avg_ms": 70.06,
+            "lat_p99_ms": 815.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 343.16,
+            "achieved_mb": 342.83,
+            "ratio": 0.999,
+            "lat_avg_ms": 172.31,
+            "lat_p99_ms": 926.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 457.55,
+            "achieved_mb": 442.18,
+            "ratio": 0.9664,
+            "lat_avg_ms": 390.16,
+            "lat_p99_ms": 915.0
+          }
+        ]
+      }
+    },
+    "c6gn.xlarge": {
+      "instance": "c6gn.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton2",
+      "gen": "6",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.195,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1493.85,
+      "failed_count": 0,
+      "produce_records_per_sec": 298293.76,
+      "produce_mb_per_sec": 291.3,
+      "produce_lat_avg_ms": 0.82,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 3.0,
+      "produce_lat_p999_ms": 10.0,
+      "consume_mb_per_sec": 107.39,
+      "consume_records_per_sec": 109962.61,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1033860.0,
+          "produce_mb_per_sec": 1009.63,
+          "produce_lat_avg_ms": 225.02,
+          "produce_lat_p99_ms": 743.0,
+          "log_bytes_on_disk": 20679528100.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 486.266,
+          "consume_records_per_sec": 497935.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 792679.0,
+          "produce_mb_per_sec": 774.11,
+          "produce_lat_avg_ms": 302.96,
+          "produce_lat_p99_ms": 808.0,
+          "log_bytes_on_disk": 15580400256.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 569.791,
+          "consume_records_per_sec": 583465.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 250391.0,
+          "produce_mb_per_sec": 244.52,
+          "produce_lat_avg_ms": 1004.24,
+          "produce_lat_p99_ms": 1367.0,
+          "log_bytes_on_disk": 10965432410.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 618.222,
+          "consume_records_per_sec": 633059.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.47,
+      "zstd_cost": 0.242,
+      "ramp": {
+        "baseline_mb": 1009.63,
+        "depletion_duration_s": "88",
+        "depletion_end_mb_per_sec": 1080.63,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1035.04,
+        "saturation_lat_p99_ms": 1295.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 201.93,
+            "achieved_mb": 201.79,
+            "ratio": 0.9993,
+            "lat_avg_ms": 27.89,
+            "lat_p99_ms": 675.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 403.85,
+            "achieved_mb": 403.58,
+            "ratio": 0.9993,
+            "lat_avg_ms": 70.15,
+            "lat_p99_ms": 691.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 605.78,
+            "achieved_mb": 605.37,
+            "ratio": 0.9993,
+            "lat_avg_ms": 77.65,
+            "lat_p99_ms": 662.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 807.7,
+            "achieved_mb": 807.08,
+            "ratio": 0.9992,
+            "lat_avg_ms": 91.34,
+            "lat_p99_ms": 610.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1009.63,
+            "achieved_mb": 1008.52,
+            "ratio": 0.9989,
+            "lat_avg_ms": 146.2,
+            "lat_p99_ms": 659.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1211.56,
+            "achieved_mb": 1035.04,
+            "ratio": 0.8543,
+            "lat_avg_ms": 222.46,
+            "lat_p99_ms": 1295.0
+          }
+        ]
+      }
+    },
+    "c6i.xlarge": {
+      "instance": "c6i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.192,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1514.69,
+      "failed_count": 0,
+      "produce_records_per_sec": 297796.31,
+      "produce_mb_per_sec": 290.82,
+      "produce_lat_avg_ms": 0.89,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 10.0,
+      "consume_mb_per_sec": 146.77,
+      "consume_records_per_sec": 150290.06,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1050750.0,
+          "produce_mb_per_sec": 1026.11,
+          "produce_lat_avg_ms": 217.19,
+          "produce_lat_p99_ms": 661.0,
+          "log_bytes_on_disk": 20679527984.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 483.133,
+          "consume_records_per_sec": 494729.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 830470.0,
+          "produce_mb_per_sec": 811.0,
+          "produce_lat_avg_ms": 287.08,
+          "produce_lat_p99_ms": 692.0,
+          "log_bytes_on_disk": 15579978556.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 611.247,
+          "consume_records_per_sec": 625917.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 248496.0,
+          "produce_mb_per_sec": 242.67,
+          "produce_lat_avg_ms": 1012.69,
+          "produce_lat_p99_ms": 1399.0,
+          "log_bytes_on_disk": 10965814558.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 712.444,
+          "consume_records_per_sec": 729543.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.53,
+      "zstd_cost": 0.236,
+      "ramp": {
+        "baseline_mb": 1026.11,
+        "depletion_duration_s": "87",
+        "depletion_end_mb_per_sec": 1119.19,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 935.76,
+        "saturation_lat_p99_ms": 937.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 205.22,
+            "achieved_mb": 205.05,
+            "ratio": 0.9992,
+            "lat_avg_ms": 43.55,
+            "lat_p99_ms": 758.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 410.44,
+            "achieved_mb": 410.08,
+            "ratio": 0.9991,
+            "lat_avg_ms": 101.25,
+            "lat_p99_ms": 878.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 615.67,
+            "achieved_mb": 615.06,
+            "ratio": 0.999,
+            "lat_avg_ms": 132.7,
+            "lat_p99_ms": 901.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 820.89,
+            "achieved_mb": 819.28,
+            "ratio": 0.998,
+            "lat_avg_ms": 227.84,
+            "lat_p99_ms": 832.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1026.11,
+            "achieved_mb": 935.76,
+            "ratio": 0.9119,
+            "lat_avg_ms": 242.8,
+            "lat_p99_ms": 937.0
+          }
+        ]
+      }
+    },
+    "c6id.xlarge": {
+      "instance": "c6id.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.231,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1228.31,
+      "failed_count": 0,
+      "produce_records_per_sec": 290545.64,
+      "produce_mb_per_sec": 283.74,
+      "produce_lat_avg_ms": 0.8,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 6.0,
+      "consume_mb_per_sec": 149.36,
+      "consume_records_per_sec": 152942.62,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1128510.0,
+          "produce_mb_per_sec": 1102.06,
+          "produce_lat_avg_ms": 204.37,
+          "produce_lat_p99_ms": 614.0,
+          "log_bytes_on_disk": 20679528872.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 506.326,
+          "consume_records_per_sec": 518478.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 845461.0,
+          "produce_mb_per_sec": 825.66,
+          "produce_lat_avg_ms": 281.03,
+          "produce_lat_p99_ms": 641.0,
+          "log_bytes_on_disk": 15580031745.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 641.485,
+          "consume_records_per_sec": 656882.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 249998.0,
+          "produce_mb_per_sec": 244.15,
+          "produce_lat_avg_ms": 1007.62,
+          "produce_lat_p99_ms": 1355.0,
+          "log_bytes_on_disk": 10965002239.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 714.924,
+          "consume_records_per_sec": 732081.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.88,
+      "zstd_cost": 0.222,
+      "ramp": {
+        "baseline_mb": 1102.06,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 1156.5,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1021.1,
+        "saturation_lat_p99_ms": 851.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 220.41,
+            "achieved_mb": 220.23,
+            "ratio": 0.9992,
+            "lat_avg_ms": 56.68,
+            "lat_p99_ms": 770.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 440.82,
+            "achieved_mb": 440.44,
+            "ratio": 0.9991,
+            "lat_avg_ms": 94.27,
+            "lat_p99_ms": 829.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 661.24,
+            "achieved_mb": 660.54,
+            "ratio": 0.9989,
+            "lat_avg_ms": 139.91,
+            "lat_p99_ms": 860.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 881.65,
+            "achieved_mb": 880.91,
+            "ratio": 0.9992,
+            "lat_avg_ms": 176.51,
+            "lat_p99_ms": 807.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1102.06,
+            "achieved_mb": 1021.1,
+            "ratio": 0.9265,
+            "lat_avg_ms": 226.95,
+            "lat_p99_ms": 851.0
+          }
+        ]
+      }
+    },
+    "c6in.xlarge": {
+      "instance": "c6in.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.256,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1131.68,
+      "failed_count": 0,
+      "produce_records_per_sec": 296665.48,
+      "produce_mb_per_sec": 289.71,
+      "produce_lat_avg_ms": 0.62,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 6.0,
+      "consume_mb_per_sec": 141.61,
+      "consume_records_per_sec": 145007.4,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1149550.0,
+          "produce_mb_per_sec": 1122.59,
+          "produce_lat_avg_ms": 196.39,
+          "produce_lat_p99_ms": 598.0,
+          "log_bytes_on_disk": 20679529237.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 473.705,
+          "consume_records_per_sec": 485075.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 858270.0,
+          "produce_mb_per_sec": 838.16,
+          "produce_lat_avg_ms": 275.05,
+          "produce_lat_p99_ms": 704.0,
+          "log_bytes_on_disk": 15580261605.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 617.384,
+          "consume_records_per_sec": 632203.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 266065.0,
+          "produce_mb_per_sec": 259.82,
+          "produce_lat_avg_ms": 944.53,
+          "produce_lat_p99_ms": 1293.0,
+          "log_bytes_on_disk": 10965434151.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 687.067,
+          "consume_records_per_sec": 703558.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.87,
+      "zstd_cost": 0.231,
+      "ramp": {
+        "baseline_mb": 1122.59,
+        "depletion_duration_s": "68",
+        "depletion_end_mb_per_sec": 1583.78,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1302.23,
+        "saturation_lat_p99_ms": 559.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 224.52,
+            "achieved_mb": 224.35,
+            "ratio": 0.9992,
+            "lat_avg_ms": 26.01,
+            "lat_p99_ms": 598.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 449.04,
+            "achieved_mb": 448.7,
+            "ratio": 0.9992,
+            "lat_avg_ms": 59.7,
+            "lat_p99_ms": 653.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 673.55,
+            "achieved_mb": 673.11,
+            "ratio": 0.9993,
+            "lat_avg_ms": 77.82,
+            "lat_p99_ms": 644.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 898.07,
+            "achieved_mb": 897.33,
+            "ratio": 0.9992,
+            "lat_avg_ms": 92.3,
+            "lat_p99_ms": 594.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1122.59,
+            "achieved_mb": 1121.74,
+            "ratio": 0.9992,
+            "lat_avg_ms": 141.62,
+            "lat_p99_ms": 594.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1347.11,
+            "achieved_mb": 1302.23,
+            "ratio": 0.9667,
+            "lat_avg_ms": 171.69,
+            "lat_p99_ms": 559.0
+          }
+        ]
+      }
+    },
+    "c7g.xlarge": {
+      "instance": "c7g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton3",
+      "gen": "7",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.163,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1257.12,
+      "failed_count": 0,
+      "produce_records_per_sec": 209828.36,
+      "produce_mb_per_sec": 204.91,
+      "produce_lat_avg_ms": 142.45,
+      "produce_lat_p50_ms": 146.0,
+      "produce_lat_p95_ms": 162.0,
+      "produce_lat_p99_ms": 168.0,
+      "produce_lat_p999_ms": 183.0,
+      "consume_mb_per_sec": 168.53,
+      "consume_records_per_sec": 172574.47,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1066110.0,
+          "produce_mb_per_sec": 1041.11,
+          "produce_lat_avg_ms": 215.6,
+          "produce_lat_p99_ms": 674.0,
+          "log_bytes_on_disk": 20679527519.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 471.446,
+          "consume_records_per_sec": 482761.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 928781.0,
+          "produce_mb_per_sec": 907.0,
+          "produce_lat_avg_ms": 253.92,
+          "produce_lat_p99_ms": 773.0,
+          "log_bytes_on_disk": 15580463463.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 617.534,
+          "consume_records_per_sec": 632354.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 329127.0,
+          "produce_mb_per_sec": 321.42,
+          "produce_lat_avg_ms": 760.53,
+          "produce_lat_p99_ms": 1045.0,
+          "log_bytes_on_disk": 10965701919.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 682.946,
+          "consume_records_per_sec": 699337.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 5.08,
+      "zstd_cost": 0.309,
+      "ramp": {
+        "baseline_mb": 1041.11,
+        "depletion_duration_s": "86",
+        "depletion_end_mb_per_sec": 1194.62,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1141.95,
+        "saturation_lat_p99_ms": 597.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 208.22,
+            "achieved_mb": 208.08,
+            "ratio": 0.9993,
+            "lat_avg_ms": 24.86,
+            "lat_p99_ms": 564.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 416.44,
+            "achieved_mb": 416.1,
+            "ratio": 0.9992,
+            "lat_avg_ms": 75.17,
+            "lat_p99_ms": 729.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 624.67,
+            "achieved_mb": 624.15,
+            "ratio": 0.9992,
+            "lat_avg_ms": 85.57,
+            "lat_p99_ms": 662.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 832.89,
+            "achieved_mb": 832.1,
+            "ratio": 0.9991,
+            "lat_avg_ms": 126.63,
+            "lat_p99_ms": 688.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1041.11,
+            "achieved_mb": 1040.12,
+            "ratio": 0.999,
+            "lat_avg_ms": 161.2,
+            "lat_p99_ms": 623.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1249.33,
+            "achieved_mb": 1141.95,
+            "ratio": 0.914,
+            "lat_avg_ms": 199.64,
+            "lat_p99_ms": 597.0
+          }
+        ]
+      }
+    },
+    "c7gd.xlarge": {
+      "instance": "c7gd.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton3",
+      "gen": "7",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.208,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1359.04,
+      "failed_count": 0,
+      "produce_records_per_sec": 289469.11,
+      "produce_mb_per_sec": 282.68,
+      "produce_lat_avg_ms": 1.26,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 3.0,
+      "produce_lat_p999_ms": 8.0,
+      "consume_mb_per_sec": 168.08,
+      "consume_records_per_sec": 172117.04,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1063830.0,
+          "produce_mb_per_sec": 1038.89,
+          "produce_lat_avg_ms": 220.25,
+          "produce_lat_p99_ms": 680.0,
+          "log_bytes_on_disk": 20679528009.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 524.607,
+          "consume_records_per_sec": 537197.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 904516.0,
+          "produce_mb_per_sec": 883.33,
+          "produce_lat_avg_ms": 261.14,
+          "produce_lat_p99_ms": 745.0,
+          "log_bytes_on_disk": 15580096149.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 610.144,
+          "consume_records_per_sec": 624786.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 322369.0,
+          "produce_mb_per_sec": 314.8,
+          "produce_lat_avg_ms": 775.81,
+          "produce_lat_p99_ms": 1047.0,
+          "log_bytes_on_disk": 10965279482.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 742.243,
+          "consume_records_per_sec": 760055.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.68,
+      "zstd_cost": 0.303,
+      "ramp": {
+        "baseline_mb": 1038.89,
+        "depletion_duration_s": "86",
+        "depletion_end_mb_per_sec": 1201.34,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1094.18,
+        "saturation_lat_p99_ms": 683.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 207.78,
+            "achieved_mb": 207.61,
+            "ratio": 0.9992,
+            "lat_avg_ms": 32.97,
+            "lat_p99_ms": 691.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 415.56,
+            "achieved_mb": 415.2,
+            "ratio": 0.9991,
+            "lat_avg_ms": 80.94,
+            "lat_p99_ms": 769.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 623.33,
+            "achieved_mb": 622.74,
+            "ratio": 0.9991,
+            "lat_avg_ms": 75.63,
+            "lat_p99_ms": 648.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 831.11,
+            "achieved_mb": 830.55,
+            "ratio": 0.9993,
+            "lat_avg_ms": 120.53,
+            "lat_p99_ms": 653.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1038.89,
+            "achieved_mb": 1037.83,
+            "ratio": 0.999,
+            "lat_avg_ms": 152.17,
+            "lat_p99_ms": 705.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1246.67,
+            "achieved_mb": 1094.18,
+            "ratio": 0.8777,
+            "lat_avg_ms": 210.6,
+            "lat_p99_ms": 683.0
+          }
+        ]
+      }
+    },
+    "c7i-flex.xlarge": {
+      "instance": "c7i-flex.xlarge",
+      "arch": "Intel",
+      "label": "Intel 7th",
+      "gen": "7",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.192,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1518.28,
+      "failed_count": 0,
+      "produce_records_per_sec": 298507.46,
+      "produce_mb_per_sec": 291.51,
+      "produce_lat_avg_ms": 0.68,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 7.0,
+      "consume_mb_per_sec": 134.67,
+      "consume_records_per_sec": 137904.4,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1096220.0,
+          "produce_mb_per_sec": 1070.53,
+          "produce_lat_avg_ms": 208.61,
+          "produce_lat_p99_ms": 683.0,
+          "log_bytes_on_disk": 20679528949.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 509.098,
+          "consume_records_per_sec": 521317.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 967363.0,
+          "produce_mb_per_sec": 944.7,
+          "produce_lat_avg_ms": 242.77,
+          "produce_lat_p99_ms": 745.0,
+          "log_bytes_on_disk": 15580637527.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 642.41,
+          "consume_records_per_sec": 657827.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 287430.0,
+          "produce_mb_per_sec": 280.68,
+          "produce_lat_avg_ms": 875.21,
+          "produce_lat_p99_ms": 1229.0,
+          "log_bytes_on_disk": 10965420364.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 728.403,
+          "consume_records_per_sec": 745885.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.67,
+      "zstd_cost": 0.262,
+      "ramp": {
+        "baseline_mb": 1070.53,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 1419.11,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1069.4,
+        "saturation_lat_p99_ms": 840.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 214.11,
+            "achieved_mb": 213.96,
+            "ratio": 0.9993,
+            "lat_avg_ms": 32.81,
+            "lat_p99_ms": 582.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 428.21,
+            "achieved_mb": 427.87,
+            "ratio": 0.9992,
+            "lat_avg_ms": 99.64,
+            "lat_p99_ms": 803.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 642.32,
+            "achieved_mb": 641.63,
+            "ratio": 0.9989,
+            "lat_avg_ms": 105.38,
+            "lat_p99_ms": 744.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 856.42,
+            "achieved_mb": 855.64,
+            "ratio": 0.9991,
+            "lat_avg_ms": 190.55,
+            "lat_p99_ms": 737.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1070.53,
+            "achieved_mb": 1069.21,
+            "ratio": 0.9988,
+            "lat_avg_ms": 153.66,
+            "lat_p99_ms": 664.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1284.64,
+            "achieved_mb": 1069.4,
+            "ratio": 0.8325,
+            "lat_avg_ms": 215.14,
+            "lat_p99_ms": 840.0
+          }
+        ]
+      }
+    },
+    "c7i.xlarge": {
+      "instance": "c7i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 7th",
+      "gen": "7",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.202,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1075.99,
+      "failed_count": 0,
+      "produce_records_per_sec": 222568.44,
+      "produce_mb_per_sec": 217.35,
+      "produce_lat_avg_ms": 83.68,
+      "produce_lat_p50_ms": 93.0,
+      "produce_lat_p95_ms": 144.0,
+      "produce_lat_p99_ms": 147.0,
+      "produce_lat_p999_ms": 151.0,
+      "consume_mb_per_sec": 172.14,
+      "consume_records_per_sec": 176267.36,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 971718.0,
+          "produce_mb_per_sec": 948.94,
+          "produce_lat_avg_ms": 243.18,
+          "produce_lat_p99_ms": 747.0,
+          "log_bytes_on_disk": 20679526818.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 478.959,
+          "consume_records_per_sec": 490454.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 769619.0,
+          "produce_mb_per_sec": 751.58,
+          "produce_lat_avg_ms": 312.21,
+          "produce_lat_p99_ms": 777.0,
+          "log_bytes_on_disk": 15580389729.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 652.731,
+          "consume_records_per_sec": 668396.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 301145.0,
+          "produce_mb_per_sec": 294.09,
+          "produce_lat_avg_ms": 833.18,
+          "produce_lat_p99_ms": 1117.0,
+          "log_bytes_on_disk": 10965536378.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 719.596,
+          "consume_records_per_sec": 736866.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.37,
+      "zstd_cost": 0.31,
+      "ramp": {
+        "baseline_mb": 948.94,
+        "depletion_duration_s": "81",
+        "depletion_end_mb_per_sec": 1100.06,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1033.4,
+        "saturation_lat_p99_ms": 719.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 189.79,
+            "achieved_mb": 189.65,
+            "ratio": 0.9993,
+            "lat_avg_ms": 28.37,
+            "lat_p99_ms": 530.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 379.58,
+            "achieved_mb": 379.22,
+            "ratio": 0.9991,
+            "lat_avg_ms": 90.59,
+            "lat_p99_ms": 923.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 569.36,
+            "achieved_mb": 568.92,
+            "ratio": 0.9992,
+            "lat_avg_ms": 98.55,
+            "lat_p99_ms": 797.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 759.15,
+            "achieved_mb": 758.34,
+            "ratio": 0.9989,
+            "lat_avg_ms": 156.72,
+            "lat_p99_ms": 783.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 948.94,
+            "achieved_mb": 947.76,
+            "ratio": 0.9988,
+            "lat_avg_ms": 202.93,
+            "lat_p99_ms": 733.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1138.73,
+            "achieved_mb": 1033.4,
+            "ratio": 0.9075,
+            "lat_avg_ms": 224.97,
+            "lat_p99_ms": 719.0
+          }
+        ]
+      }
+    },
+    "c8g.xlarge": {
+      "instance": "c8g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton4",
+      "gen": "8",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.18,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1575.11,
+      "failed_count": 0,
+      "produce_records_per_sec": 290326.33,
+      "produce_mb_per_sec": 283.52,
+      "produce_lat_avg_ms": 1.01,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 3.0,
+      "produce_lat_p999_ms": 7.0,
+      "consume_mb_per_sec": 145.64,
+      "consume_records_per_sec": 149133.53,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 922478.0,
+          "produce_mb_per_sec": 900.86,
+          "produce_lat_avg_ms": 256.7,
+          "produce_lat_p99_ms": 837.0,
+          "log_bytes_on_disk": 20679526897.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 440.158,
+          "consume_records_per_sec": 450721.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 877086.0,
+          "produce_mb_per_sec": 856.53,
+          "produce_lat_avg_ms": 271.61,
+          "produce_lat_p99_ms": 814.0,
+          "log_bytes_on_disk": 15580396664.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 568.718,
+          "consume_records_per_sec": 582368.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 407418.0,
+          "produce_mb_per_sec": 397.87,
+          "produce_lat_avg_ms": 611.09,
+          "produce_lat_p99_ms": 879.0,
+          "log_bytes_on_disk": 10965445995.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 676.749,
+          "consume_records_per_sec": 692988.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.18,
+      "zstd_cost": 0.442,
+      "ramp": {
+        "baseline_mb": 900.86,
+        "depletion_duration_s": "75",
+        "depletion_end_mb_per_sec": 1247.49,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1150.1,
+        "saturation_lat_p99_ms": 576.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 180.17,
+            "achieved_mb": 180.03,
+            "ratio": 0.9992,
+            "lat_avg_ms": 21.88,
+            "lat_p99_ms": 569.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 360.34,
+            "achieved_mb": 359.95,
+            "ratio": 0.9989,
+            "lat_avg_ms": 58.63,
+            "lat_p99_ms": 666.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 540.52,
+            "achieved_mb": 540.11,
+            "ratio": 0.9992,
+            "lat_avg_ms": 71.36,
+            "lat_p99_ms": 627.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 720.69,
+            "achieved_mb": 720.2,
+            "ratio": 0.9993,
+            "lat_avg_ms": 81.21,
+            "lat_p99_ms": 682.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 900.86,
+            "achieved_mb": 900.22,
+            "ratio": 0.9993,
+            "lat_avg_ms": 117.39,
+            "lat_p99_ms": 674.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1081.03,
+            "achieved_mb": 1080.03,
+            "ratio": 0.9991,
+            "lat_avg_ms": 156.42,
+            "lat_p99_ms": 664.0
+          },
+          {
+            "pct": 140,
+            "target_mb": 1261.2,
+            "achieved_mb": 1150.1,
+            "ratio": 0.9119,
+            "lat_avg_ms": 187.3,
+            "lat_p99_ms": 576.0
+          }
+        ]
+      }
+    },
+    "c8gn.xlarge": {
+      "instance": "c8gn.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton4",
+      "gen": "8",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.268,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1086.49,
+      "failed_count": 0,
+      "produce_records_per_sec": 298169.24,
+      "produce_mb_per_sec": 291.18,
+      "produce_lat_avg_ms": 0.83,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 5.0,
+      "consume_mb_per_sec": 128.12,
+      "consume_records_per_sec": 131195.72,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1106100.0,
+          "produce_mb_per_sec": 1080.17,
+          "produce_lat_avg_ms": 207.97,
+          "produce_lat_p99_ms": 725.0,
+          "log_bytes_on_disk": 20679529591.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 496.332,
+          "consume_records_per_sec": 508244.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 1093470.0,
+          "produce_mb_per_sec": 1067.85,
+          "produce_lat_avg_ms": 210.82,
+          "produce_lat_p99_ms": 679.0,
+          "log_bytes_on_disk": 15580443452.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 606.998,
+          "consume_records_per_sec": 621567.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 424042.0,
+          "produce_mb_per_sec": 414.1,
+          "produce_lat_avg_ms": 585.28,
+          "produce_lat_p99_ms": 842.0,
+          "log_bytes_on_disk": 10965430176.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 716.467,
+          "consume_records_per_sec": 733661.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.71,
+      "zstd_cost": 0.383,
+      "ramp": {
+        "baseline_mb": 1080.17,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 1200.69,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 858.35,
+        "saturation_lat_p99_ms": 820.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 216.03,
+            "achieved_mb": 215.86,
+            "ratio": 0.9992,
+            "lat_avg_ms": 69.96,
+            "lat_p99_ms": 909.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 432.07,
+            "achieved_mb": 431.62,
+            "ratio": 0.999,
+            "lat_avg_ms": 110.1,
+            "lat_p99_ms": 921.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 648.1,
+            "achieved_mb": 647.35,
+            "ratio": 0.9988,
+            "lat_avg_ms": 201.96,
+            "lat_p99_ms": 956.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 864.14,
+            "achieved_mb": 858.35,
+            "ratio": 0.9933,
+            "lat_avg_ms": 251.72,
+            "lat_p99_ms": 820.0
+          }
+        ]
+      }
+    },
+    "c8i-flex.xlarge": {
+      "instance": "c8i-flex.xlarge",
+      "arch": "Intel",
+      "label": "Intel 8th",
+      "gen": "8",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.201,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1415.82,
+      "failed_count": 0,
+      "produce_records_per_sec": 291409.26,
+      "produce_mb_per_sec": 284.58,
+      "produce_lat_avg_ms": 1.12,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 3.0,
+      "produce_lat_p999_ms": 10.0,
+      "consume_mb_per_sec": 132.17,
+      "consume_records_per_sec": 135343.64,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1018050.0,
+          "produce_mb_per_sec": 994.18,
+          "produce_lat_avg_ms": 231.08,
+          "produce_lat_p99_ms": 807.0,
+          "log_bytes_on_disk": 20679527152.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 453.491,
+          "consume_records_per_sec": 464374.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 816958.0,
+          "produce_mb_per_sec": 797.79,
+          "produce_lat_avg_ms": 293.44,
+          "produce_lat_p99_ms": 767.0,
+          "log_bytes_on_disk": 15580590688.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 642.335,
+          "consume_records_per_sec": 657750.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 314896.0,
+          "produce_mb_per_sec": 307.5,
+          "produce_lat_avg_ms": 795.98,
+          "produce_lat_p99_ms": 1091.0,
+          "log_bytes_on_disk": 10965493584.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 701.279,
+          "consume_records_per_sec": 718108.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.49,
+      "zstd_cost": 0.309,
+      "ramp": {
+        "baseline_mb": 994.18,
+        "depletion_duration_s": "85",
+        "depletion_end_mb_per_sec": 1097.69,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 887.54,
+        "saturation_lat_p99_ms": 972.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 198.84,
+            "achieved_mb": 198.69,
+            "ratio": 0.9992,
+            "lat_avg_ms": 69.8,
+            "lat_p99_ms": 896.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 397.67,
+            "achieved_mb": 397.4,
+            "ratio": 0.9993,
+            "lat_avg_ms": 105.77,
+            "lat_p99_ms": 934.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 596.51,
+            "achieved_mb": 595.95,
+            "ratio": 0.9991,
+            "lat_avg_ms": 185.14,
+            "lat_p99_ms": 933.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 795.34,
+            "achieved_mb": 791.59,
+            "ratio": 0.9953,
+            "lat_avg_ms": 271.87,
+            "lat_p99_ms": 945.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 994.18,
+            "achieved_mb": 887.54,
+            "ratio": 0.8927,
+            "lat_avg_ms": 257.68,
+            "lat_p99_ms": 972.0
+          }
+        ]
+      }
+    },
+    "c8i.xlarge": {
+      "instance": "c8i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 8th",
+      "gen": "8",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": 0.212,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 956.18,
+      "failed_count": 0,
+      "produce_records_per_sec": 207572.24,
+      "produce_mb_per_sec": 202.71,
+      "produce_lat_avg_ms": 132.53,
+      "produce_lat_p50_ms": 144.0,
+      "produce_lat_p95_ms": 156.0,
+      "produce_lat_p99_ms": 161.0,
+      "produce_lat_p999_ms": 167.0,
+      "consume_mb_per_sec": 155.64,
+      "consume_records_per_sec": 159377.79,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1093490.0,
+          "produce_mb_per_sec": 1067.86,
+          "produce_lat_avg_ms": 209.62,
+          "produce_lat_p99_ms": 694.0,
+          "log_bytes_on_disk": 20679528170.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 520.079,
+          "consume_records_per_sec": 532563.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 996740.0,
+          "produce_mb_per_sec": 973.37,
+          "produce_lat_avg_ms": 233.89,
+          "produce_lat_p99_ms": 725.0,
+          "log_bytes_on_disk": 15580623569.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 640.809,
+          "consume_records_per_sec": 656189.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 329886.0,
+          "produce_mb_per_sec": 322.15,
+          "produce_lat_avg_ms": 758.34,
+          "produce_lat_p99_ms": 1023.0,
+          "log_bytes_on_disk": 10965466010.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 742.766,
+          "consume_records_per_sec": 760593.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 5.27,
+      "zstd_cost": 0.302,
+      "ramp": {
+        "baseline_mb": 1067.86,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 1089.58,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1026.44,
+        "saturation_lat_p99_ms": 688.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 213.57,
+            "achieved_mb": 213.42,
+            "ratio": 0.9993,
+            "lat_avg_ms": 42.73,
+            "lat_p99_ms": 714.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 427.14,
+            "achieved_mb": 426.69,
+            "ratio": 0.9989,
+            "lat_avg_ms": 85.91,
+            "lat_p99_ms": 773.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 640.72,
+            "achieved_mb": 640.22,
+            "ratio": 0.9992,
+            "lat_avg_ms": 117.89,
+            "lat_p99_ms": 824.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 854.29,
+            "achieved_mb": 853.27,
+            "ratio": 0.9988,
+            "lat_avg_ms": 168.28,
+            "lat_p99_ms": 718.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1067.86,
+            "achieved_mb": 1026.44,
+            "ratio": 0.9612,
+            "lat_avg_ms": 225.21,
+            "lat_p99_ms": 688.0
+          }
+        ]
+      }
+    },
+    "m5.xlarge": {
+      "instance": "m5.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.236,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1107.84,
+      "failed_count": 0,
+      "produce_records_per_sec": 267723.28,
+      "produce_mb_per_sec": 261.45,
+      "produce_lat_avg_ms": 4.67,
+      "produce_lat_p50_ms": 3.0,
+      "produce_lat_p95_ms": 15.0,
+      "produce_lat_p99_ms": 42.0,
+      "produce_lat_p999_ms": 56.0,
+      "consume_mb_per_sec": 190.75,
+      "consume_records_per_sec": 195327.76,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 589966.0,
+          "produce_mb_per_sec": 576.13,
+          "produce_lat_avg_ms": 413.04,
+          "produce_lat_p99_ms": 1256.0,
+          "log_bytes_on_disk": 20679547846.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 417.328,
+          "consume_records_per_sec": 427344.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 617432.0,
+          "produce_mb_per_sec": 602.98,
+          "produce_lat_avg_ms": 394.15,
+          "produce_lat_p99_ms": 795.0,
+          "log_bytes_on_disk": 15580591564.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 502.981,
+          "consume_records_per_sec": 515054.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 175653.0,
+          "produce_mb_per_sec": 171.53,
+          "produce_lat_avg_ms": 1443.4,
+          "produce_lat_p99_ms": 1958.0,
+          "log_bytes_on_disk": 10965242551.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 821.048,
+          "consume_records_per_sec": 840754.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.2,
+      "zstd_cost": 0.298,
+      "ramp": {
+        "baseline_mb": 576.13,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 528.78,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 569.14,
+        "saturation_lat_p99_ms": 918.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 115.23,
+            "achieved_mb": 115.15,
+            "ratio": 0.9993,
+            "lat_avg_ms": 12.65,
+            "lat_p99_ms": 284.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 230.45,
+            "achieved_mb": 230.29,
+            "ratio": 0.9993,
+            "lat_avg_ms": 36.85,
+            "lat_p99_ms": 624.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 345.68,
+            "achieved_mb": 345.46,
+            "ratio": 0.9994,
+            "lat_avg_ms": 81.42,
+            "lat_p99_ms": 807.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 460.9,
+            "achieved_mb": 460.47,
+            "ratio": 0.9991,
+            "lat_avg_ms": 103.44,
+            "lat_p99_ms": 678.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 576.13,
+            "achieved_mb": 569.14,
+            "ratio": 0.9879,
+            "lat_avg_ms": 167.49,
+            "lat_p99_ms": 918.0
+          }
+        ]
+      }
+    },
+    "m5a.xlarge": {
+      "instance": "m5a.xlarge",
+      "arch": "AMD",
+      "label": "AMD",
+      "gen": "5",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.212,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 993.44,
+      "failed_count": 0,
+      "produce_records_per_sec": 215665.98,
+      "produce_mb_per_sec": 210.61,
+      "produce_lat_avg_ms": 107.77,
+      "produce_lat_p50_ms": 118.0,
+      "produce_lat_p95_ms": 162.0,
+      "produce_lat_p99_ms": 232.0,
+      "produce_lat_p999_ms": 375.0,
+      "consume_mb_per_sec": 267.82,
+      "consume_records_per_sec": 274243.09,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 370374.0,
+          "produce_mb_per_sec": 361.69,
+          "produce_lat_avg_ms": 673.95,
+          "produce_lat_p99_ms": 2023.0,
+          "log_bytes_on_disk": 20679567785.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 279.462,
+          "consume_records_per_sec": 286171.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 488738.0,
+          "produce_mb_per_sec": 477.27,
+          "produce_lat_avg_ms": 502.7,
+          "produce_lat_p99_ms": 866.0,
+          "log_bytes_on_disk": 15580302269.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 376.298,
+          "consume_records_per_sec": 385329.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 139478.0,
+          "produce_mb_per_sec": 136.21,
+          "produce_lat_avg_ms": 1823.95,
+          "produce_lat_p99_ms": 2451.0,
+          "log_bytes_on_disk": 10965235928.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 846.623,
+          "consume_records_per_sec": 866943.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.72,
+      "zstd_cost": 0.377,
+      "ramp": {
+        "baseline_mb": 361.69,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 307.21,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 380.42,
+        "saturation_lat_p99_ms": 1006.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 72.34,
+            "achieved_mb": 72.32,
+            "ratio": 0.9997,
+            "lat_avg_ms": 10.39,
+            "lat_p99_ms": 140.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 144.68,
+            "achieved_mb": 144.57,
+            "ratio": 0.9992,
+            "lat_avg_ms": 20.96,
+            "lat_p99_ms": 544.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 217.01,
+            "achieved_mb": 216.87,
+            "ratio": 0.9994,
+            "lat_avg_ms": 52.56,
+            "lat_p99_ms": 716.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 289.35,
+            "achieved_mb": 289.04,
+            "ratio": 0.9989,
+            "lat_avg_ms": 96.38,
+            "lat_p99_ms": 822.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 361.69,
+            "achieved_mb": 361.35,
+            "ratio": 0.9991,
+            "lat_avg_ms": 240.69,
+            "lat_p99_ms": 1708.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 434.03,
+            "achieved_mb": 380.42,
+            "ratio": 0.8765,
+            "lat_avg_ms": 468.37,
+            "lat_p99_ms": 1006.0
+          }
+        ]
+      }
+    },
+    "m5ad.xlarge": {
+      "instance": "m5ad.xlarge",
+      "arch": "AMD",
+      "label": "AMD",
+      "gen": "5",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.254,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 828.7,
+      "failed_count": 0,
+      "produce_records_per_sec": 215545.11,
+      "produce_mb_per_sec": 210.49,
+      "produce_lat_avg_ms": 114.86,
+      "produce_lat_p50_ms": 126.0,
+      "produce_lat_p95_ms": 161.0,
+      "produce_lat_p99_ms": 222.0,
+      "produce_lat_p999_ms": 389.0,
+      "consume_mb_per_sec": 284.03,
+      "consume_records_per_sec": 290849.86,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 371388.0,
+          "produce_mb_per_sec": 362.68,
+          "produce_lat_avg_ms": 672.19,
+          "produce_lat_p99_ms": 2446.0,
+          "log_bytes_on_disk": 20679570043.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 271.239,
+          "consume_records_per_sec": 277748.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 494120.0,
+          "produce_mb_per_sec": 482.54,
+          "produce_lat_avg_ms": 499.83,
+          "produce_lat_p99_ms": 871.0,
+          "log_bytes_on_disk": 15580556230.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 373.015,
+          "consume_records_per_sec": 381968.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 142802.0,
+          "produce_mb_per_sec": 139.46,
+          "produce_lat_avg_ms": 1780.6,
+          "produce_lat_p99_ms": 2401.0,
+          "log_bytes_on_disk": 10965041687.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 814.776,
+          "consume_records_per_sec": 834329.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.72,
+      "zstd_cost": 0.385,
+      "ramp": {
+        "baseline_mb": 362.68,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 308.66,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 383.17,
+        "saturation_lat_p99_ms": 1022.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 72.54,
+            "achieved_mb": 72.48,
+            "ratio": 0.9992,
+            "lat_avg_ms": 10.05,
+            "lat_p99_ms": 151.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 145.07,
+            "achieved_mb": 144.96,
+            "ratio": 0.9992,
+            "lat_avg_ms": 16.66,
+            "lat_p99_ms": 435.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 217.61,
+            "achieved_mb": 217.46,
+            "ratio": 0.9993,
+            "lat_avg_ms": 38.76,
+            "lat_p99_ms": 612.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 290.14,
+            "achieved_mb": 289.95,
+            "ratio": 0.9993,
+            "lat_avg_ms": 54.2,
+            "lat_p99_ms": 732.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 362.68,
+            "achieved_mb": 362.43,
+            "ratio": 0.9993,
+            "lat_avg_ms": 245.7,
+            "lat_p99_ms": 1540.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 435.22,
+            "achieved_mb": 383.17,
+            "ratio": 0.8804,
+            "lat_avg_ms": 419.45,
+            "lat_p99_ms": 1022.0
+          }
+        ]
+      }
+    },
+    "m5d.xlarge": {
+      "instance": "m5d.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.278,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 940.76,
+      "failed_count": 0,
+      "produce_records_per_sec": 267809.32,
+      "produce_mb_per_sec": 261.53,
+      "produce_lat_avg_ms": 5.05,
+      "produce_lat_p50_ms": 2.0,
+      "produce_lat_p95_ms": 28.0,
+      "produce_lat_p99_ms": 51.0,
+      "produce_lat_p999_ms": 61.0,
+      "consume_mb_per_sec": 292.03,
+      "consume_records_per_sec": 299043.06,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 589251.0,
+          "produce_mb_per_sec": 575.44,
+          "produce_lat_avg_ms": 413.76,
+          "produce_lat_p99_ms": 1168.0,
+          "log_bytes_on_disk": 20679548126.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 403.608,
+          "consume_records_per_sec": 413294.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 618301.0,
+          "produce_mb_per_sec": 603.81,
+          "produce_lat_avg_ms": 395.4,
+          "produce_lat_p99_ms": 752.0,
+          "log_bytes_on_disk": 15580196509.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 502.307,
+          "consume_records_per_sec": 514362.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 182191.0,
+          "produce_mb_per_sec": 177.92,
+          "produce_lat_avg_ms": 1390.81,
+          "produce_lat_p99_ms": 1892.0,
+          "log_bytes_on_disk": 10965340234.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 814.886,
+          "consume_records_per_sec": 834444.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.2,
+      "zstd_cost": 0.309,
+      "ramp": {
+        "baseline_mb": 575.44,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 552.69,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 561.98,
+        "saturation_lat_p99_ms": 1043.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 115.09,
+            "achieved_mb": 115.04,
+            "ratio": 0.9996,
+            "lat_avg_ms": 14.19,
+            "lat_p99_ms": 274.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 230.18,
+            "achieved_mb": 230.03,
+            "ratio": 0.9993,
+            "lat_avg_ms": 63.79,
+            "lat_p99_ms": 858.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 345.26,
+            "achieved_mb": 344.92,
+            "ratio": 0.999,
+            "lat_avg_ms": 91.9,
+            "lat_p99_ms": 842.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 460.35,
+            "achieved_mb": 460.04,
+            "ratio": 0.9993,
+            "lat_avg_ms": 139.36,
+            "lat_p99_ms": 1257.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 575.44,
+            "achieved_mb": 561.98,
+            "ratio": 0.9766,
+            "lat_avg_ms": 164.58,
+            "lat_p99_ms": 1043.0
+          }
+        ]
+      }
+    },
+    "m5zn.xlarge": {
+      "instance": "m5zn.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.406,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 702.19,
+      "failed_count": 0,
+      "produce_records_per_sec": 291936.71,
+      "produce_mb_per_sec": 285.09,
+      "produce_lat_avg_ms": 2.89,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 4.0,
+      "produce_lat_p99_ms": 59.0,
+      "produce_lat_p999_ms": 111.0,
+      "consume_mb_per_sec": 259.15,
+      "consume_records_per_sec": 265364.61,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 409224.0,
+          "produce_mb_per_sec": 399.63,
+          "produce_lat_avg_ms": 605.5,
+          "produce_lat_p99_ms": 1480.0,
+          "log_bytes_on_disk": 20679565198.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 308.318,
+          "consume_records_per_sec": 315719.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 535573.0,
+          "produce_mb_per_sec": 523.02,
+          "produce_lat_avg_ms": 458.12,
+          "produce_lat_p99_ms": 739.0,
+          "log_bytes_on_disk": 15579989161.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 401.066,
+          "consume_records_per_sec": 410691.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 236142.0,
+          "produce_mb_per_sec": 230.6,
+          "produce_lat_avg_ms": 1067.5,
+          "produce_lat_p99_ms": 1451.0,
+          "log_bytes_on_disk": 10965583867.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 804.153,
+          "consume_records_per_sec": 823455.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.4,
+      "zstd_cost": 0.577,
+      "ramp": {
+        "baseline_mb": 399.63,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 370.93,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 403.82,
+        "saturation_lat_p99_ms": 1297.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 79.93,
+            "achieved_mb": 79.89,
+            "ratio": 0.9995,
+            "lat_avg_ms": 9.55,
+            "lat_p99_ms": 155.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 159.85,
+            "achieved_mb": 159.76,
+            "ratio": 0.9994,
+            "lat_avg_ms": 15.73,
+            "lat_p99_ms": 346.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 239.78,
+            "achieved_mb": 239.58,
+            "ratio": 0.9992,
+            "lat_avg_ms": 45.57,
+            "lat_p99_ms": 681.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 319.7,
+            "achieved_mb": 319.39,
+            "ratio": 0.999,
+            "lat_avg_ms": 72.82,
+            "lat_p99_ms": 770.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 399.63,
+            "achieved_mb": 399.38,
+            "ratio": 0.9994,
+            "lat_avg_ms": 75.58,
+            "lat_p99_ms": 737.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 479.56,
+            "achieved_mb": 403.82,
+            "ratio": 0.8421,
+            "lat_avg_ms": 459.17,
+            "lat_p99_ms": 1297.0
+          }
+        ]
+      }
+    },
+    "m6g.xlarge": {
+      "instance": "m6g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton2",
+      "gen": "6",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.188,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1487.87,
+      "failed_count": 0,
+      "produce_records_per_sec": 286434.46,
+      "produce_mb_per_sec": 279.72,
+      "produce_lat_avg_ms": 2.03,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 4.0,
+      "produce_lat_p99_ms": 10.0,
+      "produce_lat_p999_ms": 20.0,
+      "consume_mb_per_sec": 215.31,
+      "consume_records_per_sec": 220478.0,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 594533.0,
+          "produce_mb_per_sec": 580.6,
+          "produce_lat_avg_ms": 411.1,
+          "produce_lat_p99_ms": 1572.0,
+          "log_bytes_on_disk": 20679548078.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 408.496,
+          "consume_records_per_sec": 418299.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 757692.0,
+          "produce_mb_per_sec": 739.93,
+          "produce_lat_avg_ms": 316.31,
+          "produce_lat_p99_ms": 819.0,
+          "log_bytes_on_disk": 15580520615.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 512.724,
+          "consume_records_per_sec": 525031.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 247602.0,
+          "produce_mb_per_sec": 241.8,
+          "produce_lat_avg_ms": 1017.71,
+          "produce_lat_p99_ms": 1369.0,
+          "log_bytes_on_disk": 10965524172.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 845.55,
+          "consume_records_per_sec": 865843.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.08,
+      "zstd_cost": 0.416,
+      "ramp": {
+        "baseline_mb": 580.6,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 560.52,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 621.89,
+        "saturation_lat_p99_ms": 951.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 116.12,
+            "achieved_mb": 116.03,
+            "ratio": 0.9992,
+            "lat_avg_ms": 9.99,
+            "lat_p99_ms": 224.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 232.24,
+            "achieved_mb": 232.06,
+            "ratio": 0.9992,
+            "lat_avg_ms": 29.9,
+            "lat_p99_ms": 518.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 348.36,
+            "achieved_mb": 348.06,
+            "ratio": 0.9991,
+            "lat_avg_ms": 64.47,
+            "lat_p99_ms": 710.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 464.48,
+            "achieved_mb": 464.0,
+            "ratio": 0.999,
+            "lat_avg_ms": 85.59,
+            "lat_p99_ms": 626.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 580.6,
+            "achieved_mb": 579.73,
+            "ratio": 0.9985,
+            "lat_avg_ms": 152.73,
+            "lat_p99_ms": 1176.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 696.72,
+            "achieved_mb": 621.89,
+            "ratio": 0.8926,
+            "lat_avg_ms": 343.96,
+            "lat_p99_ms": 951.0
+          }
+        ]
+      }
+    },
+    "m6gd.xlarge": {
+      "instance": "m6gd.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton2",
+      "gen": "6",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.222,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1319.91,
+      "failed_count": 0,
+      "produce_records_per_sec": 300048.01,
+      "produce_mb_per_sec": 293.02,
+      "produce_lat_avg_ms": 1.03,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 4.0,
+      "produce_lat_p999_ms": 14.0,
+      "consume_mb_per_sec": 227.35,
+      "consume_records_per_sec": 232807.19,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 579835.0,
+          "produce_mb_per_sec": 566.25,
+          "produce_lat_avg_ms": 420.98,
+          "produce_lat_p99_ms": 1238.0,
+          "log_bytes_on_disk": 20679548389.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 403.54,
+          "consume_records_per_sec": 413226.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 695484.0,
+          "produce_mb_per_sec": 679.18,
+          "produce_lat_avg_ms": 348.29,
+          "produce_lat_p99_ms": 759.0,
+          "log_bytes_on_disk": 15581086194.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 493.781,
+          "consume_records_per_sec": 505631.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 253052.0,
+          "produce_mb_per_sec": 247.13,
+          "produce_lat_avg_ms": 995.96,
+          "produce_lat_p99_ms": 1349.0,
+          "log_bytes_on_disk": 10965293644.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 807.596,
+          "consume_records_per_sec": 826978.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.93,
+      "zstd_cost": 0.436,
+      "ramp": {
+        "baseline_mb": 566.25,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 523.67,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 549.76,
+        "saturation_lat_p99_ms": 805.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 113.25,
+            "achieved_mb": 113.16,
+            "ratio": 0.9992,
+            "lat_avg_ms": 15.67,
+            "lat_p99_ms": 343.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 226.5,
+            "achieved_mb": 226.34,
+            "ratio": 0.9993,
+            "lat_avg_ms": 40.88,
+            "lat_p99_ms": 678.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 339.75,
+            "achieved_mb": 339.45,
+            "ratio": 0.9991,
+            "lat_avg_ms": 87.98,
+            "lat_p99_ms": 848.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 453.0,
+            "achieved_mb": 452.64,
+            "ratio": 0.9992,
+            "lat_avg_ms": 103.89,
+            "lat_p99_ms": 835.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 566.25,
+            "achieved_mb": 549.76,
+            "ratio": 0.9709,
+            "lat_avg_ms": 161.6,
+            "lat_p99_ms": 805.0
+          }
+        ]
+      }
+    },
+    "m6i.xlarge": {
+      "instance": "m6i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.236,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1224.24,
+      "failed_count": 0,
+      "produce_records_per_sec": 295857.99,
+      "produce_mb_per_sec": 288.92,
+      "produce_lat_avg_ms": 0.6,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 11.0,
+      "consume_mb_per_sec": 257.04,
+      "consume_records_per_sec": 263213.31,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1058700.0,
+          "produce_mb_per_sec": 1033.89,
+          "produce_lat_avg_ms": 218.87,
+          "produce_lat_p99_ms": 734.0,
+          "log_bytes_on_disk": 20679527184.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 451.693,
+          "consume_records_per_sec": 462534.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 814500.0,
+          "produce_mb_per_sec": 795.4,
+          "produce_lat_avg_ms": 292.9,
+          "produce_lat_p99_ms": 787.0,
+          "log_bytes_on_disk": 15581148339.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 594.935,
+          "consume_records_per_sec": 609212.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 262187.0,
+          "produce_mb_per_sec": 256.05,
+          "produce_lat_avg_ms": 959.08,
+          "produce_lat_p99_ms": 1298.0,
+          "log_bytes_on_disk": 10965658605.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 797.392,
+          "consume_records_per_sec": 816530.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.58,
+      "zstd_cost": 0.248,
+      "ramp": {
+        "baseline_mb": 1033.89,
+        "depletion_duration_s": "86",
+        "depletion_end_mb_per_sec": 1205.52,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1124.33,
+        "saturation_lat_p99_ms": 677.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 206.78,
+            "achieved_mb": 206.62,
+            "ratio": 0.9992,
+            "lat_avg_ms": 26.59,
+            "lat_p99_ms": 588.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 413.56,
+            "achieved_mb": 413.25,
+            "ratio": 0.9993,
+            "lat_avg_ms": 87.15,
+            "lat_p99_ms": 771.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 620.33,
+            "achieved_mb": 619.91,
+            "ratio": 0.9993,
+            "lat_avg_ms": 72.36,
+            "lat_p99_ms": 749.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 827.11,
+            "achieved_mb": 826.38,
+            "ratio": 0.9991,
+            "lat_avg_ms": 113.82,
+            "lat_p99_ms": 693.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1033.89,
+            "achieved_mb": 1033.05,
+            "ratio": 0.9992,
+            "lat_avg_ms": 133.14,
+            "lat_p99_ms": 657.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1240.67,
+            "achieved_mb": 1124.33,
+            "ratio": 0.9062,
+            "lat_avg_ms": 202.9,
+            "lat_p99_ms": 677.0
+          }
+        ]
+      }
+    },
+    "m6id.xlarge": {
+      "instance": "m6id.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.292,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 987.43,
+      "failed_count": 0,
+      "produce_records_per_sec": 295246.53,
+      "produce_mb_per_sec": 288.33,
+      "produce_lat_avg_ms": 0.74,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 10.0,
+      "consume_mb_per_sec": 203.03,
+      "consume_records_per_sec": 207900.21,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1084090.0,
+          "produce_mb_per_sec": 1058.68,
+          "produce_lat_avg_ms": 213.75,
+          "produce_lat_p99_ms": 740.0,
+          "log_bytes_on_disk": 20679527858.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 448.949,
+          "consume_records_per_sec": 459722.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 767726.0,
+          "produce_mb_per_sec": 749.73,
+          "produce_lat_avg_ms": 313.58,
+          "produce_lat_p99_ms": 737.0,
+          "log_bytes_on_disk": 15581416432.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 568.598,
+          "consume_records_per_sec": 582246.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 233354.0,
+          "produce_mb_per_sec": 227.89,
+          "produce_lat_avg_ms": 1080.23,
+          "produce_lat_p99_ms": 1475.0,
+          "log_bytes_on_disk": 10965435828.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 800.764,
+          "consume_records_per_sec": 819981.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.67,
+      "zstd_cost": 0.215,
+      "ramp": {
+        "baseline_mb": 1058.68,
+        "depletion_duration_s": "87",
+        "depletion_end_mb_per_sec": 1217.64,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1174.52,
+        "saturation_lat_p99_ms": 632.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 211.74,
+            "achieved_mb": 211.6,
+            "ratio": 0.9993,
+            "lat_avg_ms": 17.65,
+            "lat_p99_ms": 407.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 423.47,
+            "achieved_mb": 423.14,
+            "ratio": 0.9992,
+            "lat_avg_ms": 63.19,
+            "lat_p99_ms": 602.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 635.21,
+            "achieved_mb": 634.78,
+            "ratio": 0.9993,
+            "lat_avg_ms": 74.76,
+            "lat_p99_ms": 637.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 846.94,
+            "achieved_mb": 846.32,
+            "ratio": 0.9993,
+            "lat_avg_ms": 95.85,
+            "lat_p99_ms": 592.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1058.68,
+            "achieved_mb": 1057.87,
+            "ratio": 0.9992,
+            "lat_avg_ms": 130.11,
+            "lat_p99_ms": 592.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1270.42,
+            "achieved_mb": 1174.52,
+            "ratio": 0.9245,
+            "lat_avg_ms": 194.83,
+            "lat_p99_ms": 632.0
+          }
+        ]
+      }
+    },
+    "m6idn.xlarge": {
+      "instance": "m6idn.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.386,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 569.56,
+      "failed_count": 0,
+      "produce_records_per_sec": 225123.82,
+      "produce_mb_per_sec": 219.85,
+      "produce_lat_avg_ms": 82.34,
+      "produce_lat_p50_ms": 86.0,
+      "produce_lat_p95_ms": 145.0,
+      "produce_lat_p99_ms": 150.0,
+      "produce_lat_p999_ms": 155.0,
+      "consume_mb_per_sec": 260.54,
+      "consume_records_per_sec": 266794.73,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 927335.0,
+          "produce_mb_per_sec": 905.6,
+          "produce_lat_avg_ms": 254.45,
+          "produce_lat_p99_ms": 811.0,
+          "log_bytes_on_disk": 20679526843.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 499.043,
+          "consume_records_per_sec": 511020.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 740010.0,
+          "produce_mb_per_sec": 722.66,
+          "produce_lat_avg_ms": 324.79,
+          "produce_lat_p99_ms": 808.0,
+          "log_bytes_on_disk": 15580944539.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 624.466,
+          "consume_records_per_sec": 639455.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 256943.0,
+          "produce_mb_per_sec": 250.93,
+          "produce_lat_avg_ms": 977.53,
+          "produce_lat_p99_ms": 1324.0,
+          "log_bytes_on_disk": 10965432372.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 736.545,
+          "consume_records_per_sec": 754222.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.12,
+      "zstd_cost": 0.277,
+      "ramp": {
+        "baseline_mb": 905.6,
+        "depletion_duration_s": "74",
+        "depletion_end_mb_per_sec": 1156.84,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 899.86,
+        "saturation_lat_p99_ms": 928.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 181.12,
+            "achieved_mb": 180.97,
+            "ratio": 0.9992,
+            "lat_avg_ms": 49.55,
+            "lat_p99_ms": 721.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 362.24,
+            "achieved_mb": 361.87,
+            "ratio": 0.999,
+            "lat_avg_ms": 97.22,
+            "lat_p99_ms": 960.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 543.36,
+            "achieved_mb": 542.7,
+            "ratio": 0.9988,
+            "lat_avg_ms": 122.34,
+            "lat_p99_ms": 895.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 724.48,
+            "achieved_mb": 723.78,
+            "ratio": 0.999,
+            "lat_avg_ms": 192.22,
+            "lat_p99_ms": 930.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 905.6,
+            "achieved_mb": 899.86,
+            "ratio": 0.9937,
+            "lat_avg_ms": 240.65,
+            "lat_p99_ms": 928.0
+          }
+        ]
+      }
+    },
+    "m6in.xlarge": {
+      "instance": "m6in.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.337,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 590.47,
+      "failed_count": 0,
+      "produce_records_per_sec": 203765.59,
+      "produce_mb_per_sec": 198.99,
+      "produce_lat_avg_ms": 146.21,
+      "produce_lat_p50_ms": 153.0,
+      "produce_lat_p95_ms": 162.0,
+      "produce_lat_p99_ms": 173.0,
+      "produce_lat_p999_ms": 185.0,
+      "consume_mb_per_sec": 256.57,
+      "consume_records_per_sec": 262729.23,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 851180.0,
+          "produce_mb_per_sec": 831.22,
+          "produce_lat_avg_ms": 279.09,
+          "produce_lat_p99_ms": 735.0,
+          "log_bytes_on_disk": 20679527456.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 419.596,
+          "consume_records_per_sec": 429665.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 731169.0,
+          "produce_mb_per_sec": 714.03,
+          "produce_lat_avg_ms": 329.95,
+          "produce_lat_p99_ms": 809.0,
+          "log_bytes_on_disk": 15580200558.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 525.622,
+          "consume_records_per_sec": 538237.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 242996.0,
+          "produce_mb_per_sec": 237.32,
+          "produce_lat_avg_ms": 1037.24,
+          "produce_lat_p99_ms": 1413.0,
+          "log_bytes_on_disk": 10965155899.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 763.574,
+          "consume_records_per_sec": 781900.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.18,
+      "zstd_cost": 0.286,
+      "ramp": {
+        "baseline_mb": 831.22,
+        "depletion_duration_s": "67",
+        "depletion_end_mb_per_sec": 1168.61,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1057.72,
+        "saturation_lat_p99_ms": 709.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 166.24,
+            "achieved_mb": 166.13,
+            "ratio": 0.9993,
+            "lat_avg_ms": 21.23,
+            "lat_p99_ms": 462.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 332.49,
+            "achieved_mb": 332.22,
+            "ratio": 0.9992,
+            "lat_avg_ms": 85.83,
+            "lat_p99_ms": 806.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 498.73,
+            "achieved_mb": 498.3,
+            "ratio": 0.9991,
+            "lat_avg_ms": 90.36,
+            "lat_p99_ms": 764.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 664.98,
+            "achieved_mb": 664.41,
+            "ratio": 0.9991,
+            "lat_avg_ms": 112.63,
+            "lat_p99_ms": 764.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 831.22,
+            "achieved_mb": 830.45,
+            "ratio": 0.9991,
+            "lat_avg_ms": 153.4,
+            "lat_p99_ms": 744.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 997.46,
+            "achieved_mb": 995.49,
+            "ratio": 0.998,
+            "lat_avg_ms": 207.36,
+            "lat_p99_ms": 730.0
+          },
+          {
+            "pct": 140,
+            "target_mb": 1163.71,
+            "achieved_mb": 1057.72,
+            "ratio": 0.9089,
+            "lat_avg_ms": 219.36,
+            "lat_p99_ms": 709.0
+          }
+        ]
+      }
+    },
+    "m7g.xlarge": {
+      "instance": "m7g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton3",
+      "gen": "7",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.201,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1435.57,
+      "failed_count": 0,
+      "produce_records_per_sec": 295473.35,
+      "produce_mb_per_sec": 288.55,
+      "produce_lat_avg_ms": 0.65,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 7.0,
+      "consume_mb_per_sec": 237.35,
+      "consume_records_per_sec": 243048.8,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1060520.0,
+          "produce_mb_per_sec": 1035.68,
+          "produce_lat_avg_ms": 216.26,
+          "produce_lat_p99_ms": 739.0,
+          "log_bytes_on_disk": 20679528823.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 429.07,
+          "consume_records_per_sec": 439367.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 968329.0,
+          "produce_mb_per_sec": 945.64,
+          "produce_lat_avg_ms": 241.44,
+          "produce_lat_p99_ms": 740.0,
+          "log_bytes_on_disk": 15580123139.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 532.777,
+          "consume_records_per_sec": 545565.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 330603.0,
+          "produce_mb_per_sec": 322.85,
+          "produce_lat_avg_ms": 755.12,
+          "produce_lat_p99_ms": 1029.0,
+          "log_bytes_on_disk": 10965342144.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 762.454,
+          "consume_records_per_sec": 780751.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.59,
+      "zstd_cost": 0.312,
+      "ramp": {
+        "baseline_mb": 1035.68,
+        "depletion_duration_s": "85",
+        "depletion_end_mb_per_sec": 1183.62,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1179.57,
+        "saturation_lat_p99_ms": 686.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 207.14,
+            "achieved_mb": 206.97,
+            "ratio": 0.9992,
+            "lat_avg_ms": 26.65,
+            "lat_p99_ms": 624.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 414.27,
+            "achieved_mb": 413.94,
+            "ratio": 0.9992,
+            "lat_avg_ms": 80.55,
+            "lat_p99_ms": 726.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 621.41,
+            "achieved_mb": 620.91,
+            "ratio": 0.9992,
+            "lat_avg_ms": 83.6,
+            "lat_p99_ms": 684.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 828.54,
+            "achieved_mb": 827.69,
+            "ratio": 0.999,
+            "lat_avg_ms": 114.12,
+            "lat_p99_ms": 730.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1035.68,
+            "achieved_mb": 1034.73,
+            "ratio": 0.9991,
+            "lat_avg_ms": 174.79,
+            "lat_p99_ms": 706.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1242.82,
+            "achieved_mb": 1179.57,
+            "ratio": 0.9491,
+            "lat_avg_ms": 190.16,
+            "lat_p99_ms": 686.0
+          }
+        ]
+      }
+    },
+    "m7gd.xlarge": {
+      "instance": "m7gd.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton3",
+      "gen": "7",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.263,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 768.17,
+      "failed_count": 0,
+      "produce_records_per_sec": 206876.58,
+      "produce_mb_per_sec": 202.03,
+      "produce_lat_avg_ms": 146.77,
+      "produce_lat_p50_ms": 151.0,
+      "produce_lat_p95_ms": 160.0,
+      "produce_lat_p99_ms": 164.0,
+      "produce_lat_p999_ms": 170.0,
+      "consume_mb_per_sec": 241.46,
+      "consume_records_per_sec": 247255.46,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 866718.0,
+          "produce_mb_per_sec": 846.41,
+          "produce_lat_avg_ms": 273.49,
+          "produce_lat_p99_ms": 851.0,
+          "log_bytes_on_disk": 20679527131.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 436.191,
+          "consume_records_per_sec": 446658.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 800838.0,
+          "produce_mb_per_sec": 782.06,
+          "produce_lat_avg_ms": 298.09,
+          "produce_lat_p99_ms": 774.0,
+          "log_bytes_on_disk": 15580443891.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 561.201,
+          "consume_records_per_sec": 574670.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 300267.0,
+          "produce_mb_per_sec": 293.23,
+          "produce_lat_avg_ms": 836.05,
+          "produce_lat_p99_ms": 1150.0,
+          "log_bytes_on_disk": 10965417251.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 730.78,
+          "consume_records_per_sec": 748317.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.19,
+      "zstd_cost": 0.346,
+      "ramp": {
+        "baseline_mb": 846.41,
+        "depletion_duration_s": "70",
+        "depletion_end_mb_per_sec": 1133.99,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1092.6,
+        "saturation_lat_p99_ms": 711.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 169.28,
+            "achieved_mb": 169.18,
+            "ratio": 0.9994,
+            "lat_avg_ms": 25.98,
+            "lat_p99_ms": 461.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 338.56,
+            "achieved_mb": 338.29,
+            "ratio": 0.9992,
+            "lat_avg_ms": 93.16,
+            "lat_p99_ms": 835.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 507.85,
+            "achieved_mb": 507.43,
+            "ratio": 0.9992,
+            "lat_avg_ms": 98.12,
+            "lat_p99_ms": 900.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 677.13,
+            "achieved_mb": 676.56,
+            "ratio": 0.9992,
+            "lat_avg_ms": 147.54,
+            "lat_p99_ms": 945.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 846.41,
+            "achieved_mb": 845.44,
+            "ratio": 0.9989,
+            "lat_avg_ms": 172.68,
+            "lat_p99_ms": 827.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1015.69,
+            "achieved_mb": 1014.54,
+            "ratio": 0.9989,
+            "lat_avg_ms": 198.1,
+            "lat_p99_ms": 754.0
+          },
+          {
+            "pct": 140,
+            "target_mb": 1184.97,
+            "achieved_mb": 1092.6,
+            "ratio": 0.922,
+            "lat_avg_ms": 211.97,
+            "lat_p99_ms": 711.0
+          }
+        ]
+      }
+    },
+    "m7i-flex.xlarge": {
+      "instance": "m7i-flex.xlarge",
+      "arch": "Intel",
+      "label": "Intel 7th",
+      "gen": "7",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.235,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 867.62,
+      "failed_count": 0,
+      "produce_records_per_sec": 208785.7,
+      "produce_mb_per_sec": 203.89,
+      "produce_lat_avg_ms": 142.45,
+      "produce_lat_p50_ms": 149.0,
+      "produce_lat_p95_ms": 157.0,
+      "produce_lat_p99_ms": 165.0,
+      "produce_lat_p999_ms": 176.0,
+      "consume_mb_per_sec": 249.57,
+      "consume_records_per_sec": 255558.4,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1109200.0,
+          "produce_mb_per_sec": 1083.2,
+          "produce_lat_avg_ms": 205.96,
+          "produce_lat_p99_ms": 773.0,
+          "log_bytes_on_disk": 20679530892.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 479.414,
+          "consume_records_per_sec": 490920.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 926323.0,
+          "produce_mb_per_sec": 904.62,
+          "produce_lat_avg_ms": 254.07,
+          "produce_lat_p99_ms": 624.0,
+          "log_bytes_on_disk": 15580322159.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 537.155,
+          "consume_records_per_sec": 550048.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 269914.0,
+          "produce_mb_per_sec": 263.58,
+          "produce_lat_avg_ms": 932.52,
+          "produce_lat_p99_ms": 1279.0,
+          "log_bytes_on_disk": 10965464461.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 817.96,
+          "consume_records_per_sec": 837590.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 5.31,
+      "zstd_cost": 0.243,
+      "ramp": {
+        "baseline_mb": 1083.2,
+        "depletion_duration_s": "89",
+        "depletion_end_mb_per_sec": 1183.37,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1171.12,
+        "saturation_lat_p99_ms": 768.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 216.64,
+            "achieved_mb": 216.48,
+            "ratio": 0.9993,
+            "lat_avg_ms": 21.0,
+            "lat_p99_ms": 427.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 433.28,
+            "achieved_mb": 432.66,
+            "ratio": 0.9986,
+            "lat_avg_ms": 72.07,
+            "lat_p99_ms": 703.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 649.92,
+            "achieved_mb": 649.39,
+            "ratio": 0.9992,
+            "lat_avg_ms": 87.07,
+            "lat_p99_ms": 712.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 866.56,
+            "achieved_mb": 865.85,
+            "ratio": 0.9992,
+            "lat_avg_ms": 114.17,
+            "lat_p99_ms": 700.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1083.2,
+            "achieved_mb": 1080.17,
+            "ratio": 0.9972,
+            "lat_avg_ms": 164.16,
+            "lat_p99_ms": 643.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1299.84,
+            "achieved_mb": 1171.12,
+            "ratio": 0.901,
+            "lat_avg_ms": 195.58,
+            "lat_p99_ms": 768.0
+          }
+        ]
+      }
+    },
+    "m7i.xlarge": {
+      "instance": "m7i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 7th",
+      "gen": "7",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.248,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1174.56,
+      "failed_count": 0,
+      "produce_records_per_sec": 298275.96,
+      "produce_mb_per_sec": 291.29,
+      "produce_lat_avg_ms": 0.57,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 8.0,
+      "consume_mb_per_sec": 285.78,
+      "consume_records_per_sec": 292637.25,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1117980.0,
+          "produce_mb_per_sec": 1091.78,
+          "produce_lat_avg_ms": 204.64,
+          "produce_lat_p99_ms": 757.0,
+          "log_bytes_on_disk": 20679531271.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 489.843,
+          "consume_records_per_sec": 501599.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 960344.0,
+          "produce_mb_per_sec": 937.83,
+          "produce_lat_avg_ms": 243.75,
+          "produce_lat_p99_ms": 656.0,
+          "log_bytes_on_disk": 15580572427.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 525.724,
+          "consume_records_per_sec": 538342.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 282833.0,
+          "produce_mb_per_sec": 276.2,
+          "produce_lat_avg_ms": 887.36,
+          "produce_lat_p99_ms": 1206.0,
+          "log_bytes_on_disk": 10965105750.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 854.528,
+          "consume_records_per_sec": 875038.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.75,
+      "zstd_cost": 0.253,
+      "ramp": {
+        "baseline_mb": 1091.78,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 1152.54,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1063.27,
+        "saturation_lat_p99_ms": 737.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 218.36,
+            "achieved_mb": 218.22,
+            "ratio": 0.9994,
+            "lat_avg_ms": 46.74,
+            "lat_p99_ms": 642.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 436.71,
+            "achieved_mb": 436.32,
+            "ratio": 0.9991,
+            "lat_avg_ms": 82.97,
+            "lat_p99_ms": 838.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 655.07,
+            "achieved_mb": 654.52,
+            "ratio": 0.9992,
+            "lat_avg_ms": 103.97,
+            "lat_p99_ms": 734.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 873.42,
+            "achieved_mb": 872.67,
+            "ratio": 0.9991,
+            "lat_avg_ms": 157.78,
+            "lat_p99_ms": 777.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1091.78,
+            "achieved_mb": 1063.27,
+            "ratio": 0.9739,
+            "lat_avg_ms": 215.71,
+            "lat_p99_ms": 737.0
+          }
+        ]
+      }
+    },
+    "m8g.xlarge": {
+      "instance": "m8g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton4",
+      "gen": "8",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.221,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1301.13,
+      "failed_count": 0,
+      "produce_records_per_sec": 294446.73,
+      "produce_mb_per_sec": 287.55,
+      "produce_lat_avg_ms": 0.81,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 6.0,
+      "consume_mb_per_sec": 222.52,
+      "consume_records_per_sec": 227863.1,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 965223.0,
+          "produce_mb_per_sec": 942.59,
+          "produce_lat_avg_ms": 244.36,
+          "produce_lat_p99_ms": 811.0,
+          "log_bytes_on_disk": 20679526941.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 428.9,
+          "consume_records_per_sec": 439193.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 845412.0,
+          "produce_mb_per_sec": 825.6,
+          "produce_lat_avg_ms": 283.2,
+          "produce_lat_p99_ms": 756.0,
+          "log_bytes_on_disk": 15580053391.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 592.983,
+          "consume_records_per_sec": 607214.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 415756.0,
+          "produce_mb_per_sec": 406.01,
+          "produce_lat_avg_ms": 596.89,
+          "produce_lat_p99_ms": 932.0,
+          "log_bytes_on_disk": 10965632001.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 721.3,
+          "consume_records_per_sec": 738611.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.28,
+      "zstd_cost": 0.431,
+      "ramp": {
+        "baseline_mb": 942.59,
+        "depletion_duration_s": "83",
+        "depletion_end_mb_per_sec": 1133.63,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 920.47,
+        "saturation_lat_p99_ms": 883.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 188.52,
+            "achieved_mb": 188.33,
+            "ratio": 0.999,
+            "lat_avg_ms": 32.62,
+            "lat_p99_ms": 556.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 377.04,
+            "achieved_mb": 376.67,
+            "ratio": 0.999,
+            "lat_avg_ms": 94.28,
+            "lat_p99_ms": 918.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 565.55,
+            "achieved_mb": 564.9,
+            "ratio": 0.9989,
+            "lat_avg_ms": 122.95,
+            "lat_p99_ms": 980.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 754.07,
+            "achieved_mb": 753.34,
+            "ratio": 0.999,
+            "lat_avg_ms": 199.96,
+            "lat_p99_ms": 849.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 942.59,
+            "achieved_mb": 920.47,
+            "ratio": 0.9765,
+            "lat_avg_ms": 242.94,
+            "lat_p99_ms": 883.0
+          }
+        ]
+      }
+    },
+    "m8i-flex.xlarge": {
+      "instance": "m8i-flex.xlarge",
+      "arch": "Intel",
+      "label": "Intel 8th",
+      "gen": "8",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.247,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 793.44,
+      "failed_count": 0,
+      "produce_records_per_sec": 200682.32,
+      "produce_mb_per_sec": 195.98,
+      "produce_lat_avg_ms": 151.72,
+      "produce_lat_p50_ms": 156.0,
+      "produce_lat_p95_ms": 168.0,
+      "produce_lat_p99_ms": 177.0,
+      "produce_lat_p999_ms": 186.0,
+      "consume_mb_per_sec": 232.67,
+      "consume_records_per_sec": 238254.07,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1099250.0,
+          "produce_mb_per_sec": 1073.48,
+          "produce_lat_avg_ms": 208.4,
+          "produce_lat_p99_ms": 713.0,
+          "log_bytes_on_disk": 20679529845.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 525.644,
+          "consume_records_per_sec": 538259.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 981568.0,
+          "produce_mb_per_sec": 958.56,
+          "produce_lat_avg_ms": 238.92,
+          "produce_lat_p99_ms": 720.0,
+          "log_bytes_on_disk": 15581030962.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 671.122,
+          "consume_records_per_sec": 687229.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 322276.0,
+          "produce_mb_per_sec": 314.72,
+          "produce_lat_avg_ms": 776.97,
+          "produce_lat_p99_ms": 1059.0,
+          "log_bytes_on_disk": 10965453206.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 832.292,
+          "consume_records_per_sec": 852266.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 5.48,
+      "zstd_cost": 0.293,
+      "ramp": {
+        "baseline_mb": 1073.48,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 1198.15,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 852.53,
+        "saturation_lat_p99_ms": 997.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 214.7,
+            "achieved_mb": 214.54,
+            "ratio": 0.9993,
+            "lat_avg_ms": 80.44,
+            "lat_p99_ms": 986.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 429.39,
+            "achieved_mb": 429.04,
+            "ratio": 0.9992,
+            "lat_avg_ms": 112.45,
+            "lat_p99_ms": 1011.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 644.09,
+            "achieved_mb": 643.49,
+            "ratio": 0.9991,
+            "lat_avg_ms": 200.37,
+            "lat_p99_ms": 981.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 858.78,
+            "achieved_mb": 852.53,
+            "ratio": 0.9927,
+            "lat_avg_ms": 255.91,
+            "lat_p99_ms": 997.0
+          }
+        ]
+      }
+    },
+    "m8i.xlarge": {
+      "instance": "m8i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 8th",
+      "gen": "8",
+      "family": "M",
+      "mem_mb": 16384,
+      "fits_in_ram": true,
+      "price": 0.26,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 796.04,
+      "failed_count": 0,
+      "produce_records_per_sec": 211936.25,
+      "produce_mb_per_sec": 206.97,
+      "produce_lat_avg_ms": 130.5,
+      "produce_lat_p50_ms": 146.0,
+      "produce_lat_p95_ms": 158.0,
+      "produce_lat_p99_ms": 169.0,
+      "produce_lat_p999_ms": 180.0,
+      "consume_mb_per_sec": 259.27,
+      "consume_records_per_sec": 265491.42,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1101510.0,
+          "produce_mb_per_sec": 1075.69,
+          "produce_lat_avg_ms": 208.87,
+          "produce_lat_p99_ms": 630.0,
+          "log_bytes_on_disk": 20679529230.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 519.671,
+          "consume_records_per_sec": 532144.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 1012940.0,
+          "produce_mb_per_sec": 989.19,
+          "produce_lat_avg_ms": 229.6,
+          "produce_lat_p99_ms": 662.0,
+          "log_bytes_on_disk": 15580599224.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 623.933,
+          "consume_records_per_sec": 638908.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 337740.0,
+          "produce_mb_per_sec": 329.84,
+          "produce_lat_avg_ms": 741.13,
+          "produce_lat_p99_ms": 1005.0,
+          "log_bytes_on_disk": 10965428306.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 825.093,
+          "consume_records_per_sec": 844896.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 5.2,
+      "zstd_cost": 0.307,
+      "ramp": {
+        "baseline_mb": 1075.69,
+        "depletion_duration_s": "87",
+        "depletion_end_mb_per_sec": 1153.02,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1221.09,
+        "saturation_lat_p99_ms": 599.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 215.14,
+            "achieved_mb": 215.01,
+            "ratio": 0.9994,
+            "lat_avg_ms": 29.27,
+            "lat_p99_ms": 667.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 430.28,
+            "achieved_mb": 429.89,
+            "ratio": 0.9991,
+            "lat_avg_ms": 69.08,
+            "lat_p99_ms": 765.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 645.41,
+            "achieved_mb": 644.95,
+            "ratio": 0.9993,
+            "lat_avg_ms": 74.62,
+            "lat_p99_ms": 688.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 860.55,
+            "achieved_mb": 859.93,
+            "ratio": 0.9993,
+            "lat_avg_ms": 85.33,
+            "lat_p99_ms": 612.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1075.69,
+            "achieved_mb": 1074.84,
+            "ratio": 0.9992,
+            "lat_avg_ms": 133.53,
+            "lat_p99_ms": 610.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1290.83,
+            "achieved_mb": 1221.09,
+            "ratio": 0.946,
+            "lat_avg_ms": 185.25,
+            "lat_p99_ms": 599.0
+          }
+        ]
+      }
+    },
+    "r5.xlarge": {
+      "instance": "r5.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.304,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 852.5,
+      "failed_count": 0,
+      "produce_records_per_sec": 265378.7,
+      "produce_mb_per_sec": 259.16,
+      "produce_lat_avg_ms": 6.23,
+      "produce_lat_p50_ms": 3.0,
+      "produce_lat_p95_ms": 18.0,
+      "produce_lat_p99_ms": 81.0,
+      "produce_lat_p999_ms": 94.0,
+      "consume_mb_per_sec": 293.0,
+      "consume_records_per_sec": 300030.0,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 627542.0,
+          "produce_mb_per_sec": 612.83,
+          "produce_lat_avg_ms": 386.86,
+          "produce_lat_p99_ms": 1182.0,
+          "log_bytes_on_disk": 20679553647.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 513.106,
+          "consume_records_per_sec": 525421.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 671782.0,
+          "produce_mb_per_sec": 656.05,
+          "produce_lat_avg_ms": 360.55,
+          "produce_lat_p99_ms": 748.0,
+          "log_bytes_on_disk": 15580412998.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 705.438,
+          "consume_records_per_sec": 722368.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 197734.0,
+          "produce_mb_per_sec": 193.09,
+          "produce_lat_avg_ms": 1279.49,
+          "produce_lat_p99_ms": 1768.0,
+          "log_bytes_on_disk": 10965559235.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 828.797,
+          "consume_records_per_sec": 848690.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.36,
+      "zstd_cost": 0.315,
+      "ramp": {
+        "baseline_mb": 612.83,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 521.0,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 607.6,
+        "saturation_lat_p99_ms": 1291.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 122.57,
+            "achieved_mb": 122.46,
+            "ratio": 0.9991,
+            "lat_avg_ms": 11.95,
+            "lat_p99_ms": 259.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 245.13,
+            "achieved_mb": 244.98,
+            "ratio": 0.9994,
+            "lat_avg_ms": 25.03,
+            "lat_p99_ms": 525.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 367.7,
+            "achieved_mb": 367.41,
+            "ratio": 0.9992,
+            "lat_avg_ms": 72.28,
+            "lat_p99_ms": 720.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 490.26,
+            "achieved_mb": 489.86,
+            "ratio": 0.9992,
+            "lat_avg_ms": 135.46,
+            "lat_p99_ms": 852.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 612.83,
+            "achieved_mb": 607.6,
+            "ratio": 0.9915,
+            "lat_avg_ms": 204.84,
+            "lat_p99_ms": 1291.0
+          }
+        ]
+      }
+    },
+    "r5a.xlarge": {
+      "instance": "r5a.xlarge",
+      "arch": "AMD",
+      "label": "AMD",
+      "gen": "5",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.272,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 902.1,
+      "failed_count": 0,
+      "produce_records_per_sec": 251256.28,
+      "produce_mb_per_sec": 245.37,
+      "produce_lat_avg_ms": 17.8,
+      "produce_lat_p50_ms": 4.0,
+      "produce_lat_p95_ms": 104.0,
+      "produce_lat_p99_ms": 152.0,
+      "produce_lat_p999_ms": 171.0,
+      "consume_mb_per_sec": 289.18,
+      "consume_records_per_sec": 296120.82,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 388281.0,
+          "produce_mb_per_sec": 379.17,
+          "produce_lat_avg_ms": 639.17,
+          "produce_lat_p99_ms": 2597.0,
+          "log_bytes_on_disk": 20679577601.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 508.811,
+          "consume_records_per_sec": 521022.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 510423.0,
+          "produce_mb_per_sec": 498.45,
+          "produce_lat_avg_ms": 482.74,
+          "produce_lat_p99_ms": 792.0,
+          "log_bytes_on_disk": 15580164095.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 745.078,
+          "consume_records_per_sec": 762958.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 123950.0,
+          "produce_mb_per_sec": 121.03,
+          "produce_lat_avg_ms": 2054.14,
+          "produce_lat_p99_ms": 2783.0,
+          "log_bytes_on_disk": 10965460181.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 820.852,
+          "consume_records_per_sec": 840552.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.55,
+      "zstd_cost": 0.319,
+      "ramp": {
+        "baseline_mb": 379.17,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 308.69,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 435.58,
+        "saturation_lat_p99_ms": 890.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 75.83,
+            "achieved_mb": 75.76,
+            "ratio": 0.9991,
+            "lat_avg_ms": 10.75,
+            "lat_p99_ms": 173.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 151.67,
+            "achieved_mb": 151.54,
+            "ratio": 0.9991,
+            "lat_avg_ms": 17.65,
+            "lat_p99_ms": 390.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 227.5,
+            "achieved_mb": 227.29,
+            "ratio": 0.9991,
+            "lat_avg_ms": 46.68,
+            "lat_p99_ms": 749.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 303.34,
+            "achieved_mb": 303.12,
+            "ratio": 0.9993,
+            "lat_avg_ms": 76.52,
+            "lat_p99_ms": 762.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 379.17,
+            "achieved_mb": 378.86,
+            "ratio": 0.9992,
+            "lat_avg_ms": 233.26,
+            "lat_p99_ms": 1572.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 455.0,
+            "achieved_mb": 435.58,
+            "ratio": 0.9573,
+            "lat_avg_ms": 209.64,
+            "lat_p99_ms": 890.0
+          }
+        ]
+      }
+    },
+    "r5ad.xlarge": {
+      "instance": "r5ad.xlarge",
+      "arch": "AMD",
+      "label": "AMD",
+      "gen": "5",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.316,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 696.99,
+      "failed_count": 0,
+      "produce_records_per_sec": 225540.17,
+      "produce_mb_per_sec": 220.25,
+      "produce_lat_avg_ms": 35.56,
+      "produce_lat_p50_ms": 12.0,
+      "produce_lat_p95_ms": 158.0,
+      "produce_lat_p99_ms": 202.0,
+      "produce_lat_p999_ms": 233.0,
+      "consume_mb_per_sec": 253.21,
+      "consume_records_per_sec": 259282.31,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 396236.0,
+          "produce_mb_per_sec": 386.93,
+          "produce_lat_avg_ms": 628.4,
+          "produce_lat_p99_ms": 2634.0,
+          "log_bytes_on_disk": 20679579877.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 462.7,
+          "consume_records_per_sec": 473804.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 520697.0,
+          "produce_mb_per_sec": 508.5,
+          "produce_lat_avg_ms": 473.84,
+          "produce_lat_p99_ms": 813.0,
+          "log_bytes_on_disk": 15580867317.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 681.126,
+          "consume_records_per_sec": 697474.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 147851.0,
+          "produce_mb_per_sec": 144.39,
+          "produce_lat_avg_ms": 1719.72,
+          "produce_lat_p99_ms": 2384.0,
+          "log_bytes_on_disk": 10965342761.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 822.151,
+          "consume_records_per_sec": 841885.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 1.76,
+      "zstd_cost": 0.373,
+      "ramp": {
+        "baseline_mb": 386.93,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 311.54,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 416.05,
+        "saturation_lat_p99_ms": 996.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 77.39,
+            "achieved_mb": 77.36,
+            "ratio": 0.9996,
+            "lat_avg_ms": 11.41,
+            "lat_p99_ms": 177.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 154.77,
+            "achieved_mb": 154.63,
+            "ratio": 0.9991,
+            "lat_avg_ms": 26.66,
+            "lat_p99_ms": 521.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 232.16,
+            "achieved_mb": 231.98,
+            "ratio": 0.9992,
+            "lat_avg_ms": 59.19,
+            "lat_p99_ms": 811.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 309.54,
+            "achieved_mb": 309.33,
+            "ratio": 0.9993,
+            "lat_avg_ms": 91.72,
+            "lat_p99_ms": 906.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 386.93,
+            "achieved_mb": 386.62,
+            "ratio": 0.9992,
+            "lat_avg_ms": 119.22,
+            "lat_p99_ms": 812.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 464.32,
+            "achieved_mb": 416.05,
+            "ratio": 0.896,
+            "lat_avg_ms": 339.96,
+            "lat_p99_ms": 996.0
+          }
+        ]
+      }
+    },
+    "r5b.xlarge": {
+      "instance": "r5b.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.356,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 821.6,
+      "failed_count": 0,
+      "produce_records_per_sec": 299508.81,
+      "produce_mb_per_sec": 292.49,
+      "produce_lat_avg_ms": 1.16,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 6.0,
+      "produce_lat_p999_ms": 25.0,
+      "consume_mb_per_sec": 243.33,
+      "consume_records_per_sec": 249165.3,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 984339.0,
+          "produce_mb_per_sec": 961.27,
+          "produce_lat_avg_ms": 237.59,
+          "produce_lat_p99_ms": 641.0,
+          "log_bytes_on_disk": 20679527708.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 526.002,
+          "consume_records_per_sec": 538625.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 668458.0,
+          "produce_mb_per_sec": 652.79,
+          "produce_lat_avg_ms": 363.12,
+          "produce_lat_p99_ms": 736.0,
+          "log_bytes_on_disk": 15580242839.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 730.022,
+          "consume_records_per_sec": 747541.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 174561.0,
+          "produce_mb_per_sec": 170.47,
+          "produce_lat_avg_ms": 1452.38,
+          "produce_lat_p99_ms": 1976.0,
+          "log_bytes_on_disk": 10965074427.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 834.644,
+          "consume_records_per_sec": 854675.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.29,
+      "zstd_cost": 0.177,
+      "ramp": {
+        "baseline_mb": 961.27,
+        "depletion_duration_s": "85",
+        "depletion_end_mb_per_sec": 1152.99,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 956.11,
+        "saturation_lat_p99_ms": 747.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 192.25,
+            "achieved_mb": 192.11,
+            "ratio": 0.9993,
+            "lat_avg_ms": 26.05,
+            "lat_p99_ms": 495.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 384.51,
+            "achieved_mb": 384.23,
+            "ratio": 0.9993,
+            "lat_avg_ms": 81.83,
+            "lat_p99_ms": 831.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 576.76,
+            "achieved_mb": 576.29,
+            "ratio": 0.9992,
+            "lat_avg_ms": 89.86,
+            "lat_p99_ms": 712.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 769.02,
+            "achieved_mb": 768.32,
+            "ratio": 0.9991,
+            "lat_avg_ms": 128.79,
+            "lat_p99_ms": 716.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 961.27,
+            "achieved_mb": 956.11,
+            "ratio": 0.9946,
+            "lat_avg_ms": 209.68,
+            "lat_p99_ms": 747.0
+          }
+        ]
+      }
+    },
+    "r5d.xlarge": {
+      "instance": "r5d.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.346,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 818.99,
+      "failed_count": 0,
+      "produce_records_per_sec": 290174.69,
+      "produce_mb_per_sec": 283.37,
+      "produce_lat_avg_ms": 1.39,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 23.0,
+      "produce_lat_p999_ms": 44.0,
+      "consume_mb_per_sec": 206.98,
+      "consume_records_per_sec": 211945.23,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 627355.0,
+          "produce_mb_per_sec": 612.66,
+          "produce_lat_avg_ms": 389.1,
+          "produce_lat_p99_ms": 1184.0,
+          "log_bytes_on_disk": 20679550268.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 535.15,
+          "consume_records_per_sec": 547991.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 739606.0,
+          "produce_mb_per_sec": 722.26,
+          "produce_lat_avg_ms": 325.11,
+          "produce_lat_p99_ms": 776.0,
+          "log_bytes_on_disk": 15580554122.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 688.983,
+          "consume_records_per_sec": 705518.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 212956.0,
+          "produce_mb_per_sec": 207.96,
+          "produce_lat_avg_ms": 1186.23,
+          "produce_lat_p99_ms": 1647.0,
+          "log_bytes_on_disk": 10965667210.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 824.124,
+          "consume_records_per_sec": 843903.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.16,
+      "zstd_cost": 0.339,
+      "ramp": {
+        "baseline_mb": 612.66,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 541.08,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 619.2,
+        "saturation_lat_p99_ms": 1051.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 122.53,
+            "achieved_mb": 122.45,
+            "ratio": 0.9993,
+            "lat_avg_ms": 12.89,
+            "lat_p99_ms": 351.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 245.06,
+            "achieved_mb": 244.83,
+            "ratio": 0.9991,
+            "lat_avg_ms": 38.01,
+            "lat_p99_ms": 628.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 367.6,
+            "achieved_mb": 367.3,
+            "ratio": 0.9992,
+            "lat_avg_ms": 75.25,
+            "lat_p99_ms": 747.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 490.13,
+            "achieved_mb": 489.72,
+            "ratio": 0.9992,
+            "lat_avg_ms": 166.77,
+            "lat_p99_ms": 1331.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 612.66,
+            "achieved_mb": 612.29,
+            "ratio": 0.9994,
+            "lat_avg_ms": 149.95,
+            "lat_p99_ms": 788.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 735.19,
+            "achieved_mb": 619.2,
+            "ratio": 0.8422,
+            "lat_avg_ms": 366.53,
+            "lat_p99_ms": 1051.0
+          }
+        ]
+      }
+    },
+    "r5dn.xlarge": {
+      "instance": "r5dn.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.398,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 725.78,
+      "failed_count": 0,
+      "produce_records_per_sec": 295787.98,
+      "produce_mb_per_sec": 288.86,
+      "produce_lat_avg_ms": 1.56,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 23.0,
+      "produce_lat_p999_ms": 53.0,
+      "consume_mb_per_sec": 249.59,
+      "consume_records_per_sec": 255584.52,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 617933.0,
+          "produce_mb_per_sec": 603.44,
+          "produce_lat_avg_ms": 392.62,
+          "produce_lat_p99_ms": 1373.0,
+          "log_bytes_on_disk": 20679554980.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 561.764,
+          "consume_records_per_sec": 575246.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 677959.0,
+          "produce_mb_per_sec": 662.07,
+          "produce_lat_avg_ms": 355.84,
+          "produce_lat_p99_ms": 733.0,
+          "log_bytes_on_disk": 15579742835.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 789.814,
+          "consume_records_per_sec": 808770.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 178906.0,
+          "produce_mb_per_sec": 174.72,
+          "produce_lat_avg_ms": 1417.83,
+          "produce_lat_p99_ms": 1965.0,
+          "log_bytes_on_disk": 10965398356.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 840.221,
+          "consume_records_per_sec": 860385.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.09,
+      "zstd_cost": 0.29,
+      "ramp": {
+        "baseline_mb": 603.44,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 511.53,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 599.48,
+        "saturation_lat_p99_ms": 993.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 120.69,
+            "achieved_mb": 120.62,
+            "ratio": 0.9994,
+            "lat_avg_ms": 15.51,
+            "lat_p99_ms": 386.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 241.38,
+            "achieved_mb": 241.22,
+            "ratio": 0.9993,
+            "lat_avg_ms": 57.91,
+            "lat_p99_ms": 777.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 362.06,
+            "achieved_mb": 361.79,
+            "ratio": 0.9993,
+            "lat_avg_ms": 90.79,
+            "lat_p99_ms": 820.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 482.75,
+            "achieved_mb": 482.42,
+            "ratio": 0.9993,
+            "lat_avg_ms": 175.65,
+            "lat_p99_ms": 1220.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 603.44,
+            "achieved_mb": 599.48,
+            "ratio": 0.9934,
+            "lat_avg_ms": 187.54,
+            "lat_p99_ms": 993.0
+          }
+        ]
+      }
+    },
+    "r5n.xlarge": {
+      "instance": "r5n.xlarge",
+      "arch": "Intel",
+      "label": "Intel 5th",
+      "gen": "5",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.356,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 761.26,
+      "failed_count": 0,
+      "produce_records_per_sec": 277515.68,
+      "produce_mb_per_sec": 271.01,
+      "produce_lat_avg_ms": 2.42,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 6.0,
+      "produce_lat_p99_ms": 43.0,
+      "produce_lat_p999_ms": 96.0,
+      "consume_mb_per_sec": 220.56,
+      "consume_records_per_sec": 225855.99,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 609696.0,
+          "produce_mb_per_sec": 595.41,
+          "produce_lat_avg_ms": 398.17,
+          "produce_lat_p99_ms": 1447.0,
+          "log_bytes_on_disk": 20679553456.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 632.292,
+          "consume_records_per_sec": 647466.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 692415.0,
+          "produce_mb_per_sec": 676.17,
+          "produce_lat_avg_ms": 350.25,
+          "produce_lat_p99_ms": 783.0,
+          "log_bytes_on_disk": 15580718399.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 783.19,
+          "consume_records_per_sec": 801987.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 191870.0,
+          "produce_mb_per_sec": 187.36,
+          "produce_lat_avg_ms": 1318.41,
+          "produce_lat_p99_ms": 1800.0,
+          "log_bytes_on_disk": 10965621481.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 806.756,
+          "consume_records_per_sec": 826119.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.2,
+      "zstd_cost": 0.315,
+      "ramp": {
+        "baseline_mb": 595.41,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 520.13,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 574.21,
+        "saturation_lat_p99_ms": 1340.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 119.08,
+            "achieved_mb": 119.02,
+            "ratio": 0.9995,
+            "lat_avg_ms": 17.94,
+            "lat_p99_ms": 448.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 238.16,
+            "achieved_mb": 237.99,
+            "ratio": 0.9993,
+            "lat_avg_ms": 39.21,
+            "lat_p99_ms": 682.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 357.25,
+            "achieved_mb": 356.98,
+            "ratio": 0.9992,
+            "lat_avg_ms": 85.35,
+            "lat_p99_ms": 775.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 476.33,
+            "achieved_mb": 475.95,
+            "ratio": 0.9992,
+            "lat_avg_ms": 143.03,
+            "lat_p99_ms": 1271.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 595.41,
+            "achieved_mb": 574.21,
+            "ratio": 0.9644,
+            "lat_avg_ms": 213.78,
+            "lat_p99_ms": 1340.0
+          }
+        ]
+      }
+    },
+    "r6g.xlarge": {
+      "instance": "r6g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton2",
+      "gen": "6",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.244,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1178.73,
+      "failed_count": 0,
+      "produce_records_per_sec": 294516.11,
+      "produce_mb_per_sec": 287.61,
+      "produce_lat_avg_ms": 1.42,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 20.0,
+      "produce_lat_p999_ms": 56.0,
+      "consume_mb_per_sec": 272.07,
+      "consume_records_per_sec": 278598.09,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 635860.0,
+          "produce_mb_per_sec": 620.95,
+          "produce_lat_avg_ms": 380.46,
+          "produce_lat_p99_ms": 1042.0,
+          "log_bytes_on_disk": 20679548945.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 517.164,
+          "consume_records_per_sec": 529577.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 836813.0,
+          "produce_mb_per_sec": 817.2,
+          "produce_lat_avg_ms": 285.59,
+          "produce_lat_p99_ms": 737.0,
+          "log_bytes_on_disk": 15580180550.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 624.806,
+          "consume_records_per_sec": 639802.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 255456.0,
+          "produce_mb_per_sec": 249.47,
+          "produce_lat_avg_ms": 985.52,
+          "produce_lat_p99_ms": 1401.0,
+          "log_bytes_on_disk": 10965678506.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 812.598,
+          "consume_records_per_sec": 832101.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.16,
+      "zstd_cost": 0.402,
+      "ramp": {
+        "baseline_mb": 620.95,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 619.25,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 596.22,
+        "saturation_lat_p99_ms": 1699.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 124.19,
+            "achieved_mb": 124.1,
+            "ratio": 0.9993,
+            "lat_avg_ms": 10.75,
+            "lat_p99_ms": 212.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 248.38,
+            "achieved_mb": 248.21,
+            "ratio": 0.9993,
+            "lat_avg_ms": 32.4,
+            "lat_p99_ms": 671.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 372.57,
+            "achieved_mb": 372.24,
+            "ratio": 0.9991,
+            "lat_avg_ms": 75.83,
+            "lat_p99_ms": 721.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 496.76,
+            "achieved_mb": 496.42,
+            "ratio": 0.9993,
+            "lat_avg_ms": 161.21,
+            "lat_p99_ms": 1147.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 620.95,
+            "achieved_mb": 618.16,
+            "ratio": 0.9955,
+            "lat_avg_ms": 227.59,
+            "lat_p99_ms": 1288.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 745.14,
+            "achieved_mb": 596.22,
+            "ratio": 0.8001,
+            "lat_avg_ms": 384.58,
+            "lat_p99_ms": 1699.0
+          }
+        ]
+      }
+    },
+    "r6gd.xlarge": {
+      "instance": "r6gd.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton2",
+      "gen": "6",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.277,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1037.29,
+      "failed_count": 0,
+      "produce_records_per_sec": 294221.49,
+      "produce_mb_per_sec": 287.33,
+      "produce_lat_avg_ms": 1.44,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 2.0,
+      "produce_lat_p99_ms": 23.0,
+      "produce_lat_p999_ms": 55.0,
+      "consume_mb_per_sec": 344.15,
+      "consume_records_per_sec": 352410.49,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 655328.0,
+          "produce_mb_per_sec": 639.97,
+          "produce_lat_avg_ms": 368.97,
+          "produce_lat_p99_ms": 1135.0,
+          "log_bytes_on_disk": 20679548363.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 504.044,
+          "consume_records_per_sec": 516142.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 877900.0,
+          "produce_mb_per_sec": 857.33,
+          "produce_lat_avg_ms": 270.25,
+          "produce_lat_p99_ms": 723.0,
+          "log_bytes_on_disk": 15580101242.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 592.597,
+          "consume_records_per_sec": 606819.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 248767.0,
+          "produce_mb_per_sec": 242.94,
+          "produce_lat_avg_ms": 1012.58,
+          "produce_lat_p99_ms": 1443.0,
+          "log_bytes_on_disk": 10965491514.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 836.493,
+          "consume_records_per_sec": 856569.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 2.23,
+      "zstd_cost": 0.38,
+      "ramp": {
+        "baseline_mb": 639.97,
+        "depletion_duration_s": "91",
+        "depletion_end_mb_per_sec": 568.86,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 662.63,
+        "saturation_lat_p99_ms": 1248.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 127.99,
+            "achieved_mb": 127.86,
+            "ratio": 0.999,
+            "lat_avg_ms": 11.43,
+            "lat_p99_ms": 290.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 255.99,
+            "achieved_mb": 255.74,
+            "ratio": 0.999,
+            "lat_avg_ms": 28.99,
+            "lat_p99_ms": 737.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 383.98,
+            "achieved_mb": 383.65,
+            "ratio": 0.9991,
+            "lat_avg_ms": 71.03,
+            "lat_p99_ms": 716.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 511.98,
+            "achieved_mb": 511.54,
+            "ratio": 0.9991,
+            "lat_avg_ms": 100.15,
+            "lat_p99_ms": 715.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 639.97,
+            "achieved_mb": 639.32,
+            "ratio": 0.999,
+            "lat_avg_ms": 231.46,
+            "lat_p99_ms": 1436.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 767.96,
+            "achieved_mb": 662.63,
+            "ratio": 0.8628,
+            "lat_avg_ms": 308.74,
+            "lat_p99_ms": 1248.0
+          }
+        ]
+      }
+    },
+    "r6i.xlarge": {
+      "instance": "r6i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.304,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 949.28,
+      "failed_count": 0,
+      "produce_records_per_sec": 295508.27,
+      "produce_mb_per_sec": 288.58,
+      "produce_lat_avg_ms": 0.84,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 3.0,
+      "produce_lat_p999_ms": 14.0,
+      "consume_mb_per_sec": 293.67,
+      "consume_records_per_sec": 300715.7,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1126610.0,
+          "produce_mb_per_sec": 1100.2,
+          "produce_lat_avg_ms": 201.41,
+          "produce_lat_p99_ms": 684.0,
+          "log_bytes_on_disk": 20679529393.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 535.355,
+          "consume_records_per_sec": 548202.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 910701.0,
+          "produce_mb_per_sec": 889.37,
+          "produce_lat_avg_ms": 257.94,
+          "produce_lat_p99_ms": 655.0,
+          "log_bytes_on_disk": 15580129486.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 649.502,
+          "consume_records_per_sec": 665091.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 257770.0,
+          "produce_mb_per_sec": 251.72,
+          "produce_lat_avg_ms": 977.1,
+          "produce_lat_p99_ms": 1333.0,
+          "log_bytes_on_disk": 10965475041.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 865.65,
+          "consume_records_per_sec": 886426.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.81,
+      "zstd_cost": 0.229,
+      "ramp": {
+        "baseline_mb": 1100.2,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 1462.12,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1068.41,
+        "saturation_lat_p99_ms": 693.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 220.04,
+            "achieved_mb": 219.91,
+            "ratio": 0.9994,
+            "lat_avg_ms": 33.56,
+            "lat_p99_ms": 596.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 440.08,
+            "achieved_mb": 439.74,
+            "ratio": 0.9992,
+            "lat_avg_ms": 71.84,
+            "lat_p99_ms": 664.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 660.12,
+            "achieved_mb": 659.63,
+            "ratio": 0.9993,
+            "lat_avg_ms": 98.28,
+            "lat_p99_ms": 697.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 880.16,
+            "achieved_mb": 879.48,
+            "ratio": 0.9992,
+            "lat_avg_ms": 127.26,
+            "lat_p99_ms": 726.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1100.2,
+            "achieved_mb": 1068.41,
+            "ratio": 0.9711,
+            "lat_avg_ms": 170.35,
+            "lat_p99_ms": 693.0
+          }
+        ]
+      }
+    },
+    "r6id.xlarge": {
+      "instance": "r6id.xlarge",
+      "arch": "Intel",
+      "label": "Intel 6th",
+      "gen": "6",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.363,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 800.0,
+      "failed_count": 0,
+      "produce_records_per_sec": 297371.24,
+      "produce_mb_per_sec": 290.4,
+      "produce_lat_avg_ms": 0.98,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 6.0,
+      "produce_lat_p999_ms": 30.0,
+      "consume_mb_per_sec": 257.46,
+      "consume_records_per_sec": 263643.55,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1137620.0,
+          "produce_mb_per_sec": 1110.95,
+          "produce_lat_avg_ms": 200.54,
+          "produce_lat_p99_ms": 635.0,
+          "log_bytes_on_disk": 20679529590.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 515.74,
+          "consume_records_per_sec": 528117.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 904871.0,
+          "produce_mb_per_sec": 883.66,
+          "produce_lat_avg_ms": 260.52,
+          "produce_lat_p99_ms": 666.0,
+          "log_bytes_on_disk": 15580437081.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 659.954,
+          "consume_records_per_sec": 675794.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 270752.0,
+          "produce_mb_per_sec": 264.42,
+          "produce_lat_avg_ms": 928.28,
+          "produce_lat_p99_ms": 1309.0,
+          "log_bytes_on_disk": 10965504333.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 848.683,
+          "consume_records_per_sec": 869049.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.83,
+      "zstd_cost": 0.238,
+      "ramp": {
+        "baseline_mb": 1110.95,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 1513.19,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1087.37,
+        "saturation_lat_p99_ms": 610.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 222.19,
+            "achieved_mb": 222.0,
+            "ratio": 0.9991,
+            "lat_avg_ms": 33.2,
+            "lat_p99_ms": 663.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 444.38,
+            "achieved_mb": 443.83,
+            "ratio": 0.9988,
+            "lat_avg_ms": 72.11,
+            "lat_p99_ms": 678.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 666.57,
+            "achieved_mb": 666.03,
+            "ratio": 0.9992,
+            "lat_avg_ms": 115.12,
+            "lat_p99_ms": 637.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 888.76,
+            "achieved_mb": 887.85,
+            "ratio": 0.999,
+            "lat_avg_ms": 162.17,
+            "lat_p99_ms": 596.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1110.95,
+            "achieved_mb": 1087.37,
+            "ratio": 0.9788,
+            "lat_avg_ms": 197.47,
+            "lat_p99_ms": 610.0
+          }
+        ]
+      }
+    },
+    "r7g.xlarge": {
+      "instance": "r7g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton3",
+      "gen": "7",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.258,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1124.46,
+      "failed_count": 0,
+      "produce_records_per_sec": 297070.88,
+      "produce_mb_per_sec": 290.11,
+      "produce_lat_avg_ms": 0.7,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 17.0,
+      "consume_mb_per_sec": 285.23,
+      "consume_records_per_sec": 292073.14,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1099740.0,
+          "produce_mb_per_sec": 1073.95,
+          "produce_lat_avg_ms": 210.53,
+          "produce_lat_p99_ms": 688.0,
+          "log_bytes_on_disk": 20679530372.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 539.478,
+          "consume_records_per_sec": 552427.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 1036720.0,
+          "produce_mb_per_sec": 1012.42,
+          "produce_lat_avg_ms": 225.59,
+          "produce_lat_p99_ms": 722.0,
+          "log_bytes_on_disk": 15580201688.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 593.856,
+          "consume_records_per_sec": 608108.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 339063.0,
+          "produce_mb_per_sec": 331.13,
+          "produce_lat_avg_ms": 736.04,
+          "produce_lat_p99_ms": 1021.0,
+          "log_bytes_on_disk": 10965203483.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 820.986,
+          "consume_records_per_sec": 840689.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.7,
+      "zstd_cost": 0.308,
+      "ramp": {
+        "baseline_mb": 1073.95,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 1129.32,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1025.33,
+        "saturation_lat_p99_ms": 827.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 214.79,
+            "achieved_mb": 214.62,
+            "ratio": 0.9992,
+            "lat_avg_ms": 56.68,
+            "lat_p99_ms": 762.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 429.58,
+            "achieved_mb": 429.23,
+            "ratio": 0.9992,
+            "lat_avg_ms": 106.05,
+            "lat_p99_ms": 1014.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 644.37,
+            "achieved_mb": 643.87,
+            "ratio": 0.9992,
+            "lat_avg_ms": 174.32,
+            "lat_p99_ms": 916.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 859.16,
+            "achieved_mb": 858.07,
+            "ratio": 0.9987,
+            "lat_avg_ms": 218.46,
+            "lat_p99_ms": 868.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1073.95,
+            "achieved_mb": 1025.33,
+            "ratio": 0.9547,
+            "lat_avg_ms": 223.89,
+            "lat_p99_ms": 827.0
+          }
+        ]
+      }
+    },
+    "r7gd.xlarge": {
+      "instance": "r7gd.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton3",
+      "gen": "7",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.327,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 630.61,
+      "failed_count": 0,
+      "produce_records_per_sec": 211157.57,
+      "produce_mb_per_sec": 206.21,
+      "produce_lat_avg_ms": 130.99,
+      "produce_lat_p50_ms": 146.0,
+      "produce_lat_p95_ms": 157.0,
+      "produce_lat_p99_ms": 170.0,
+      "produce_lat_p999_ms": 191.0,
+      "consume_mb_per_sec": 246.27,
+      "consume_records_per_sec": 252181.37,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 935406.0,
+          "produce_mb_per_sec": 913.49,
+          "produce_lat_avg_ms": 252.06,
+          "produce_lat_p99_ms": 843.0,
+          "log_bytes_on_disk": 20679527806.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 459.887,
+          "consume_records_per_sec": 470927.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 867833.0,
+          "produce_mb_per_sec": 847.51,
+          "produce_lat_avg_ms": 275.13,
+          "produce_lat_p99_ms": 791.0,
+          "log_bytes_on_disk": 15579988714.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 583.681,
+          "consume_records_per_sec": 597689.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 320432.0,
+          "produce_mb_per_sec": 312.91,
+          "produce_lat_avg_ms": 781.24,
+          "produce_lat_p99_ms": 1072.0,
+          "log_bytes_on_disk": 10965716941.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 824.528,
+          "consume_records_per_sec": 844317.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.43,
+      "zstd_cost": 0.343,
+      "ramp": {
+        "baseline_mb": 913.49,
+        "depletion_duration_s": "82",
+        "depletion_end_mb_per_sec": 1062.26,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 850.4,
+        "saturation_lat_p99_ms": 878.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 182.7,
+            "achieved_mb": 182.55,
+            "ratio": 0.9992,
+            "lat_avg_ms": 61.22,
+            "lat_p99_ms": 906.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 365.4,
+            "achieved_mb": 365.11,
+            "ratio": 0.9992,
+            "lat_avg_ms": 103.32,
+            "lat_p99_ms": 934.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 548.09,
+            "achieved_mb": 547.51,
+            "ratio": 0.9989,
+            "lat_avg_ms": 134.6,
+            "lat_p99_ms": 878.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 730.79,
+            "achieved_mb": 730.02,
+            "ratio": 0.9989,
+            "lat_avg_ms": 257.89,
+            "lat_p99_ms": 945.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 913.49,
+            "achieved_mb": 850.4,
+            "ratio": 0.9309,
+            "lat_avg_ms": 267.01,
+            "lat_p99_ms": 878.0
+          }
+        ]
+      }
+    },
+    "r7i.xlarge": {
+      "instance": "r7i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 7th",
+      "gen": "7",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.319,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 901.35,
+      "failed_count": 0,
+      "produce_records_per_sec": 294429.4,
+      "produce_mb_per_sec": 287.53,
+      "produce_lat_avg_ms": 0.81,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 14.0,
+      "consume_mb_per_sec": 299.49,
+      "consume_records_per_sec": 306673.21,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1135650.0,
+          "produce_mb_per_sec": 1109.01,
+          "produce_lat_avg_ms": 200.55,
+          "produce_lat_p99_ms": 620.0,
+          "log_bytes_on_disk": 20679528857.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 494.73,
+          "consume_records_per_sec": 506604.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 988817.0,
+          "produce_mb_per_sec": 965.65,
+          "produce_lat_avg_ms": 235.39,
+          "produce_lat_p99_ms": 695.0,
+          "log_bytes_on_disk": 15580018807.0,
+          "compression_ratio": 1.315,
+          "consume_mb_per_sec": 633.143,
+          "consume_records_per_sec": 648339.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 282096.0,
+          "produce_mb_per_sec": 275.48,
+          "produce_lat_avg_ms": 890.1,
+          "produce_lat_p99_ms": 1202.0,
+          "log_bytes_on_disk": 10965350035.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 888.818,
+          "consume_records_per_sec": 910149.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.86,
+      "zstd_cost": 0.248,
+      "ramp": {
+        "baseline_mb": 1109.01,
+        "depletion_duration_s": "90",
+        "depletion_end_mb_per_sec": 1258.99,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1026.79,
+        "saturation_lat_p99_ms": 794.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 221.8,
+            "achieved_mb": 221.67,
+            "ratio": 0.9994,
+            "lat_avg_ms": 57.66,
+            "lat_p99_ms": 824.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 443.6,
+            "achieved_mb": 443.26,
+            "ratio": 0.9992,
+            "lat_avg_ms": 88.68,
+            "lat_p99_ms": 916.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 665.41,
+            "achieved_mb": 664.86,
+            "ratio": 0.9992,
+            "lat_avg_ms": 138.36,
+            "lat_p99_ms": 805.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 887.21,
+            "achieved_mb": 886.4,
+            "ratio": 0.9991,
+            "lat_avg_ms": 170.35,
+            "lat_p99_ms": 738.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1109.01,
+            "achieved_mb": 1026.79,
+            "ratio": 0.9259,
+            "lat_avg_ms": 223.9,
+            "lat_p99_ms": 794.0
+          }
+        ]
+      }
+    },
+    "r8g.xlarge": {
+      "instance": "r8g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton4",
+      "gen": "8",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.284,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 1016.87,
+      "failed_count": 0,
+      "produce_records_per_sec": 295718.0,
+      "produce_mb_per_sec": 288.79,
+      "produce_lat_avg_ms": 0.81,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 9.0,
+      "consume_mb_per_sec": 256.14,
+      "consume_records_per_sec": 262288.2,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 907485.0,
+          "produce_mb_per_sec": 886.22,
+          "produce_lat_avg_ms": 260.3,
+          "produce_lat_p99_ms": 921.0,
+          "log_bytes_on_disk": 20679528309.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 490.286,
+          "consume_records_per_sec": 502052.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 882002.0,
+          "produce_mb_per_sec": 861.35,
+          "produce_lat_avg_ms": 266.15,
+          "produce_lat_p99_ms": 870.0,
+          "log_bytes_on_disk": 15580253880.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 577.474,
+          "consume_records_per_sec": 591333.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 434537.0,
+          "produce_mb_per_sec": 424.35,
+          "produce_lat_avg_ms": 569.93,
+          "produce_lat_p99_ms": 933.0,
+          "log_bytes_on_disk": 10965435098.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 784.115,
+          "consume_records_per_sec": 802935.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 3.07,
+      "zstd_cost": 0.479,
+      "ramp": {
+        "baseline_mb": 886.22,
+        "depletion_duration_s": "76",
+        "depletion_end_mb_per_sec": 1185.55,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1024.54,
+        "saturation_lat_p99_ms": 962.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 177.24,
+            "achieved_mb": 177.07,
+            "ratio": 0.999,
+            "lat_avg_ms": 35.35,
+            "lat_p99_ms": 671.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 354.49,
+            "achieved_mb": 354.22,
+            "ratio": 0.9992,
+            "lat_avg_ms": 84.48,
+            "lat_p99_ms": 748.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 531.73,
+            "achieved_mb": 530.88,
+            "ratio": 0.9984,
+            "lat_avg_ms": 94.75,
+            "lat_p99_ms": 778.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 708.98,
+            "achieved_mb": 708.19,
+            "ratio": 0.9989,
+            "lat_avg_ms": 129.46,
+            "lat_p99_ms": 801.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 886.22,
+            "achieved_mb": 883.83,
+            "ratio": 0.9973,
+            "lat_avg_ms": 218.53,
+            "lat_p99_ms": 857.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1063.46,
+            "achieved_mb": 1024.54,
+            "ratio": 0.9634,
+            "lat_avg_ms": 213.49,
+            "lat_p99_ms": 962.0
+          }
+        ]
+      }
+    },
+    "r8gd.xlarge": {
+      "instance": "r8gd.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton4",
+      "gen": "8",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.353,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 589.32,
+      "failed_count": 0,
+      "produce_records_per_sec": 213019.77,
+      "produce_mb_per_sec": 208.03,
+      "produce_lat_avg_ms": 134.28,
+      "produce_lat_p50_ms": 143.0,
+      "produce_lat_p95_ms": 160.0,
+      "produce_lat_p99_ms": 167.0,
+      "produce_lat_p999_ms": 207.0,
+      "consume_mb_per_sec": 266.79,
+      "consume_records_per_sec": 273194.19,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1035390.0,
+          "produce_mb_per_sec": 1011.13,
+          "produce_lat_avg_ms": 227.24,
+          "produce_lat_p99_ms": 827.0,
+          "log_bytes_on_disk": 20679528864.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 495.875,
+          "consume_records_per_sec": 507778.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 975748.0,
+          "produce_mb_per_sec": 952.89,
+          "produce_lat_avg_ms": 242.74,
+          "produce_lat_p99_ms": 787.0,
+          "log_bytes_on_disk": 15580644622.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 604.036,
+          "consume_records_per_sec": 618533.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 441600.0,
+          "produce_mb_per_sec": 431.24,
+          "produce_lat_avg_ms": 557.5,
+          "produce_lat_p99_ms": 849.0,
+          "log_bytes_on_disk": 10965384930.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 757.672,
+          "consume_records_per_sec": 775857.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.86,
+      "zstd_cost": 0.426,
+      "ramp": {
+        "baseline_mb": 1011.13,
+        "depletion_duration_s": "82",
+        "depletion_end_mb_per_sec": 1164.67,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1050.39,
+        "saturation_lat_p99_ms": 782.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 202.23,
+            "achieved_mb": 202.12,
+            "ratio": 0.9995,
+            "lat_avg_ms": 41.76,
+            "lat_p99_ms": 679.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 404.45,
+            "achieved_mb": 404.12,
+            "ratio": 0.9992,
+            "lat_avg_ms": 80.87,
+            "lat_p99_ms": 907.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 606.68,
+            "achieved_mb": 606.27,
+            "ratio": 0.9993,
+            "lat_avg_ms": 113.83,
+            "lat_p99_ms": 765.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 808.9,
+            "achieved_mb": 808.23,
+            "ratio": 0.9992,
+            "lat_avg_ms": 155.79,
+            "lat_p99_ms": 811.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1011.13,
+            "achieved_mb": 1007.75,
+            "ratio": 0.9967,
+            "lat_avg_ms": 218.17,
+            "lat_p99_ms": 846.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1213.36,
+            "achieved_mb": 1050.39,
+            "ratio": 0.8657,
+            "lat_avg_ms": 221.96,
+            "lat_p99_ms": 782.0
+          }
+        ]
+      }
+    },
+    "r8i-flex.xlarge": {
+      "instance": "r8i-flex.xlarge",
+      "arch": "Intel",
+      "label": "Intel 8th",
+      "gen": "8",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.318,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 605.75,
+      "failed_count": 0,
+      "produce_records_per_sec": 197254.22,
+      "produce_mb_per_sec": 192.63,
+      "produce_lat_avg_ms": 152.78,
+      "produce_lat_p50_ms": 158.0,
+      "produce_lat_p95_ms": 174.0,
+      "produce_lat_p99_ms": 180.0,
+      "produce_lat_p999_ms": 187.0,
+      "consume_mb_per_sec": 259.52,
+      "consume_records_per_sec": 265745.42,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 947414.0,
+          "produce_mb_per_sec": 925.22,
+          "produce_lat_avg_ms": 250.21,
+          "produce_lat_p99_ms": 841.0,
+          "log_bytes_on_disk": 20679527381.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 496.535,
+          "consume_records_per_sec": 508453.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 798718.0,
+          "produce_mb_per_sec": 780.0,
+          "produce_lat_avg_ms": 300.44,
+          "produce_lat_p99_ms": 793.0,
+          "log_bytes_on_disk": 15580150616.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 627.569,
+          "consume_records_per_sec": 642633.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 317882.0,
+          "produce_mb_per_sec": 310.43,
+          "produce_lat_avg_ms": 789.2,
+          "produce_lat_p99_ms": 1094.0,
+          "log_bytes_on_disk": 10965355847.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 829.976,
+          "consume_records_per_sec": 849898.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.8,
+      "zstd_cost": 0.336,
+      "ramp": {
+        "baseline_mb": 925.22,
+        "depletion_duration_s": "81",
+        "depletion_end_mb_per_sec": 1126.18,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 911.1,
+        "saturation_lat_p99_ms": 789.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 185.04,
+            "achieved_mb": 184.88,
+            "ratio": 0.9991,
+            "lat_avg_ms": 21.66,
+            "lat_p99_ms": 403.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 370.09,
+            "achieved_mb": 369.77,
+            "ratio": 0.9991,
+            "lat_avg_ms": 87.84,
+            "lat_p99_ms": 795.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 555.13,
+            "achieved_mb": 554.6,
+            "ratio": 0.999,
+            "lat_avg_ms": 97.35,
+            "lat_p99_ms": 802.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 740.18,
+            "achieved_mb": 739.45,
+            "ratio": 0.999,
+            "lat_avg_ms": 134.23,
+            "lat_p99_ms": 760.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 925.22,
+            "achieved_mb": 911.1,
+            "ratio": 0.9847,
+            "lat_avg_ms": 230.32,
+            "lat_p99_ms": 789.0
+          }
+        ]
+      }
+    },
+    "r8i.xlarge": {
+      "instance": "r8i.xlarge",
+      "arch": "Intel",
+      "label": "Intel 8th",
+      "gen": "8",
+      "family": "R",
+      "mem_mb": 32768,
+      "fits_in_ram": true,
+      "price": 0.335,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": 610.87,
+      "failed_count": 0,
+      "produce_records_per_sec": 209546.96,
+      "produce_mb_per_sec": 204.64,
+      "produce_lat_avg_ms": 140.16,
+      "produce_lat_p50_ms": 147.0,
+      "produce_lat_p95_ms": 163.0,
+      "produce_lat_p99_ms": 180.0,
+      "produce_lat_p999_ms": 220.0,
+      "consume_mb_per_sec": 270.47,
+      "consume_records_per_sec": 276962.28,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 991970.0,
+          "produce_mb_per_sec": 968.73,
+          "produce_lat_avg_ms": 237.33,
+          "produce_lat_p99_ms": 763.0,
+          "log_bytes_on_disk": 20679529398.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 495.956,
+          "consume_records_per_sec": 507858.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 869367.0,
+          "produce_mb_per_sec": 848.98,
+          "produce_lat_avg_ms": 272.63,
+          "produce_lat_p99_ms": 740.0,
+          "log_bytes_on_disk": 15580505971.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 611.992,
+          "consume_records_per_sec": 626680.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 331748.0,
+          "produce_mb_per_sec": 323.97,
+          "produce_lat_avg_ms": 753.89,
+          "produce_lat_p99_ms": 1056.0,
+          "log_bytes_on_disk": 10965766533.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 750.568,
+          "consume_records_per_sec": 768584.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.73,
+      "zstd_cost": 0.334,
+      "ramp": {
+        "baseline_mb": 968.73,
+        "depletion_duration_s": "80",
+        "depletion_end_mb_per_sec": 1215.11,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1130.05,
+        "saturation_lat_p99_ms": 626.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 193.75,
+            "achieved_mb": 193.62,
+            "ratio": 0.9993,
+            "lat_avg_ms": 20.67,
+            "lat_p99_ms": 541.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 387.49,
+            "achieved_mb": 387.12,
+            "ratio": 0.999,
+            "lat_avg_ms": 71.22,
+            "lat_p99_ms": 693.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 581.24,
+            "achieved_mb": 580.77,
+            "ratio": 0.9992,
+            "lat_avg_ms": 70.9,
+            "lat_p99_ms": 746.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 774.98,
+            "achieved_mb": 774.43,
+            "ratio": 0.9993,
+            "lat_avg_ms": 89.57,
+            "lat_p99_ms": 719.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 968.73,
+            "achieved_mb": 967.79,
+            "ratio": 0.999,
+            "lat_avg_ms": 146.36,
+            "lat_p99_ms": 616.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1162.48,
+            "achieved_mb": 1130.05,
+            "ratio": 0.9721,
+            "lat_avg_ms": 201.01,
+            "lat_p99_ms": 626.0
+          }
+        ]
+      }
+    }
+  }
+}

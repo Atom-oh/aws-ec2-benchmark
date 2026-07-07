@@ -1,0 +1,152 @@
+# Kafka perf 클라이언트 Job — producer-perf-test → consumer-perf-test, 1KB 레코드 500만건.
+#
+# placeholder: INSTANCE_SAFE / INSTANCE_TYPE / RUN_NUMBER / KAFKA_VERSION
+# 클라이언트는 benchmark-client 노드풀(c6in.2xlarge, amd64 고정)에서 실행, 브로커와 같은 AZ에 배치.
+# 로그 포맷 계약: INSTANCE_TYPE / SERVER_VERSION / RUN / PRODUCE_*(FAILED:<rc> 가능) /
+#                 CONSUME_*(SKIPPED 가능) / "===== Complete ====="
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-bench-INSTANCE_SAFE-runRUN_NUMBER
+  namespace: benchmark
+  labels:
+    benchmark: kafka-benchmark
+    instance-type: "INSTANCE_TYPE"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: kafka-benchmark
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: kafka-server
+                  instance-type: "INSTANCE_TYPE"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-kafka
+          image: apache/kafka:KAFKA_VERSION
+          command:
+            - /bin/bash
+            - -c
+            - |
+              export PATH="/opt/kafka/bin:${PATH}"
+              BOOTSTRAP="kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092"
+              for i in $(seq 1 120); do
+                kafka-broker-api-versions.sh --bootstrap-server "${BOOTSTRAP}" >/dev/null 2>&1 && exit 0
+                echo "Waiting for Kafka broker..."
+                sleep 2
+              done
+              echo "ERROR: kafka broker not ready after 240s"
+              exit 1
+      containers:
+        - name: benchmark
+          image: apache/kafka:KAFKA_VERSION
+          resources:
+            requests:
+              cpu: "4"
+              memory: "4Gi"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              export PATH="/opt/kafka/bin:${PATH}"
+              INSTANCE="INSTANCE_TYPE"
+              RUN="RUN_NUMBER"
+              BOOTSTRAP="kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092"
+              TOPIC="bench-r${RUN}"
+              RECORDS=5000000
+              RECORD_SIZE=1024
+
+              echo "INSTANCE: ${INSTANCE}"
+              echo "SERVER_VERSION: $(kafka-topics.sh --version 2>/dev/null | head -1)"
+              echo "RUN: ${RUN}"
+
+              fail_all() {
+                # $1 = rc
+                echo "PRODUCE_RECORDS_PER_SEC: FAILED:$1"
+                echo "PRODUCE_MB_PER_SEC: FAILED:$1"
+                echo "PRODUCE_LAT_AVG_MS: FAILED:$1"
+                echo "PRODUCE_LAT_P50_MS: FAILED:$1"
+                echo "PRODUCE_LAT_P95_MS: FAILED:$1"
+                echo "PRODUCE_LAT_P99_MS: FAILED:$1"
+                echo "PRODUCE_LAT_P999_MS: FAILED:$1"
+                echo "CONSUME_MB_PER_SEC: SKIPPED"
+                echo "CONSUME_RECORDS_PER_SEC: SKIPPED"
+              }
+
+              if ! kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --create \
+                  --topic "${TOPIC}" --partitions 4 --replication-factor 1 >/tmp/topic.log 2>&1; then
+                fail_all 1
+                echo "===== Complete: ${INSTANCE} run ${RUN} (topic create failed) ====="
+                exit 0
+              fi
+
+              PRODUCE_OUT=$(kafka-producer-perf-test.sh \
+                --topic "${TOPIC}" --num-records "${RECORDS}" --record-size "${RECORD_SIZE}" \
+                --throughput -1 \
+                --producer-props bootstrap.servers="${BOOTSTRAP}" acks=all linger.ms=10 batch.size=131072 \
+                2>&1)
+              PRODUCE_RC=$?
+              echo "${PRODUCE_OUT}" > /tmp/produce.log
+              SUMMARY=$(echo "${PRODUCE_OUT}" | grep "records sent" | tail -1)
+
+              if [ "${PRODUCE_RC}" -ne 0 ] || [ -z "${SUMMARY}" ]; then
+                fail_all "${PRODUCE_RC}"
+                kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --delete --topic "${TOPIC}" >/dev/null 2>&1 || true
+                echo "===== Complete: ${INSTANCE} run ${RUN} (produce failed) ====="
+                exit 0
+              fi
+
+              # 예: "5000000 records sent, 205761.3 records/sec (200.94 MB/sec), 12.34 ms avg latency,
+              #      425.00 ms max latency, 3 ms 50th, 27 ms 95th, 87 ms 99th, 340 ms 99.9th."
+              echo "PRODUCE_RECORDS_PER_SEC: $(echo "${SUMMARY}" | grep -oE '[0-9.]+ records/sec' | awk '{print $1}')"
+              echo "PRODUCE_MB_PER_SEC: $(echo "${SUMMARY}" | grep -oE '\([0-9.]+ MB/sec\)' | tr -d '()' | awk '{print $1}')"
+              echo "PRODUCE_LAT_AVG_MS: $(echo "${SUMMARY}" | grep -oE '[0-9.]+ ms avg latency' | awk '{print $1}')"
+              echo "PRODUCE_LAT_P50_MS: $(echo "${SUMMARY}" | grep -oE '[0-9.]+ ms 50th' | awk '{print $1}')"
+              echo "PRODUCE_LAT_P95_MS: $(echo "${SUMMARY}" | grep -oE '[0-9.]+ ms 95th' | awk '{print $1}')"
+              echo "PRODUCE_LAT_P99_MS: $(echo "${SUMMARY}" | grep -oE '[0-9.]+ ms 99th' | awk '{print $1}')"
+              echo "PRODUCE_LAT_P999_MS: $(echo "${SUMMARY}" | grep -oE '[0-9.]+ ms 99\.9th' | awk '{print $1}')"
+
+              CONSUME_OUT=$(kafka-consumer-perf-test.sh \
+                --bootstrap-server "${BOOTSTRAP}" --topic "${TOPIC}" --messages "${RECORDS}" \
+                2>&1)
+              CONSUME_RC=$?
+              echo "${CONSUME_OUT}" > /tmp/consume.log
+              DATA_LINE=$(echo "${CONSUME_OUT}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}' | tail -1)
+
+              if [ "${CONSUME_RC}" -ne 0 ] || [ -z "${DATA_LINE}" ]; then
+                echo "CONSUME_MB_PER_SEC: FAILED:${CONSUME_RC}"
+                echo "CONSUME_RECORDS_PER_SEC: FAILED:${CONSUME_RC}"
+              else
+                # CSV: start.time,end.time,MB,MB.sec,nMsg,nMsg.sec,rebalance.ms,fetch.ms,fetch.MB.sec,fetch.nMsg.sec
+                echo "CONSUME_MB_PER_SEC: $(echo "${DATA_LINE}" | awk -F',' '{gsub(/ /,"");print $4}')"
+                echo "CONSUME_RECORDS_PER_SEC: $(echo "${DATA_LINE}" | awk -F',' '{gsub(/ /,"");print $6}')"
+              fi
+
+              kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --delete --topic "${TOPIC}" >/dev/null 2>&1 || true
+              echo "===== Complete: ${INSTANCE} run ${RUN} ====="
+              exit 0

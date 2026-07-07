@@ -1,0 +1,28 @@
+# gp3-kafka StorageClass — Kafka 브로커 PVC용.
+#
+# 기존 gp3-clickhouse(1000MB/s로 프로비저닝)로 포화(8-way) 시나리오를 측정했을 때 R패밀리
+# 6~8세대(EBS-optimized max 1250MB/s)와 c/m6in 계열(3125MB/s)이 gp3 볼륨 캡에 걸려 세대 비교가
+# 왜곡되는 것을 확인(CLAUDE.md "Kafka Phase 2" 참고). gp3의 절대 최대(2000MiB/s)로 올려서 대부분의
+# 인스턴스가 자체 EBS 대역폭 한도까지 도달할 수 있게 함.
+#
+# ⚠️ io2로 전환을 시도했으나 계정 단위 "IOPS for Provisioned IOPS SSD (io2) volumes" 쿼터가
+# 리전 전체 100,000이라(aws service-quotas list-service-quotas --service-code ebs 로 확인),
+# 볼륨당 64,000 IOPS로는 2개만 동시에 떠도 쿼터를 넘어 54개 완전 병렬 실행이 통째로 실패했음
+# (53/54 스케줄 불가). gp3는 이런 계정 단위 IOPS 쿼터가 없어(스토리지 TiB 쿼터만 존재, 98TiB로
+# 충분) 완전 병렬 구조에 적합 — io2로 다시 시도하지 말 것.
+#
+# m6in/m6idn/c6in(자체 한도 3125MB/s)는 이 2000MiB/s 캡에 약간 못 미치지만, io2 쿼터 벽에
+# 부딫혀 나머지 51개가 전부 실패하는 것보다 훨씬 나은 절충.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3-kafka
+parameters:
+  encrypted: "true"
+  type: gp3
+  iops: "16000"
+  throughput: "2000"
+provisioner: ebs.csi.aws.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true

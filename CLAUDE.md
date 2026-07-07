@@ -95,6 +95,9 @@ docker/springboot-petclinic/Dockerfile   # full PetClinic app
 | SpringBoot wrk | 54/54 | 51/54 | 5회 | `benchmarks/springboot/springboot-benchmark.yaml` | `results/springboot/<instance>/wrk<N>.log` |
 | iperf3 Network | 54/54 | 51/54 | 5회 | `benchmarks/system/iperf3-network.yaml` | `results/iperf3/<instance>/run<N>.log` |
 | ClickHouse ClickBench | 54/54 | **54/54** | 5세트 | `benchmarks/clickhouse/clickhouse-clickbench.yaml` | `results/clickhouse/<instance>/set<N>.log` |
+| Kafka (베이스라인) | 54/54 | **54/54** | 5회 | `benchmarks/kafka/kafka-server.yaml` + `kafka-benchmark.yaml` | `results/kafka/<instance>/run<N>.log` |
+| Kafka (포화, 8-way+압축) | 54/54 | **54/54** | 5회×3코덱 | `kafka-server.yaml` + `kafka-benchmark-max.yaml` | `results/kafka-max/<instance>/<codec>-run<N>.log` |
+| Kafka (램프업, Phase 3) | 54/54 | **54/54** | 1회(8단계) | `kafka-server.yaml` + `kafka-benchmark-ramp.yaml` | `results/kafka-ramp/<instance>/run1.log` |
 
 ### 알려진 결과 문제
 - ~~**c7i-flex.xlarge 프로비저닝 불가**~~: mall-apne2-mgmt 클러스터 서브넷이 ap-northeast-2a/2c에만 존재해 2b/2d 전용인
@@ -103,6 +106,10 @@ docker/springboot-petclinic/Dockerfile   # full PetClinic app
   추가로 해결**되어 51/51로 재수집 완료.
 - **Nginx r8i.xlarge**: run3, run5에서 성능 저하 (80k vs 250k req/sec). 재테스트 필요.
   - 원인: 특정 노드에서 간헐적 성능 저하 (noisy neighbor 또는 CPU throttling 추정)
+- **Kafka 베이스라인 고지연 인스턴스 11개**: 위 "Kafka" 상세 섹션 참고 — c7g/c7i/c8i 등 5/5 run 재현되는
+  70~150ms 고지연. 원인 미확정.
+- ~~**Kafka 포화 r5a.xlarge lz4 run4 타임아웃**~~: 최초 전체 실행(810 Job) 중 1건 `JOB_TIMEOUT`(1200s)
+  초과로 로그 미수집. 브로커 재배포 후 해당 조합만 단독 재실행해 백필 완료(15/15).
 
 ---
 
@@ -634,8 +641,11 @@ sed -e "s/JOB_NAME/job-${safe_name}/g" \
 | springboot-benchmark.yaml | ❌ | ✅ | ✅ | ❌ |
 | elasticsearch-coldstart.yaml | ❌ | ✅ | ✅ | ✅ |
 | clickhouse-clickbench.yaml | ❌ | ✅ | ✅ | ✅ |
+| kafka-server.yaml | ❌ | ✅ | ✅ | ✅ |
+| kafka-benchmark.yaml | ❌ | ✅ | ✅ | ❌ (클라이언트는 benchmark-client 노드에서 amd64 고정) |
 
 > clickhouse-clickbench.yaml 은 추가로 `RUN_NUMBER`(세트 번호)와 `CLICKHOUSE_VERSION`(=`24.8.14.39`) placeholder를 사용한다.
+> kafka-server.yaml/kafka-benchmark.yaml 은 추가로 `RUN_NUMBER`(kafka-benchmark만)와 `KAFKA_VERSION`(=`3.9.1`) placeholder를 사용한다.
 
 ## 결과 저장 구조
 
@@ -790,6 +800,117 @@ results/iperf3/<instance>.log
   대역폭 상한**에 종속되고, 13.44GiB는 8GB(C패밀리) page cache에 안 들어가 hot 쿼리도 EBS를 읽는다.
   → hot 지연은 "memory ≥ dataset"(R패밀리 등) 인스턴스에서만 순수 page-cache-bound. Pod에 **고정 메모리
   limit 미설정**(C/M/R 메모리 차이를 비교 변수로 보존). 자세한 내용은 `docs/superpowers/specs/2026-06-25-clickhouse-clickbench-design.md` §5.
+
+#### Kafka
+- **목적**: 이벤트 스트리밍 플랫폼의 producer/consumer 처리량·지연 측정 (기존 벤치마크와 다른 네트워크 중심 워크로드)
+- **워크로드**: `kafka-producer-perf-test` → `kafka-consumer-perf-test`, 레코드 500만건 × 1KB(~4.77GiB/회),
+  `acks=all linger.ms=10 batch.size=131072`
+- **토폴로지**: 브로커(KRaft 단일 노드, combined broker+controller)는 대상 인스턴스에 Deployment로 배포,
+  perf 클라이언트는 **별도 `benchmark-client` 노드풀(c6in.2xlarge, amd64 고정)**에서 podAffinity로 같은 AZ에 배치
+  (redis/nginx의 서버-클라이언트 분리 패턴과 동일)
+- **템플릿**:
+  - `benchmarks/kafka/kafka-server.yaml`: PVC(gp3-clickhouse, 100Gi, 빈 볼륨) + Deployment(`strategy: Recreate`
+    필수 — RWO PVC 단일 replica는 기본 RollingUpdate 시 신규 pod가 볼륨을 못 붙잡아 데드락) + Service
+  - `benchmarks/kafka/kafka-benchmark.yaml`: 클라이언트 Job (produce→consume→토픽 정리)
+- **이미지**: Docker Hub `apache/kafka:3.9.1` 직접 참조 (multi-arch amd64/arm64 — ClickHouse와 동일하게
+  ECR pull-through 없이 Docker Hub 직접 pull. `docker-hub/` ECR pull-through prefix는 Docker Hub 인증
+  자격증명이 있어야 생성 가능해 이 환경에는 실제로 존재하지 않음 — CLAUDE.md의 과거 서술과 달리 라이브로 확인됨)
+- **바이너리 경로 주의**: 이미지 `PATH`에 `/opt/kafka/bin`이 없음 — `kafka-*.sh` 호출 전 반드시
+  `export PATH="/opt/kafka/bin:${PATH}"` 필요(스크립트에 이미 반영)
+- **힙**: 브로커 힙 = RAM의 **25%**(RAM-relative), 나머지는 OS page cache에 위임 — Kafka는 힙보다
+  page cache 적중률이 처리량을 좌우하므로 절대 바이트가 아닌 비율로 설정. Pod에 memory limit 미설정
+- **KRaft 기동 시 주의(재현 시 참고)**: `KAFKA_LOG_DIRS`를 PVC **루트에 직접** 잡으면 신규 ext4 볼륨의
+  `lost+found` 디렉터리를 Kafka가 "topic-partition 형식이 아니다"라며 기동 실패시킨다 → `log.dirs`는
+  PVC 루트가 아닌 하위 디렉터리(`/var/lib/kafka/data/logs`)로 잡을 것
+- **bootstrap 주소**: 런타임 IP 치환 없이 Service DNS(`kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092`)
+  고정 — iperf3의 ClusterIP placeholder 미치환 버그를 원천 차단하는 설계
+- **실행/리포트**:
+  - `scripts/generate-kafka-benchmark.sh` (인스턴스별 브로커 1개 배포 → 클라이언트 Job 5회 순차 → 수집 → 정리, 인스턴스 간 완전 병렬)
+  - `scripts/generate-kafka-report.py` (runN.log 파싱 → `report-charts.html` 데이터 주입)
+  - 검증: `bash tests/kafka/validate.sh`
+- **⚠️ 공정성 주의 (네트워크 교란)**: produce/consume 각 ~4.8GB가 네트워크를 지나므로 인스턴스별
+  네트워크 baseline/burst 대역폭이 결과에 반영됨(구세대 xlarge는 버스트 크레딧 소진 가능) — **iperf3
+  리포트와 교차 참조 권장**. 디스크는 gp3 스펙 통일이나 per-instance EBS 대역폭 상한에는 여전히 종속.
+- **⚠️ 알려진 이슈 — 베이스라인 일부 인스턴스 고지연**: c7g/c7i/c8i, m7i-flex/m7gd/m8i/m8i-flex,
+  r7gd/r8i/r8i-flex/r8gd.xlarge는 5회 run 전부에서 일관되게 produce 평균지연 70~150ms(다른 인스턴스는
+  ~1ms)·처리량 ~200MB/s(다른 인스턴스는 ~285MB/s)로 낮게 나옴. **1~2회성 noisy neighbor가 아님**(5/5
+  재현) — EBS 대역폭 캡(1000MB/s)도 배제됨(실제 처리량이 그 캡의 1/5 수준). 세대·flex 여부·NVMe 서픽스로
+  깨끗이 갈리지 않아(같은 C7 패밀리에서 c7g만 느리고 c7gd는 빠름 등) 근본 원인 미확정 — 네트워크
+  스택(지연 ACK/ENA 드라이버 세대차) 추정이나 확인 못함. 재현 시 조용한 상태에서 해당 인스턴스만 재측정 +
+  패킷 캡처 권장.
+
+#### Kafka Phase 2 — 포화(saturation) 시나리오
+베이스라인은 싱글 producer/consumer + 무압축이라 CPU-bound가 아니라 단일 커넥션의 네트워크 RTT/배치
+처리량에 상한이 걸려 대상 인스턴스 CPU를 다 못 쓰는 것으로 진단됨(위 고지연 이슈와는 별개 현상). 이를
+제거하기 위해 8-way 병렬 + 토픽 레벨 압축(uncompressed/lz4/zstd, 5회×3코덱=15 run/인스턴스)을 추가 측정.
+- **템플릿**: `benchmarks/kafka/kafka-benchmark-max.yaml` (브로커는 `kafka-server.yaml` 그대로 재사용)
+- **압축은 토픽 설정으로 강제**(`kafka-topics.sh --config compression.type=CODEC`), **producer-props에는
+  압축 설정 안 함** — producer 압축은 클라이언트(전 인스턴스 공통 c6in.2xlarge) CPU를 쓰므로 측정 목적이
+  깨짐. 브로커(대상 인스턴스)가 쓰기 경로에서 재압축해야 대상 인스턴스에 실제 CPU 부하가 실림
+- **payload**: `awk`로 JSON 골격 + `srand(42)` 고정시드 준랜덤 data 필드(500줄×1024B) 생성.
+  단순 반복 패턴("ABAB..")은 100x+ 로 과압축되어 CPU 부하를 왜곡하므로 반드시 준랜덤 필드 필요
+  (gzip 기준 실측 ratio ~1.7x로 현실적인 로그/이벤트 페이로드에 근접)
+- **압축률 측정**: `kafka-log-dirs.sh --describe`로 토픽 온디스크 바이트 합산 → ratio = 원본/온디스크
+- **실행**: `scripts/generate-kafka-max-benchmark.sh` (결과: `results/kafka-max/<instance>/<codec>-run<N>.log`)
+- **1차 시도(gp3 1000MB/s)에서 발견한 문제 → 스토리지 상향 → 재측정**: 최초 측정(gp3-clickhouse,
+  1000MB/s)에서 gen6~8 다수 인스턴스가 그 볼륨 캡 근처에 몰려 세대 "역전"(예: r7g 1038.9 > r8g 1010.3)이
+  나타남 — AWS `describe-instance-types`로 R패밀리 6~8세대의 실제 EBS-optimized 한도가 **1250MB/s**임을
+  확인, 우리가 그보다 낮은 1000MB/s로 스스로 캡을 걸었던 것이 원인이었음. lz4 압축 시 처리량이 오히려
+  상승하는 것으로(디스크 부담 감소) EBS가 병목임을 검증.
+  - **io2 전환을 시도했으나 계정 쿼터로 실패**: io2 Block Express(최대 4000MiB/s)로 전환해 64,000 IOPS로
+    설정했더니, 계정 단위 "IOPS for Provisioned IOPS SSD (io2) volumes" 쿼터가 **리전 전체 100,000**이라
+    (`aws service-quotas list-service-quotas --service-code ebs`로 확인) 볼륨 2개만 동시에 떠도 쿼터
+    초과 — 54개 완전 병렬 실행이 53/54 스케줄 불가로 전멸. **io2는 이런 계정 단위 IOPS 쿼터가 있어
+    대량 병렬 벤치마크에 근본적으로 부적합** — 재현 시 io2로 시도하지 말 것(쿼터 증량 없이는 불가).
+  - **최종: gp3 절대 최대(2000MiB/s)로 상향**. gp3는 별도 IOPS 계정 쿼터가 없음(스토리지 TiB 쿼터만
+    98TiB로 충분) — StorageClass `gp3-kafka`(`benchmarks/kafka/kafka-storageclass.yaml`, type=gp3,
+    iops=16000, throughput=2000)로 재측정, **810/810 로그, 실패 0건**으로 완료.
+- **최종 결과(gp3 2000MB/s 기준)**: 포화(uncompressed 8-way) 최고 처리량 c6in.xlarge 1122.6MB/s. **전
+  54개 인스턴스 중 2000MB/s 캡의 90%(1800MB/s)에 도달한 인스턴스 0개** — 스토리지 캡이 결과에 더 이상
+  영향을 주지 않음을 확인(m6in/m6idn/c6in처럼 자체 한도가 3125MB/s로 더 높은 인스턴스도 실측
+  831~1123MB/s에 그쳐 캡과 무관하게 다른 요인이 병목). 세대별 평균: gen5 531 → gen6 865 → gen7 1023 →
+  gen8 993MB/s — 이제 순수 하드웨어 차이 반영(gen7이 gen8보다 근소하게 높은 건 EBS 캡이 아닌 실측
+  변동/특성). 최대 스케일링 배수 m8i-flex.xlarge 5.48x(베이스라인이 단일 커넥션에 그만큼 인위적으로
+  제한돼 있었다는 증거). zstd는 lz4보다 압축률은 높지만(예: c5.xlarge 1.87x) 브로커 CPU 비용이 커
+  produce 처리량이 하락하는 트레이드오프 확인.
+- **⚠️ 방법론적 캐비어트(Phase 3에서 부분 해결)**: AWS 공식
+  [performance-testing-framework-for-apache-kafka](https://github.com/aws-samples/performance-testing-framework-for-apache-kafka)는
+  (1) 처리량을 점진적으로 올려 실제 포화점을 찾고, (2) 테스트 전 EC2 네트워크/EBS 버스트 크레딧을
+  고갈시켜 sustained 성능을 측정하며, (3) 1시간 단위로 테스트한다. §9(포화)는 run당 수분짜리 짧은
+  테스트라 burst 성능을 측정했을 가능성이 있었음 — **이 캐비어트는 아래 Phase 3(램프업)에서 (1)(2)를
+  단축 적용해 부분적으로 해결**(1시간 단위는 54개×장시간이라 비용상 적용 안 함).
+- **kubectl(){ command kubectl --context mall-apne2-mgmt "$@"; }` 방어 패턴 필수**: 이 환경은 공유
+  kubeconfig라 무관한 다른 세션이 current-context를 바꿔놓을 수 있음(실제로 한 번 발생 — 다른 프로젝트의
+  Istio mesh 테스트 세션이 context를 변경). 세 kafka 실행 스크립트 모두 `kubectl` 함수를 재정의해
+  `--context mall-apne2-mgmt`를 강제하므로 ambient current-context와 무관하게 항상 올바른 클러스터를 향함.
+
+#### Kafka Phase 3 — 램프업 · 포화점 · 지연곡선
+§9(포화)는 항상 8-way 최대치로 밀어붙여 "얼마나 세게 밀면 이 정도 나온다"만 보여주고, burst 성능일
+가능성도 있었음. AWS 공식 프레임워크의 핵심 방법론(점진 램프업 + 정지조건 + 버스트크레딧 고갈)을
+54개 인스턴스 규모에 맞게 축소 적용해 **진짜 포화점과 처리량-지연 곡선**을 추가로 측정(1회 측정).
+- **템플릿**: `benchmarks/kafka/kafka-benchmark-ramp.yaml` (브로커는 `kafka-server.yaml` 재사용)
+- **흐름**: (1) 90초 무제한 8-way produce로 버스트 크레딧 고갈 → (2) 디스크 회수를 위해 토픽
+  재생성 → (3) §9(uncompressed 8-way) 실측치의 20/40/60/80/100/120/140/160%를 8단계로 증가시키며
+  각 20초씩 측정, 실제/목표 비율이 **99.5% 미달**하는 첫 단계를 포화점으로 판정하고 조기 종료
+- **BASELINE_MB 치환 함정(재현 시 참고)**: 초기 구현에서 sed placeholder 이름을 그대로 bash 변수명/로그
+  라벨로 재사용(`BASELINE_MB="BASELINE_MB"`, `echo "BASELINE_MB: ..."`) → sed가 변수명 자체까지
+  치환해버려 `1067.86="1067.86"` 같은 문법 오류로 전부 깨짐. 변수명은 `BASE_MB`, 로그 라벨은
+  `REF_MB:`로 분리해 해결 — **sed placeholder와 텍스트가 100% 동일한 문자열을 스크립트 다른 곳에
+  재사용하지 말 것**(부분 문자열 포함도 위험: `BASELINE_MB_REF` 같은 이름도 여전히 치환됨).
+- **⚠️ 디스크 폭증으로 브로커 크래시(재현 시 참고)**: 90초 무제한 고갈이 빠른 인스턴스(~1200MB/s)에서
+  90초에 100GB+를 써서 원래 100Gi PVC를 채워 `No space left on device`로 브로커가
+  CrashLoopBackOff에 빠짐. 램프 8단계 누적도 최대 ~140GB 가능해 합산 worst-case ≈250GB. PVC를
+  **400Gi로 상향**(`kafka-server.yaml`, 세 Phase 공용) + 고갈 후 토픽 재생성으로 디스크 회수해 해결.
+- **⚠️ pod 조회 레이스로 거짓 성공 로그(재현 시 참고)**: `kubectl get pods -l job-name=...`가 API
+  순간 부하로 빈 값을 반환해도 `[ -n "$pod" ] && kubectl logs ...; log "수집 완료"`처럼 세미콜론으로
+  연결돼 있으면 **로그 수집이 실패해도 "수집 완료"가 무조건 찍힘**(54개 중 8개에서 실제 발생, 로그
+  파일은 비어있는데 스크립트는 성공으로 기록). 세 kafka 스크립트 모두 `find_pod()`(최대 5회 재시도) +
+  `[ -s "$lf" ]`(실제 파일 크기 확인) 조합으로 수정 — 재시도 후에도 못 찾으면 명시적으로 실패 로그.
+- **결과**: 54/54 인스턴스가 테스트 범위(baseline의 160%) 안에서 포화점에 도달. 최고 포화점
+  c6in.xlarge 1302.2MB/s(§9의 8-way 최대치 1122.6MB/s보다 높음 — 램프가 §9보다 더 정밀하게 진짜
+  한계를 찾아낸 것). 최저 c5a.xlarge 379.3MB/s(AMD, 예상대로 최하위).
+- **실행/리포트**: `scripts/generate-kafka-ramp-benchmark.sh` (§9 uncompressed 실측치를 100% 기준점으로
+  자동 조회), 결과 `results/kafka-ramp/<instance>/run1.log`, 검증 `bash tests/kafka/validate.sh`.
 
 ## HTML 보고서 형식 (표준)
 

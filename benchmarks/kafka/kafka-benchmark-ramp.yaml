@@ -1,0 +1,225 @@
+# Kafka 램프업 시나리오 Job — 크레딧 고갈 → 8-way 병렬 produce 목표치를 단계적으로 올려
+# 지연-대-처리량 곡선을 그리고, 실제/목표 비율이 99.5% 밑으로 떨어지는 지점을 포화점으로 판정.
+# AWS 공식 performance-testing-framework-for-apache-kafka의 핵심 방법론(점진 램프업 + 정지조건 +
+# 버스트 크레딧 고갈)을 우리 스케일(54개 인스턴스 비교)에 맞게 단축 적용.
+#
+# placeholder: INSTANCE_SAFE / INSTANCE_TYPE / RUN_NUMBER / KAFKA_VERSION / BASELINE_MB(치환용)
+# 치환된 값은 스크립트 내부에서 BASE_MB 변수에 담김 — 변수명이 placeholder 토큰과 겹치면 sed가
+# 변수명 자체까지 치환해버리는 함정이 있어 이름을 분리함(재현 시 참고: 로그 라벨도 "REF_MB:"로
+# 분리해 동일 문제를 피함). Phase 2(kafka-max, uncompressed 8-way) 실측치를 런 스크립트가 미리
+# 읽어 100% 기준점으로 주입.
+# 브로커는 kafka-server.yaml 그대로 재사용. 압축 없음(uncompressed) — 램프/지연 방법론 자체에 집중,
+# 압축 축은 이미 Phase 2에서 다뤘으므로 여기서 다시 섞지 않음. produce 지연 곡선에 집중 — consume은
+# 측정하지 않음(Phase 1/2에서 이미 다룸).
+# 로그 포맷 계약: INSTANCE_TYPE / SERVER_VERSION / RUN / REF_MB /
+#                 DEPLETION_DURATION_S / DEPLETION_END_MB_PER_SEC /
+#                 STEP,pct,target_mb,achieved_mb,ratio,lat_avg_ms,lat_p99_ms (최대 8줄, FAILED 가능) /
+#                 SATURATION_REACHED / SATURATION_MB_PER_SEC / SATURATION_LAT_P99_MS /
+#                 "===== Complete ====="
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-ramp-INSTANCE_SAFE-runRUN_NUMBER
+  namespace: benchmark
+  labels:
+    benchmark: kafka-benchmark-ramp
+    instance-type: "INSTANCE_TYPE"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: kafka-benchmark-ramp
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: kafka-server
+                  instance-type: "INSTANCE_TYPE"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-kafka
+          image: apache/kafka:KAFKA_VERSION
+          command:
+            - /bin/bash
+            - -c
+            - |
+              export PATH="/opt/kafka/bin:${PATH}"
+              BOOTSTRAP="kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092"
+              for i in $(seq 1 120); do
+                kafka-broker-api-versions.sh --bootstrap-server "${BOOTSTRAP}" >/dev/null 2>&1 && exit 0
+                echo "Waiting for Kafka broker..."
+                sleep 2
+              done
+              echo "ERROR: kafka broker not ready after 240s"
+              exit 1
+      containers:
+        - name: benchmark
+          image: apache/kafka:KAFKA_VERSION
+          resources:
+            requests:
+              cpu: "6"
+              memory: "6Gi"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              export PATH="/opt/kafka/bin:${PATH}"
+              INSTANCE="INSTANCE_TYPE"
+              RUN="RUN_NUMBER"
+              BOOTSTRAP="kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092"
+              TOPIC="bench-ramp-r${RUN}"
+              PARALLEL=8
+              RECORD_SIZE=1024
+              BASE_MB="BASELINE_MB"
+              STEP_SECONDS=20
+              STEPS="20 40 60 80 100 120 140 160"
+
+              echo "INSTANCE: ${INSTANCE}"
+              echo "SERVER_VERSION: $(kafka-topics.sh --version 2>/dev/null | head -1)"
+              echo "RUN: ${RUN}"
+              echo "REF_MB: ${BASE_MB}"
+
+              awk 'BEGIN{
+                charset="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+                srand(42);
+                for (n=0; n<500; n++) {
+                  filler="";
+                  for (c=0; c<800; c++) { idx = int(rand()*62) + 1; filler = filler substr(charset, idx, 1); }
+                  line = sprintf("{\"ts\":\"2026-01-01T00:00:00Z\",\"level\":\"INFO\",\"service\":\"bench\",\"id\":%d,\"data\":\"%s\"}", n, filler);
+                  printf "%-1024.1024s\n", line
+                }
+              }' > /tmp/payload.txt
+
+              if ! kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --create \
+                  --topic "${TOPIC}" --partitions 16 --replication-factor 1 \
+                  --config compression.type=uncompressed >/tmp/topic.log 2>&1; then
+                echo "SATURATION_REACHED: FAILED:1"
+                echo "SATURATION_MB_PER_SEC: FAILED:1"
+                echo "SATURATION_LAT_P99_MS: FAILED:1"
+                echo "===== Complete: ${INSTANCE} run ${RUN} (topic create failed) ====="
+                exit 0
+              fi
+
+              produce_parallel() {
+                # $1=records_per_producer_per_sec(-1이면 무제한) $2=num_records_per_producer
+                # 표준출력: "records_per_sec,mb_per_sec,lat_avg_ms,lat_p99_ms" (실패 시 FAILED)
+                local tput="$1" nrec="$2"
+                local PIDS=()
+                for i in $(seq 1 "${PARALLEL}"); do
+                  kafka-producer-perf-test.sh \
+                    --topic "${TOPIC}" --num-records "${nrec}" --payload-file /tmp/payload.txt \
+                    --throughput "${tput}" \
+                    --producer-props bootstrap.servers="${BOOTSTRAP}" acks=all linger.ms=10 batch.size=131072 \
+                    > "/tmp/produce_${i}.log" 2>&1 &
+                  PIDS+=("$!")
+                done
+                for pid in "${PIDS[@]}"; do wait "${pid}"; done
+
+                local rec_sum=0 mb_sum=0 lat_avg_sum=0 lat_p99_max=0 any=0
+                for i in $(seq 1 "${PARALLEL}"); do
+                  s=$(grep "records sent" "/tmp/produce_${i}.log" | tail -1)
+                  [ -z "${s}" ] && continue
+                  any=1
+                  r=$(echo "${s}" | grep -oE '[0-9.]+ records/sec' | awk '{print $1}')
+                  m=$(echo "${s}" | grep -oE '\([0-9.]+ MB/sec\)' | tr -d '()' | awk '{print $1}')
+                  la=$(echo "${s}" | grep -oE '[0-9.]+ ms avg latency' | awk '{print $1}')
+                  lp=$(echo "${s}" | grep -oE '[0-9.]+ ms 99th' | awk '{print $1}')
+                  rec_sum=$(awk -v a="${rec_sum}" -v b="${r}" 'BEGIN{print a+b}')
+                  mb_sum=$(awk -v a="${mb_sum}" -v b="${m}" 'BEGIN{print a+b}')
+                  lat_avg_sum=$(awk -v a="${lat_avg_sum}" -v b="${la}" 'BEGIN{print a+b}')
+                  lat_p99_max=$(awk -v a="${lat_p99_max}" -v b="${lp}" 'BEGIN{print (b>a)?b:a}')
+                done
+                if [ "${any}" -eq 0 ]; then echo "FAILED"; return; fi
+                echo "${rec_sum},${mb_sum},$(awk -v s="${lat_avg_sum}" -v n="${PARALLEL}" 'BEGIN{printf "%.2f", s/n}'),${lat_p99_max}"
+              }
+
+              # --- 1) 버스트 크레딧 고갈: 90초 캡, 무제한 처리량으로 8-way produce ---
+              DEP_START=$(date +%s)
+              DEP_RECORDS=$(awk -v mb="${BASE_MB}" 'BEGIN{r=int(mb*1024*90/8); print (r>0)?r:1000}')
+              for i in $(seq 1 "${PARALLEL}"); do
+                timeout 90s kafka-producer-perf-test.sh \
+                  --topic "${TOPIC}" --num-records "${DEP_RECORDS}" --payload-file /tmp/payload.txt \
+                  --throughput -1 \
+                  --producer-props bootstrap.servers="${BOOTSTRAP}" acks=all linger.ms=10 batch.size=131072 \
+                  > "/tmp/deplete_${i}.log" 2>&1 &
+              done
+              wait
+              DEP_END=$(date +%s)
+              echo "DEPLETION_DURATION_S: $((DEP_END - DEP_START))"
+              DEP_MB=0
+              for i in $(seq 1 "${PARALLEL}"); do
+                s=$(grep "records sent" "/tmp/deplete_${i}.log" | tail -1)
+                m=$(echo "${s}" | grep -oE '\([0-9.]+ MB/sec\)' | tr -d '()' | awk '{print $1}')
+                [ -n "${m}" ] && DEP_MB=$(awk -v a="${DEP_MB}" -v b="${m}" 'BEGIN{print a+b}')
+              done
+              echo "DEPLETION_END_MB_PER_SEC: ${DEP_MB}"
+
+              # 고갈 단계가 쓴 데이터를 비워 디스크 회수 (빠른 인스턴스는 90초에 100GB+ 가능 —
+              # PVC가 400Gi라도 램프 8단계 누적과 합치면 넉넉하지 않으므로 여기서 정리)
+              kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --delete --topic "${TOPIC}" >/dev/null 2>&1 || true
+              for i in $(seq 1 60); do
+                kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --list 2>/dev/null | grep -q "^${TOPIC}$" || break
+                sleep 1
+              done
+              kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --create \
+                --topic "${TOPIC}" --partitions 16 --replication-factor 1 \
+                --config compression.type=uncompressed >/tmp/topic2.log 2>&1
+
+              # --- 2) 램프업: 목표치를 단계적으로 올리며 지연-대-처리량 곡선 측정 ---
+              SATURATION_REACHED="no"
+              SATURATION_MB="${DEP_MB}"
+              SATURATION_LAT_P99="0"
+              for pct in ${STEPS}; do
+                target_mb=$(awk -v b="${BASE_MB}" -v p="${pct}" 'BEGIN{printf "%.2f", b*p/100}')
+                target_rps_total=$(awk -v mb="${target_mb}" 'BEGIN{print int(mb*1024)}')
+                per_producer_rps=$(awk -v t="${target_rps_total}" -v n="${PARALLEL}" 'BEGIN{r=int(t/n); print (r>0)?r:1}')
+                nrec=$(awk -v r="${per_producer_rps}" -v s="${STEP_SECONDS}" 'BEGIN{print r*s}')
+
+                result=$(produce_parallel "${per_producer_rps}" "${nrec}")
+                if [ "${result}" = "FAILED" ]; then
+                  echo "STEP,${pct},${target_mb},FAILED,FAILED,FAILED,FAILED"
+                  break
+                fi
+                achieved_mb=$(echo "${result}" | cut -d',' -f2)
+                lat_avg=$(echo "${result}" | cut -d',' -f3)
+                lat_p99=$(echo "${result}" | cut -d',' -f4)
+                ratio=$(awk -v a="${achieved_mb}" -v t="${target_mb}" 'BEGIN{printf "%.4f", (t>0)?a/t:0}')
+                echo "STEP,${pct},${target_mb},${achieved_mb},${ratio},${lat_avg},${lat_p99}"
+
+                SATURATION_MB="${achieved_mb}"
+                SATURATION_LAT_P99="${lat_p99}"
+                if awk -v r="${ratio}" 'BEGIN{exit !(r<0.995)}'; then
+                  SATURATION_REACHED="yes"
+                  break
+                fi
+              done
+
+              echo "SATURATION_REACHED: ${SATURATION_REACHED}"
+              echo "SATURATION_MB_PER_SEC: ${SATURATION_MB}"
+              echo "SATURATION_LAT_P99_MS: ${SATURATION_LAT_P99}"
+
+              kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --delete --topic "${TOPIC}" >/dev/null 2>&1 || true
+              echo "===== Complete: ${INSTANCE} run ${RUN} ====="
+              exit 0

@@ -1,0 +1,153 @@
+# Kafka 브로커 (KRaft 단일 노드, combined broker+controller) — PVC + Deployment + Service
+#
+# placeholder: INSTANCE_SAFE / INSTANCE_TYPE / ARCH / KAFKA_VERSION
+# 힙: RAM의 25%(RAM-relative) — 나머지는 OS page cache에 위임 (Kafka 권장 관행).
+# bootstrap 주소는 런타임 IP 치환 없이 Service DNS로 고정 (iperf3 IP placeholder 미치환 버그 원천 차단).
+#
+# 스토리지: gp3-kafka (type=gp3, iops=16000, throughput=2000 — gp3 절대 최대). 원래 gp3-clickhouse
+# (1000MB/s)가 R패밀리 6~8세대(EBS-optimized max 1250MB/s)에 자체 캡을 걸었던 걸 확인해서 상향.
+# io2로 전환을 시도했으나 계정 단위 io2 IOPS 쿼터(리전 전체 100,000)에 걸려 54개 완전 병렬 실행이
+# 통째로 실패(53/54 스케줄 불가) — gp3로 되돌림. 자세한 내용은 kafka-storageclass.yaml 참고.
+#
+# ⚠️ 볼륨 크기 400Gi(원래 100Gi): Phase 3(kafka-benchmark-ramp.yaml)의 90초 무제한 크레딧 고갈
+# 단계가 빠른 인스턴스(~1200MB/s)에서 90초에 100GB+를 써서 100Gi PVC를 채워 브로커가
+# "No space left on device"로 크래시(CrashLoopBackOff)하는 걸 실측으로 확인. 고갈(최대 ~110GB)+
+# 램프 8단계 누적(최대 ~140GB) worst-case ≈ 250GB에 여유를 둔 값. 고갈 후 토픽을 재생성해
+# 디스크도 회수함(kafka-benchmark-ramp.yaml).
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kafka-data-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: kafka
+    instance-type: "INSTANCE_TYPE"
+spec:
+  storageClassName: gp3-kafka
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 400Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: kafka-server
+    benchmark: kafka
+    instance-type: "INSTANCE_TYPE"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # RWO PVC 단일 replica — RollingUpdate는 신규 pod가 볼륨을 못 붙잡아 데드락
+  selector:
+    matchLabels:
+      app: kafka-server
+      instance-type: "INSTANCE_TYPE"
+  template:
+    metadata:
+      labels:
+        app: kafka-server
+        benchmark: kafka
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: INSTANCE_TYPE
+        kubernetes.io/arch: ARCH
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: kafka
+          image: apache/kafka:KAFKA_VERSION
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+
+              # 힙 25%(RAM-relative) — 나머지는 OS page cache. C(8GB)/M(16GB)/R(32GB)
+              # 차이가 page cache 적중률로 자연스럽게 드러나도록 memory limit은 미설정.
+              MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+              HEAP_MB=$((MEM_KB * 25 / 100 / 1024))
+              export KAFKA_HEAP_OPTS="-Xms${HEAP_MB}m -Xmx${HEAP_MB}m"
+              echo "INSTANCE: INSTANCE_TYPE  HEAP_MB: ${HEAP_MB}"
+
+              # 재시작 시 동일 CLUSTER_ID 재사용 (재포맷/메타데이터 불일치 방지)
+              CID_FILE=/var/lib/kafka/data/.cluster_id
+              if [ -f "${CID_FILE}" ]; then
+                CLUSTER_ID=$(cat "${CID_FILE}")
+              else
+                CLUSTER_ID=$(/opt/kafka/bin/kafka-storage.sh random-uuid)
+                echo "${CLUSTER_ID}" > "${CID_FILE}"
+              fi
+              export CLUSTER_ID
+
+              export KAFKA_NODE_ID=1
+              export KAFKA_PROCESS_ROLES=broker,controller
+              export KAFKA_LISTENERS="PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+              export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092"
+              export KAFKA_CONTROLLER_QUORUM_VOTERS="1@localhost:9093"
+              export KAFKA_CONTROLLER_LISTENER_NAMES="CONTROLLER"
+              export KAFKA_LISTENER_SECURITY_PROTOCOL_MAP="PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+              # log.dirs는 PVC 루트가 아닌 하위 디렉터리로 — ext4 신규 볼륨의 lost+found가
+              # 루트에 있으면 Kafka가 "topic-partition 형식이 아니다"라며 기동 실패한다.
+              mkdir -p /var/lib/kafka/data/logs
+              export KAFKA_LOG_DIRS=/var/lib/kafka/data/logs
+              export KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+              export KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+              export KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+              export KAFKA_NUM_PARTITIONS=4
+
+              # 공식 이미지 entrypoint에 위임 (server.properties 직접 작성 대신 KAFKA_* env 변환 재사용)
+              exec /etc/kafka/docker/run
+          ports:
+            - containerPort: 9092
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+          resources:
+            requests:
+              cpu: "2"
+              memory: "2Gi"
+            # memory limit 미설정: 브로커가 노드 전체 RAM을 page cache로 사용 (C/M/R 비교 변수 보존)
+          readinessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: kafka-data-INSTANCE_SAFE
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: kafka-server
+    instance-type: "INSTANCE_TYPE"
+spec:
+  selector:
+    app: kafka-server
+    instance-type: "INSTANCE_TYPE"
+  ports:
+    - port: 9092
+      targetPort: 9092
+  type: ClusterIP

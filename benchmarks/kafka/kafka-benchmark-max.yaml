@@ -1,0 +1,222 @@
+# Kafka 포화(saturation) 시나리오 Job — producer/consumer 8-way 병렬 + 브로커측(토픽) 압축.
+#
+# placeholder: INSTANCE_SAFE / INSTANCE_TYPE / RUN_NUMBER / KAFKA_VERSION / CODEC(uncompressed|lz4|zstd)
+# 압축은 producer-props가 아니라 **토픽 설정**(compression.type=CODEC)으로 강제한다 — producer는 압축 없이
+# 보내고 브로커(대상 인스턴스)가 쓰기 경로에서 재압축하므로, 압축 CPU 비용이 클라이언트가 아닌 측정
+# 대상 인스턴스에 실린다. 클라이언트는 항상 동일한 c6in.2xlarge라 압축을 클라이언트에서 하면 측정 목적이
+# 깨진다(베이스라인 kafka-benchmark.yaml과의 핵심 차이).
+# 로그 포맷 계약: INSTANCE_TYPE / SERVER_VERSION / SCENARIO / PARALLEL / RUN /
+#                 PRODUCE_TOTAL_*(FAILED:<rc> 가능) / LOG_BYTES_ON_DISK / COMPRESSION_RATIO /
+#                 CONSUME_TOTAL_*(SKIPPED 가능) / "===== Complete ====="
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-max-INSTANCE_SAFE-CODEC-runRUN_NUMBER
+  namespace: benchmark
+  labels:
+    benchmark: kafka-benchmark-max
+    instance-type: "INSTANCE_TYPE"
+spec:
+  ttlSecondsAfterFinished: 7200
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: kafka-benchmark-max
+        instance-type: "INSTANCE_TYPE"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: kafka-server
+                  instance-type: "INSTANCE_TYPE"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-kafka
+          image: apache/kafka:KAFKA_VERSION
+          command:
+            - /bin/bash
+            - -c
+            - |
+              export PATH="/opt/kafka/bin:${PATH}"
+              BOOTSTRAP="kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092"
+              for i in $(seq 1 120); do
+                kafka-broker-api-versions.sh --bootstrap-server "${BOOTSTRAP}" >/dev/null 2>&1 && exit 0
+                echo "Waiting for Kafka broker..."
+                sleep 2
+              done
+              echo "ERROR: kafka broker not ready after 240s"
+              exit 1
+      containers:
+        - name: benchmark
+          image: apache/kafka:KAFKA_VERSION
+          resources:
+            requests:
+              cpu: "6"
+              memory: "6Gi"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              export PATH="/opt/kafka/bin:${PATH}"
+              INSTANCE="INSTANCE_TYPE"
+              RUN="RUN_NUMBER"
+              CODEC="CODEC"
+              BOOTSTRAP="kafka-server-INSTANCE_SAFE.benchmark.svc.cluster.local:9092"
+              TOPIC="bench-max-${CODEC}-r${RUN}"
+              PARALLEL=8
+              RECORDS_PER=2500000
+              PAYLOAD_BYTES=1024
+              RECORDS_TOTAL=$((PARALLEL * RECORDS_PER))
+
+              echo "INSTANCE: ${INSTANCE}"
+              echo "SERVER_VERSION: $(kafka-topics.sh --version 2>/dev/null | head -1)"
+              echo "SCENARIO: ${CODEC}"
+              echo "PARALLEL: ${PARALLEL}"
+              echo "RUN: ${RUN}"
+
+              fail_all() {
+                # $1 = rc
+                echo "PRODUCE_TOTAL_RECORDS_PER_SEC: FAILED:$1"
+                echo "PRODUCE_TOTAL_MB_PER_SEC: FAILED:$1"
+                echo "PRODUCE_LAT_AVG_MS: FAILED:$1"
+                echo "PRODUCE_LAT_P99_MS: FAILED:$1"
+                echo "LOG_BYTES_ON_DISK: SKIPPED"
+                echo "COMPRESSION_RATIO: SKIPPED"
+                echo "CONSUME_TOTAL_MB_PER_SEC: SKIPPED"
+                echo "CONSUME_TOTAL_RECORDS_PER_SEC: SKIPPED"
+              }
+
+              # 압축 가능한 payload (JSON 골격 + 준랜덤 data 필드, 줄당 정확히 1024바이트) — perf-test
+              # 기본 랜덤 페이로드는 비압축성이라 압축 시나리오가 무의미해지고, 반대로 단순 반복 패턴
+              # ("ABAB..")은 100x+ 로 과압축돼 실제 CPU 부하를 왜곡한다. gzip 기준 실측 ratio ~1.7x로
+              # 현실적인 로그/이벤트 페이로드 압축성에 근접. srand(42) 고정 시드 = 전 인스턴스 동일
+              # 데이터(재현 가능, 공정 비교).
+              awk 'BEGIN{
+                charset="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+                srand(42);
+                for (n=0; n<500; n++) {
+                  filler="";
+                  for (c=0; c<800; c++) { idx = int(rand()*62) + 1; filler = filler substr(charset, idx, 1); }
+                  line = sprintf("{\"ts\":\"2026-01-01T00:00:00Z\",\"level\":\"INFO\",\"service\":\"bench\",\"id\":%d,\"data\":\"%s\"}", n, filler);
+                  printf "%-1024.1024s\n", line
+                }
+              }' > /tmp/payload.txt
+
+              if ! kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --create \
+                  --topic "${TOPIC}" --partitions 16 --replication-factor 1 \
+                  --config compression.type="${CODEC}" >/tmp/topic.log 2>&1; then
+                fail_all 1
+                echo "===== Complete: ${INSTANCE} ${CODEC} run ${RUN} (topic create failed) ====="
+                exit 0
+              fi
+
+              # --- producer 8-way 병렬 (압축은 브로커가 토픽 설정으로 강제 수행) ---
+              PIDS=()
+              for i in $(seq 1 "${PARALLEL}"); do
+                kafka-producer-perf-test.sh \
+                  --topic "${TOPIC}" --num-records "${RECORDS_PER}" --payload-file /tmp/payload.txt \
+                  --throughput -1 \
+                  --producer-props bootstrap.servers="${BOOTSTRAP}" acks=all linger.ms=10 batch.size=131072 \
+                  > "/tmp/produce_${i}.log" 2>&1 &
+                PIDS+=("$!")
+              done
+              PRODUCE_RC=0
+              for pid in "${PIDS[@]}"; do wait "${pid}" || PRODUCE_RC=1; done
+
+              SUMMARIES=()
+              for i in $(seq 1 "${PARALLEL}"); do
+                s=$(grep "records sent" "/tmp/produce_${i}.log" | tail -1)
+                [ -z "${s}" ] && PRODUCE_RC=1
+                SUMMARIES+=("${s}")
+              done
+
+              if [ "${PRODUCE_RC}" -ne 0 ]; then
+                fail_all "${PRODUCE_RC}"
+                kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --delete --topic "${TOPIC}" >/dev/null 2>&1 || true
+                echo "===== Complete: ${INSTANCE} ${CODEC} run ${RUN} (produce failed) ====="
+                exit 0
+              fi
+
+              # 8개 summary 합산: records/sec·MB/sec는 합, latency avg는 평균, p99는 worst(최댓값)
+              REC_SUM=0; MB_SUM=0; LAT_AVG_SUM=0; LAT_P99_MAX=0
+              for s in "${SUMMARIES[@]}"; do
+                r=$(echo "${s}" | grep -oE '[0-9.]+ records/sec' | awk '{print $1}')
+                m=$(echo "${s}" | grep -oE '\([0-9.]+ MB/sec\)' | tr -d '()' | awk '{print $1}')
+                la=$(echo "${s}" | grep -oE '[0-9.]+ ms avg latency' | awk '{print $1}')
+                lp=$(echo "${s}" | grep -oE '[0-9.]+ ms 99th' | awk '{print $1}')
+                REC_SUM=$(awk -v a="${REC_SUM}" -v b="${r}" 'BEGIN{print a+b}')
+                MB_SUM=$(awk -v a="${MB_SUM}" -v b="${m}" 'BEGIN{print a+b}')
+                LAT_AVG_SUM=$(awk -v a="${LAT_AVG_SUM}" -v b="${la}" 'BEGIN{print a+b}')
+                LAT_P99_MAX=$(awk -v a="${LAT_P99_MAX}" -v b="${lp}" 'BEGIN{print (b>a)?b:a}')
+              done
+              echo "PRODUCE_TOTAL_RECORDS_PER_SEC: ${REC_SUM}"
+              echo "PRODUCE_TOTAL_MB_PER_SEC: ${MB_SUM}"
+              echo "PRODUCE_LAT_AVG_MS: $(awk -v s="${LAT_AVG_SUM}" -v n="${PARALLEL}" 'BEGIN{printf "%.2f", s/n}')"
+              echo "PRODUCE_LAT_P99_MS: ${LAT_P99_MAX}"
+
+              # --- 온디스크 크기 → 압축률 (브로커가 실제로 압축했는지 검증) ---
+              DIRS_OUT=$(kafka-log-dirs.sh --bootstrap-server "${BOOTSTRAP}" --describe --topic-list "${TOPIC}" 2>/dev/null)
+              DISK_BYTES=$(echo "${DIRS_OUT}" | grep -oE '"size":[0-9]+' | grep -oE '[0-9]+' | awk '{s+=$1} END{print s+0}')
+              RAW_BYTES=$((RECORDS_TOTAL * PAYLOAD_BYTES))
+              echo "LOG_BYTES_ON_DISK: ${DISK_BYTES}"
+              if [ "${DISK_BYTES}" -gt 0 ]; then
+                echo "COMPRESSION_RATIO: $(awk -v raw="${RAW_BYTES}" -v disk="${DISK_BYTES}" 'BEGIN{printf "%.3f", raw/disk}')"
+              else
+                echo "COMPRESSION_RATIO: FAILED:1"
+              fi
+
+              # --- consumer 8-way 병렬 (같은 group → 16파티션을 자동 분할 소비) ---
+              GROUP="maxgrp-${CODEC}-r${RUN}"
+              CPIDS=()
+              for i in $(seq 1 "${PARALLEL}"); do
+                kafka-consumer-perf-test.sh \
+                  --bootstrap-server "${BOOTSTRAP}" --topic "${TOPIC}" --group "${GROUP}" \
+                  --messages "${RECORDS_PER}" --timeout 15000 \
+                  > "/tmp/consume_${i}.log" 2>&1 &
+                CPIDS+=("$!")
+              done
+              CONSUME_RC=0
+              for pid in "${CPIDS[@]}"; do wait "${pid}" || CONSUME_RC=1; done
+
+              CMB_SUM=0; CREC_SUM=0; CANY=0
+              for i in $(seq 1 "${PARALLEL}"); do
+                dl=$(grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}' "/tmp/consume_${i}.log" | tail -1)
+                [ -z "${dl}" ] && continue
+                CANY=1
+                cm=$(echo "${dl}" | awk -F',' '{gsub(/ /,"");print $4}')
+                cr=$(echo "${dl}" | awk -F',' '{gsub(/ /,"");print $6}')
+                CMB_SUM=$(awk -v a="${CMB_SUM}" -v b="${cm}" 'BEGIN{print a+b}')
+                CREC_SUM=$(awk -v a="${CREC_SUM}" -v b="${cr}" 'BEGIN{print a+b}')
+              done
+
+              if [ "${CANY}" -eq 0 ]; then
+                echo "CONSUME_TOTAL_MB_PER_SEC: FAILED:${CONSUME_RC}"
+                echo "CONSUME_TOTAL_RECORDS_PER_SEC: FAILED:${CONSUME_RC}"
+              else
+                echo "CONSUME_TOTAL_MB_PER_SEC: ${CMB_SUM}"
+                echo "CONSUME_TOTAL_RECORDS_PER_SEC: ${CREC_SUM}"
+              fi
+
+              kafka-topics.sh --bootstrap-server "${BOOTSTRAP}" --delete --topic "${TOPIC}" >/dev/null 2>&1 || true
+              echo "===== Complete: ${INSTANCE} ${CODEC} run ${RUN} ====="
+              exit 0
