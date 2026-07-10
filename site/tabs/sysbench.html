@@ -1,0 +1,136 @@
+<header class="hero">
+    <h1>Sysbench 종합 벤치마크</h1>
+    <p>CPU + Memory 성능 분석 | 54개 EC2 인스턴스 타입 비교</p>
+    <div class="header-meta">리전: ap-northeast-2 (서울) | 인스턴스 크기: xlarge (4 vCPU)</div>
+</header>
+
+<div class="summary-cards" data-slot="summary-cards"></div>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="methodology">
+    <h2>테스트 방법론</h2>
+    <div style="background: var(--bg); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h3 style="margin-top: 0;">테스트 환경</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0; width: 200px;"><strong>도구</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">sysbench 1.0.20 (LuaJIT 2.1.0-beta3)</td></tr>
+            <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>OS</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Ubuntu 22.04 (Docker image)</td></tr>
+            <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>플랫폼</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">Amazon EKS + Karpenter (노드 자동 스케일링)</td></tr>
+            <tr><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;"><strong>노드 격리</strong></td><td style="padding: 0.5rem; border-bottom: 1px solid #e2e8f0;">podAntiAffinity로 벤치마크당 단일 노드 보장</td></tr>
+            <tr><td style="padding: 0.5rem;"><strong>인스턴스 크기</strong></td><td style="padding: 0.5rem;">xlarge (4 vCPU) - 54개 인스턴스 타입</td></tr>
+        </table>
+    </div>
+    <div class="grid-2">
+        <div>
+            <h3>CPU 벤치마크</h3>
+            <p>소수 계산을 통한 정수 연산 성능 측정</p>
+            <ul>
+                <li><strong>Multi-thread</strong>: 4 threads, 60초, 3회 반복 후 평균</li>
+                <li><strong>Single-thread</strong>: 1 thread, 30초</li>
+                <li><strong>측정 단위</strong>: events/sec (높을수록 좋음)</li>
+            </ul>
+        </div>
+        <div>
+            <h3>메모리 벤치마크</h3>
+            <p>다양한 메모리 접근 패턴 성능 측정 (5회 반복)</p>
+            <ul>
+                <li><strong>Sequential/Random Write/Read (1K)</strong>: 캐시 효율성/실제 워크로드</li>
+                <li><strong>Large Block (1M)</strong>: 실제 메모리 대역폭</li>
+                <li><strong>측정 단위</strong>: MiB/sec (높을수록 좋음)</li>
+            </ul>
+        </div>
+    </div>
+    <div class="insights">
+        <h4>왜 Large Block (1M)이 중요한가?</h4>
+        <ul>
+            <li>1K 블록 테스트는 CPU 캐시와 메모리 컨트롤러 효율성을 측정</li>
+            <li><strong>Large Block (1M)</strong>은 실제 메모리 대역폭을 측정 - 대용량 데이터 처리 성능 지표</li>
+            <li>데이터 분석, ML 워크로드에서는 Large Block 성능이 더 중요</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section" id="cpu-overview">
+    <h2>CPU 성능 개요</h2>
+    <div data-slot="cpu-mt"></div>
+    <div class="legend-custom">
+        <div class="legend-item"><div class="legend-color" style="background: rgba(16, 185, 129, 0.7);"></div><span>Graviton</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: rgba(59, 130, 246, 0.7);"></div><span>Intel</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: rgba(239, 68, 68, 0.7);"></div><span>AMD</span></div>
+    </div>
+</section>
+
+<section class="section" id="memory-overview">
+    <h2>메모리 성능 개요 (5가지 메트릭)</h2>
+    <div data-slot="mem-metrics"></div>
+    <div class="insights">
+        <h4>메모리 메트릭 해석</h4>
+        <ul>
+            <li><strong>Large Block (1M)</strong>: 실제 메모리 대역폭 측정 - 대용량 데이터 처리에 가장 중요</li>
+            <li><strong>Sequential (1K)</strong>: CPU 캐시 및 메모리 컨트롤러 효율성 측정</li>
+            <li><strong>Random (1K)</strong>: 무작위 접근 패턴 - 실제 애플리케이션 워크로드에 가까움</li>
+            <li>AMD 인스턴스는 1K 테스트에서 높은 점수를 보이나, Large Block에서는 Graviton/Intel 대비 낮음</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section" id="generation">
+    <h2>아키텍처별 세대별 성능 비교</h2>
+    <p class="description">Intel (5-8세대), AMD (5세대), Graviton (6-8세대)</p>
+    <div data-slot="arch-gen"></div>
+    <div class="chart-container" style="height:400px; margin-top:2rem;">
+        <div class="chart-title">CPU 성능 추이: 패밀리별 Graviton vs Intel (AMD 제외)</div>
+        <canvas data-slot="gen-trend"></canvas>
+    </div>
+    <div class="legend-custom" style="margin-top:1rem;">
+        <div class="legend-item"><span style="display:inline-block;width:30px;border-bottom:2px solid #3b82f6;margin-right:5px;"></span>Intel (실선)</div>
+        <div class="legend-item"><span style="display:inline-block;width:30px;border-bottom:2px dashed #10b981;margin-right:5px;"></span>Graviton (점선)</div>
+    </div>
+    <div class="insights">
+        <h4>세대별 성능 추이 인사이트</h4>
+        <ul>
+            <li><strong>Graviton</strong>: 6세대부터 시작, 매 세대 10-15% 성능 향상</li>
+            <li><strong>Intel</strong>: 5세대 → 6세대에서 큰 폭 향상 (Ice Lake), 이후 점진적 개선</li>
+            <li>C/M/R 패밀리 간 동일 아키텍처에서는 성능 차이 거의 없음</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section" id="price-performance">
+    <h2>가격 대비 성능 (Cost Efficiency)</h2>
+    <p class="description">시간당 비용 대비 CPU/Memory 성능</p>
+    <div data-slot="price"></div>
+    <div class="insights">
+        <h4>가성비 인사이트</h4>
+        <ul>
+            <li><strong>Graviton 우위</strong>: 가성비 상위권 대부분이 Graviton 계열</li>
+            <li><strong>메모리 가성비</strong>: Graviton이 Intel 대비 2-3배 높은 가성비</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section" id="full-results">
+    <h2>전체 결과</h2>
+    <div data-slot="table"></div>
+</section>
+
+<section class="section" id="conclusion">
+    <h2>결론 및 권장사항</h2>
+    <div class="grid-2">
+        <div>
+            <h3>CPU 집약적 워크로드</h3>
+            <ul>
+                <li><strong>최고 성능</strong>: Graviton4 (c8g/m8g/r8g) 계열</li>
+                <li><strong>최고 가성비</strong>: Graviton3 (c7g 등) - 가격 대비 우수</li>
+                <li>Intel 8세대도 좋은 성능, AMD는 CPU MT 성능 열위</li>
+            </ul>
+        </div>
+        <div>
+            <h3>메모리 집약적 워크로드</h3>
+            <ul>
+                <li><strong>최고 대역폭</strong>: Graviton4 계열 (r8g, m8g, c8g)</li>
+                <li>데이터 분석/ML: Graviton4 강력 추천</li>
+            </ul>
+        </div>
+    </div>
+</section>
