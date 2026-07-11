@@ -16,6 +16,11 @@ EXPECTED_COVERAGE = {
     "nginx": 54,
     "redis": 54,
     "elasticsearch": 54,  # coldstart 기준. rally는 51(파서 notes에 별도 표기)
+    "kafka": 54,
+    "clickhouse": 54,
+    "geekbench": 51,  # 원시 로그 자체가 51개뿐(재파싱 대상 아님) — 51 미달이면만 경고
+    "passmark": 51,
+    "stress-ng": 51,
 }
 
 
@@ -41,7 +46,10 @@ def build_benchmark(name):
 
 def main():
     write_instances_json()
-    targets = sys.argv[1:] or ["sysbench", "iperf3", "nginx", "redis", "elasticsearch"]
+    targets = sys.argv[1:] or [
+        "sysbench", "iperf3", "nginx", "redis", "elasticsearch",
+        "kafka", "clickhouse", "geekbench", "passmark", "stress-ng",
+    ]
     for name in targets:
         build_benchmark(name)
 

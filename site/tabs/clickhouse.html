@@ -1,0 +1,102 @@
+<header class="hero">
+    <h1>ClickHouse ClickBench 벤치마크</h1>
+    <p>OLAP 컬럼형 DB 대용량 스캔·집계 쿼리 성능 | 54개 EC2 인스턴스 타입 비교</p>
+    <div class="header-meta">데이터셋: hits ~100M행 / 13.44GiB · ClickHouse 24.8.14.39 · ap-northeast-2</div>
+</header>
+
+<div class="summary-cards" data-slot="summary-cards"></div>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="method">
+    <h2>테스트 방법론 · 환경</h2>
+    <p>ClickHouse 공식 ClickBench 43쿼리 × 3런(1 cold + 2 hot) × 5세트 + INSERT(1천만 행) + self-JOIN.
+       데이터는 사전 적재된 EBS 스냅샷에서 인스턴스별로 복구해 적재 단계 없이 즉시 쿼리.
+       지표: 43쿼리 hot 합계(s, 낮을수록 좋음), speed=1000/hot_s, value=speed/$.</p>
+    <div class="analysis-box">
+        <h4>메모리 설정 (공정성 핵심)</h4>
+        <p>Pod 고정 메모리 limit 없음 — ClickHouse가 노드 전체 RAM(C 8GB/M 16GB/R 32GB)을 인식하도록 해
+           메모리 차이가 의도된 비교 변수로 작동. spill 임계 40%, 쿼리 메모리 상한 70%(RAM 비율).</p>
+    </div>
+    <div class="warn-box">
+        <h4>EBS 대역폭 교란 — 해석 주의</h4>
+        <p>hits(13.4GiB)는 8GB(C 패밀리) page cache에 안 들어가 hot도 EBS 재읽기. hot 지연은
+           fits=✓(memory≥dataset, 16/32GB) 인스턴스에서만 순수 page-cache-bound.</p>
+    </div>
+</section>
+
+<section class="section" id="hot">
+    <h2>Top hot 합계 (43쿼리, 낮을수록 좋음)</h2>
+    <div data-slot="hot-top"></div>
+    <div class="insights" data-slot="hot-insight"></div>
+</section>
+
+<section class="section" id="bubble">
+    <h2>처리속도 vs 가격 (가성비 영역)</h2>
+    <p class="description">X=시간당 가격, Y=hot 합계(s), 원 크기=가성비(speed/$). 점선=가성비 등고선. 왼쪽 아래+큰 원이 최적.</p>
+    <div class="chart-container tall"><canvas data-slot="contour-bubble"></canvas></div>
+</section>
+
+<section class="section" id="genarch">
+    <h2>세대별 × 아키텍처 / 패밀리별 비교</h2>
+    <div data-slot="arch-gen"></div>
+    <div style="margin-top:1.5rem"><div data-slot="family"></div></div>
+    <div class="tab-buttons" data-slot="breakdown-tabs" style="margin-top:1.5rem">
+        <button class="tab-btn active" data-k="arch">아키텍처별</button>
+        <button class="tab-btn" data-k="label">세대 라벨별</button>
+        <button class="tab-btn" data-k="family">패밀리별</button>
+    </div>
+    <div class="chart-container"><canvas data-slot="breakdown-chart"></canvas></div>
+</section>
+
+<section class="section" id="ram">
+    <h2>RAM 티어별 비교 (8GB · 16GB · 32GB)</h2>
+    <p class="description">RAM이 클수록 GROUP BY spill이 줄고 데이터셋이 page cache에 담겨 빨라집니다.</p>
+    <div data-slot="ram"></div>
+    <div class="insights" data-slot="ram-insight"></div>
+</section>
+
+<section class="section" id="improve">
+    <h2>세대별 성능 개선율</h2>
+    <div data-slot="improvement"></div>
+</section>
+
+<section class="section" id="value">
+    <h2>가성비 Top 15 / 피해야 할 인스턴스</h2>
+    <div data-slot="avoid"></div>
+</section>
+
+<section class="section" id="insert">
+    <h2>INSERT 처리량 · self-JOIN 지연</h2>
+    <div data-slot="insert-join"></div>
+</section>
+
+<section class="section" id="full-results">
+    <h2>전체 결과</h2>
+    <div data-slot="table"></div>
+</section>
+
+<section class="section" id="perquery">
+    <h2>쿼리별 인스턴스 비교</h2>
+    <p class="description">쿼리를 선택하면 54개 인스턴스의 해당 쿼리 hot 지연(ms)을 비교합니다. 쿼리마다 순위가 다릅니다.</p>
+    <div class="table-filters">
+        <select data-slot="q-select"></select>
+        <select data-slot="q-arch"><option value="">전체 아키텍처</option><option value="graviton">Graviton</option><option value="intel">Intel</option><option value="amd">AMD</option></select>
+        <select data-slot="q-family"><option value="">전체 패밀리</option><option value="C">C</option><option value="M">M</option><option value="R">R</option></select>
+    </div>
+    <div data-slot="q-sql" style="margin-bottom:1rem;font-family:monospace;font-size:0.85rem;background:#f1f5f9;padding:0.75rem;border-radius:0.5rem;"></div>
+    <div class="chart-container extra-tall"><canvas data-slot="q-chart"></canvas></div>
+</section>
+
+<section class="section" id="queries">
+    <h2>사용된 쿼리 (raw SQL)</h2>
+    <p class="description">ClickBench 공식 43쿼리 + INSERT + self-JOIN. 테이블 default.hits.</p>
+    <details open><summary>ClickBench 43쿼리</summary><div data-slot="q-list" style="margin-top:0.5rem"></div></details>
+    <details><summary>INSERT 테스트</summary><pre><code data-slot="ins-sql"></code></pre></details>
+    <details><summary>self-JOIN 테스트</summary><pre><code data-slot="join-sql"></code></pre></details>
+</section>
+
+<section class="section" id="conclusion">
+    <h2>결론</h2>
+    <div class="insights" data-slot="conclusion"></div>
+</section>

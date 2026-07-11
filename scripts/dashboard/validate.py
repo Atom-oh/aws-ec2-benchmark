@@ -81,6 +81,16 @@ FIELD_MAPS = {
             "coldstart.search_term_ms": "search_term_avg",
         },
     },
+    # geekbench/passmark/stress-ng: build_data.py가 legacy/*.json을 그대로 재구성한 것이므로
+    # 필드가 100% 일치해야 정상 — diff가 나오면 parsers/{geekbench,passmark,stress_ng}.py의
+    # 재구성 로직 버그다(파싱 오류가 아니라).
+    "geekbench": {"id_key": "instance", "fields": {"single": "single", "multi": "multi"}},
+    "stress-ng": {
+        "id_key": "instance",
+        "fields": {"matrix": "matrix", "float": "float", "int": "int", "memcpy": "memcpy",
+                   "cache": "cache", "ctx_switch": "switch", "branch": "branch", "total": "total"},
+    },
+    "passmark": {"id_key": "instance", "fields": {"cpu_mark": "cpu_mark", "single": "single"}},
 }
 
 

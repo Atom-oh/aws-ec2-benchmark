@@ -54,10 +54,13 @@ export async function loadData(name) {
     instancesCache || fetch('data/instances.json').then((r) => r.json()),
   ]);
   instancesCache = instances;
+  // metrics를 먼저 펴고 instances.json(canonical)을 나중에 덮어쓴다 — kafka/clickhouse의
+  // data.json은 자체 arch/gen/family/price를 이미 갖고 있는데(대문자 'Graviton', 문자열 '8' 등)
+  // canonical 값이 항상 이겨야 한다(설계 §3.1 "클라이언트 조인 값이 우선").
   const rows = Object.entries(payload.instances).map(([instName, metrics]) => ({
     name: instName,
-    ...(instances[instName] || {}),
     ...metrics,
+    ...(instances[instName] || {}),
   }));
   return { envelope: payload, rows, instances };
 }
