@@ -1,0 +1,79 @@
+<header class="hero">
+    <h1>Elasticsearch 벤치마크</h1>
+    <p>Rally 인덱싱 처리량 + 콜드 스타트 시간 | 54개 EC2 인스턴스 타입 비교</p>
+    <div class="header-meta">리전: ap-northeast-2 (서울) | 인스턴스 크기: xlarge (4 vCPU)</div>
+</header>
+
+<div class="summary-cards" data-slot="summary-cards"></div>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="methodology">
+    <h2>테스트 방법론</h2>
+    <ul style="margin-left: 1.5rem;">
+        <li><strong>Rally 벤치마크:</strong> esrally geonames 데이터셋(1,140만 문서), 단일 노드, index-append 작업, 5회 평균</li>
+        <li><strong>콜드 스타트:</strong> ES 프로세스 시작부터 HTTP 응답 + 클러스터 green까지, 5회 평균</li>
+        <li><strong>Elasticsearch:</strong> 8.11.0, 단일 노드 모드, 보안 비활성화</li>
+        <li><strong>JVM:</strong> Heap = 가용 메모리의 60%</li>
+    </ul>
+    <div class="warn-box">
+        <h4>커버리지 참고</h4>
+        <p>Rally는 51개 인스턴스만 커버(c8gn/r8gd.xlarge는 rally 로그 없이 coldstart만 존재) — 종합 분석·차트는 rally 데이터가 있는 인스턴스만 대상으로 함. Coldstart는 54개 전체.</p>
+    </div>
+</section>
+
+<div class="tab-buttons" data-slot="page-tabs" style="margin-bottom: 1.5rem;">
+    <button class="tab-btn active" data-page="rally">Rally 벤치마크</button>
+    <button class="tab-btn" data-page="coldstart">콜드 스타트</button>
+    <button class="tab-btn" data-page="combined">종합 분석</button>
+</div>
+
+<div class="tab-content active" data-page-content="rally">
+    <section class="section" id="rally-top">
+        <h2>Rally 처리량 Top 20</h2>
+        <p class="description">geonames 데이터셋 인덱싱 처리량 및 관련 지표</p>
+        <div data-slot="rally-top20"></div>
+    </section>
+    <section class="section" id="rally-archgen">
+        <h2>아키텍처별 세대별 비교</h2>
+        <div data-slot="rally-arch-gen"></div>
+    </section>
+</div>
+
+<div class="tab-content" data-page-content="coldstart">
+    <section class="section" id="cold-top">
+        <h2>Cold Start Top 20</h2>
+        <p class="description">낮을수록 좋음(빠른 시작)</p>
+        <div data-slot="cold-top20"></div>
+    </section>
+    <section class="section" id="cold-archgen">
+        <h2>아키텍처별 세대별 비교</h2>
+        <div data-slot="cold-arch-gen"></div>
+    </section>
+</div>
+
+<div class="tab-content" data-page-content="combined">
+    <section class="section" id="scatter">
+        <h2>Rally 처리량 vs 콜드 스타트 시간</h2>
+        <p class="description">좌상단이 이상적 (빠른 시작, 높은 처리량)</p>
+        <div class="chart-container tall"><canvas data-slot="scatter"></canvas></div>
+    </section>
+    <section class="section" id="price-perf">
+        <h2>가격 대비 성능 (Cost Efficiency)</h2>
+        <div data-slot="price"></div>
+    </section>
+</div>
+
+<section class="section" id="full-results">
+    <h2>전체 결과</h2>
+    <div data-slot="table"></div>
+</section>
+
+<section class="section" id="conclusion">
+    <h2>결론 및 권장사항</h2>
+    <ul style="margin-left: 1.5rem;">
+        <li><strong>최고 성능:</strong> Graviton4 (m8g/r8g/c8g) - 처리량 1위, 콜드 스타트도 최상위</li>
+        <li><strong>메모리 패밀리(R) 강세:</strong> 대용량 메모리가 시작 시간·인덱싱 모두에 유리</li>
+        <li><strong>Flex 모델 추천:</strong> Intel flex 변형이 일반 모델보다 가격 대비 성능 우수</li>
+    </ul>
+</section>

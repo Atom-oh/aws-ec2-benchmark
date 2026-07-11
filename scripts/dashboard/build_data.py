@@ -13,6 +13,9 @@ from common import SITE_DATA_DIR, build_instances, BASE_DIR
 EXPECTED_COVERAGE = {
     "sysbench": 54,
     "iperf3": 54,
+    "nginx": 54,
+    "redis": 54,
+    "elasticsearch": 54,  # coldstart 기준. rally는 51(파서 notes에 별도 표기)
 }
 
 
@@ -38,7 +41,7 @@ def build_benchmark(name):
 
 def main():
     write_instances_json()
-    targets = sys.argv[1:] or ["sysbench", "iperf3"]
+    targets = sys.argv[1:] or ["sysbench", "iperf3", "nginx", "redis", "elasticsearch"]
     for name in targets:
         build_benchmark(name)
 

@@ -401,7 +401,8 @@ export function priceSection(hostEl, rows, opts) {
 // ---------------------------------------------------------------------------
 
 /** columns: [{field, label, fmt?(value,row)=>string}] */
-export function resultTable(hostEl, rows, columns) {
+/** opts: {onRowClick?(row)} — 지정하면 각 <tr>가 클릭 가능해지고 클릭 시 해당 row로 콜백(redis 모달용). */
+export function resultTable(hostEl, rows, columns, opts = {}) {
   hostEl.innerHTML = `
     <div class="table-filters">
       <input type="text" class="f-search" placeholder="인스턴스 검색...">
@@ -442,11 +443,17 @@ export function resultTable(hostEl, rows, columns) {
       return sortDir * (av - bv);
     });
 
-    tbody.innerHTML = sorted.map((r) => `<tr>${columns.map((c) => {
+    tbody.innerHTML = sorted.map((r, i) => `<tr${opts.onRowClick ? ` class="clickable-row" data-i="${i}"` : ''}>${columns.map((c) => {
       const v = get(r, c.field);
       return `<td>${c.fmt ? c.fmt(v, r) : (v == null ? '—' : v)}</td>`;
     }).join('')}</tr>`).join('');
     countEl.textContent = `${sorted.length}개 인스턴스 표시`;
+
+    if (opts.onRowClick) {
+      tbody.querySelectorAll('tr').forEach((tr, i) => {
+        tr.addEventListener('click', () => opts.onRowClick(sorted[i]));
+      });
+    }
 
     hostEl.querySelectorAll('th').forEach((th) => {
       th.classList.toggle('sort-active', th.dataset.field === sortField);

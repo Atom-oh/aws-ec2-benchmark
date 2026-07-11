@@ -1,0 +1,142 @@
+<style>
+/* iperf3 고유 위젯 스타일 — env-item/recommendation-card는 이 탭에서만 쓰이므로 dashboard.css가 아닌 여기 */
+.env-table { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.env-item { background: #f8fafc; padding: 1rem; border-radius: 0.5rem; border-left: 3px solid var(--intel); }
+.env-item h4 { font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; }
+.env-item p { font-weight: 600; }
+.recommendation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.recommendation-card { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 0.75rem; padding: 1.25rem; }
+.recommendation-card.warning { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #fca5a5; }
+.recommendation-card h4 { color: #166534; margin-bottom: 0.75rem; font-size: 0.9rem; }
+.recommendation-card.warning h4 { color: #991b1b; }
+.recommendation-card ul { margin-left: 1rem; font-size: 0.875rem; }
+.recommendation-card li { margin-bottom: 0.4rem; }
+</style>
+
+<header class="hero">
+    <h1>iperf3 Network 벤치마크</h1>
+    <p>네트워크 대역폭 및 지연시간 | 54개 EC2 인스턴스 타입 비교</p>
+    <div class="header-meta">리전: ap-northeast-2 (서울) | 인스턴스 크기: xlarge (4 vCPU)</div>
+</header>
+
+<div class="summary-cards" data-slot="summary-cards"></div>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="methodology">
+    <h2>테스트 방법론</h2>
+    <div class="insights">
+        <h4>왜 iperf3 벤치마크가 중요한가?</h4>
+        <ul>
+            <li><strong>실제 네트워크 성능 측정</strong> - 인스턴스 유형별 실제 네트워크 처리량 비교</li>
+            <li><strong>고성능 네트워킹 옵션 비교</strong> - 'n' 접미사 인스턴스(예: c6in)의 네트워크 향상 효과 확인</li>
+            <li><strong>비용 최적화</strong> - 네트워크 집약적 워크로드에 적합한 인스턴스 선택</li>
+        </ul>
+    </div>
+    <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">수집 메트릭</h4>
+    <table>
+        <thead><tr><th>메트릭</th><th>설명</th><th>단위</th><th>방향</th></tr></thead>
+        <tbody>
+            <tr><td><strong>TCP Single Stream</strong></td><td>단일 TCP 연결 대역폭</td><td>Gbps</td><td>높을수록 좋음</td></tr>
+            <tr><td><strong>TCP Parallel (8 streams)</strong></td><td>8개 병렬 TCP 연결 총 대역폭</td><td>Gbps</td><td>높을수록 좋음</td></tr>
+            <tr><td><strong>TCP Reverse</strong></td><td>역방향 TCP 대역폭</td><td>Gbps</td><td>높을수록 좋음</td></tr>
+            <tr><td><strong>UDP Bandwidth</strong></td><td>UDP 대역폭</td><td>Mbps</td><td>높을수록 좋음</td></tr>
+            <tr><td><strong>Jitter</strong></td><td>패킷 지연 변동</td><td>ms</td><td>낮을수록 좋음</td></tr>
+            <tr><td><strong>Packet Loss</strong></td><td>패킷 손실률</td><td>%</td><td>낮을수록 좋음</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="section" id="environment">
+    <h2>테스트 환경</h2>
+    <div class="env-table">
+        <div class="env-item"><h4>테스트 도구</h4><p>iperf3 3.x</p></div>
+        <div class="env-item"><h4>클러스터</h4><p>EKS 1.36 / Karpenter</p></div>
+        <div class="env-item"><h4>네트워크</h4><p>Same AZ, VPC CNI</p></div>
+        <div class="env-item"><h4>테스트 인스턴스</h4><p>54개 (Intel/AMD/Graviton)</p></div>
+    </div>
+    <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">테스트 구성</h4>
+    <table>
+        <thead><tr><th>설정</th><th>값</th><th>설명</th></tr></thead>
+        <tbody>
+            <tr><td>TCP Single Stream</td><td>-c server -t 30</td><td>30초간 단일 TCP 연결 테스트</td></tr>
+            <tr><td>TCP Parallel</td><td>-c server -P 8 -t 30</td><td>8개 병렬 스트림으로 30초 테스트</td></tr>
+            <tr><td>TCP Reverse</td><td>-c server -R -t 30</td><td>역방향(서버→클라이언트) 대역폭</td></tr>
+            <tr><td>UDP</td><td>-c server -u -b 1G -t 30</td><td>1Gbps 타겟으로 UDP 테스트</td></tr>
+        </tbody>
+    </table>
+    <div class="warn-box">
+        <h4>알려진 데이터 결손</h4>
+        <p>c7g/c7i/m8i.xlarge는 원본 로그가 5회 중 1회 "Broken pipe" 오류로 완전 실패해 TCP Single Stream만 4회 평균(다른 지표는 5회 정상).</p>
+    </div>
+</section>
+
+<section class="section" id="performance">
+    <h2>성능 분석</h2>
+    <div data-slot="top20"></div>
+</section>
+
+<section class="section" id="generation">
+    <h2>아키텍처별 세대별 성능 비교</h2>
+    <div data-slot="arch-gen"></div>
+</section>
+
+<section class="section" id="family">
+    <h2>인스턴스 패밀리별 비교 (C/M/R x 아키텍처)</h2>
+    <div data-slot="family"></div>
+</section>
+
+<section class="section" id="price-performance">
+    <h2>가격 대비 성능 (Cost Efficiency)</h2>
+    <div data-slot="price"></div>
+</section>
+
+<section class="section" id="recommendations">
+    <h2>용도별 추천 인스턴스</h2>
+    <p class="description">네트워크 요구사항별 최적 인스턴스 가이드</p>
+    <div class="recommendation-grid">
+        <div class="recommendation-card">
+            <h4>초고속 네트워크 (25 Gbps+)</h4>
+            <ul>
+                <li><strong>m6idn.xlarge</strong> - 최고 대역폭</li>
+                <li><strong>m6in.xlarge</strong>, <strong>c6in.xlarge</strong></li>
+                <li>용도: 빅데이터, 분산 스토리지, HPC</li>
+            </ul>
+        </div>
+        <div class="recommendation-card">
+            <h4>범용 네트워크 (~12 Gbps)</h4>
+            <ul>
+                <li><strong>c7i.xlarge</strong> - 최신 Intel 7세대</li>
+                <li><strong>m8g.xlarge</strong> - Graviton4 최신</li>
+                <li>용도: 일반 웹서비스, API 서버</li>
+            </ul>
+        </div>
+        <div class="recommendation-card">
+            <h4>저지터 (실시간 통신)</h4>
+            <ul>
+                <li>지터 Top 20 차트 참고 (성능 분석 섹션)</li>
+                <li>용도: 실시간 음성/영상, 게임</li>
+            </ul>
+        </div>
+        <div class="recommendation-card warning">
+            <h4>피해야 할 인스턴스</h4>
+            <ul>
+                <li>병렬 대역폭 하위권(가격 대비 성능 섹션 참고)</li>
+                <li>이유: 네트워크 대역폭 제한 심함</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="full-results">
+    <h2>전체 결과</h2>
+    <div data-slot="table"></div>
+</section>
+
+<section class="section" id="conclusion">
+    <h2>결론</h2>
+    <ul style="margin-left: 1.5rem;">
+        <li><strong>네트워크 최적화 인스턴스('n' 접미사)</strong>가 압도적으로 높은 병렬 대역폭 제공</li>
+        <li>Graviton4(8세대)는 네트워크 측면에서는 Intel 대비 뚜렷한 우위 없음</li>
+    </ul>
+</section>

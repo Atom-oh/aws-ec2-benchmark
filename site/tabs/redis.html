@@ -1,0 +1,95 @@
+<header class="hero">
+    <h1>Redis 벤치마크</h1>
+    <p>인메모리 데이터베이스 처리량 및 지연시간 | 54개 EC2 인스턴스 타입 비교</p>
+    <div class="header-meta">리전: ap-northeast-2 (서울) | 인스턴스 크기: xlarge (4 vCPU)</div>
+</header>
+
+<div class="summary-cards" data-slot="summary-cards"></div>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="methodology">
+    <h2>테스트 방법론</h2>
+    <div class="grid-2">
+        <div>
+            <h4 style="margin-bottom: 0.75rem;">수집 메트릭</h4>
+            <table>
+                <tr><th>메트릭</th><th>설명</th><th>방향</th></tr>
+                <tr><td>SET/GET ops/sec</td><td>초당 처리 명령 수</td><td>높을수록 좋음</td></tr>
+                <tr><td>Latency</td><td>평균 응답 지연 시간</td><td>낮을수록 좋음</td></tr>
+            </table>
+        </div>
+        <div>
+            <h4 style="margin-bottom: 0.75rem;">테스트 설정</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                <span class="badge badge-graviton">Latency Test 1M keys</span>
+                <span class="badge badge-graviton">5회 반복</span>
+            </div>
+        </div>
+    </div>
+    <div class="insights">
+        <h4>테스트 격리 보장</h4>
+        <ul>
+            <li><strong>Pod Anti-affinity:</strong> 각 벤치마크가 전용 노드에서 단독 실행</li>
+            <li><strong>Karpenter:</strong> 인스턴스 타입별 새 노드 동적 프로비저닝</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section" id="top20">
+    <h2>Top 20 성능</h2>
+    <div data-slot="top20"></div>
+</section>
+
+<section class="section" id="generation">
+    <h2>아키텍처별 세대별 성능 비교</h2>
+    <div data-slot="arch-gen"></div>
+</section>
+
+<section class="section" id="family">
+    <h2>인스턴스 패밀리별 비교 (C/M/R x 아키텍처)</h2>
+    <div data-slot="family"></div>
+</section>
+
+<section class="section" id="improvement">
+    <h2>세대별 성능 개선율</h2>
+    <div data-slot="improvement"></div>
+</section>
+
+<section class="section" id="price-perf">
+    <h2>가격 대비 성능 (Cost Efficiency)</h2>
+    <div data-slot="price"></div>
+    <div class="insights">
+        <h4>가성비 인사이트</h4>
+        <ul><li><strong>Graviton 계열이 가성비 상위권 대부분 차지</strong></li></ul>
+    </div>
+</section>
+
+<section class="section" id="avoid">
+    <h2>피해야 할 인스턴스</h2>
+    <div data-slot="avoid"></div>
+</section>
+
+<section class="section" id="full-results">
+    <h2>전체 결과</h2>
+    <p class="description">행을 클릭하면 5회 반복 통계(최대/최소/변동계수) 상세를 볼 수 있습니다.</p>
+    <div data-slot="table"></div>
+</section>
+
+<section class="section" id="conclusion">
+    <h2>결론 및 추천</h2>
+    <ul style="margin-left: 1.5rem;">
+        <li><strong>최고 성능/가성비</strong>: Graviton4 계열(c8g/m8g/r8g)</li>
+        <li>SET/GET 처리량은 밀접하게 상관 — 한쪽이 빠르면 대부분 다른 쪽도 빠름</li>
+    </ul>
+</section>
+
+<div class="detail-modal" data-slot="modal">
+    <div class="detail-content">
+        <div class="detail-header">
+            <h3 data-slot="modal-title"></h3>
+            <button class="close-btn" data-slot="modal-close">&times;</button>
+        </div>
+        <div data-slot="modal-body"></div>
+    </div>
+</div>
