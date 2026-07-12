@@ -20,6 +20,8 @@
 
 **Files:**
 - Create: `scripts/dashboard/parsers/springboot.py`
+- Modify: `scripts/dashboard/build_data.py`
+- Modify: `scripts/dashboard/validate.py`
 - Test: `legacy/springboot.json` (Phase 1에서 이미 추출됨, 재사용)
 
 `results/springboot/<instance>/wrk{1..5}.log`에서 3개 wrk 블록(`--- Main Page - 2 threads, 50
