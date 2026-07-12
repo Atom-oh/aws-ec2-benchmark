@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54개)의 성능을 비교하는 Kubernetes 기반 벤치마크 프로젝트. Karpenter를 사용하여 노드를 동적 프로비저닝.
 
+리포트는 과거 벤치마크별 독립 HTML 11개(`reports/*-report.html`)에서 통합 SPA(`site/`, 12개 탭 —
+11개 벤치마크 + 종합)로 전환됨(2026-07-12). 자세한 내용은 아래 "통합 대시보드 SPA" 섹션과 설계
+스펙 `docs/superpowers/specs/2026-07-08-unified-dashboard-design.md`(레이아웃/배포/데이터
+파이프라인), `docs/superpowers/specs/2026-07-09-dashboard-tab-content-design.md`(탭별 콘텐츠
+명세·표준 골격·shared.js 컴포넌트·데이터 스키마) 참고.
+
 ## 현재 상태 (2026-06-29)
 
 ### 인스턴스 목록 51→54 확장
@@ -912,153 +918,100 @@ results/iperf3/<instance>.log
 - **실행/리포트**: `scripts/generate-kafka-ramp-benchmark.sh` (§9 uncompressed 실측치를 100% 기준점으로
   자동 조회), 결과 `results/kafka-ramp/<instance>/run1.log`, 검증 `bash tests/kafka/validate.sh`.
 
-## HTML 보고서 형식 (표준)
+## 통합 대시보드 SPA (`site/`) — 탭 작성 가이드 (2026-07-12, `reports/*.html` 11개 대체)
 
-Redis와 Nginx 보고서를 표준으로 사용. 새 벤치마크 보고서 생성 시 이 형식을 따를 것.
+과거의 벤치마크별 독립 HTML 리포트(`reports/*-report.html`, 벤치마크마다 f-string/JS로 전체
+HTML을 새로 찍어내던 방식)는 폐기되었다. 지금은 **단일 SPA**(`site/`)가 hash 라우터로 11개
+벤치마크 탭 + 종합(Overview) 탭 총 12개를 서빙한다. 설계 근거는
+`docs/superpowers/specs/2026-07-08-unified-dashboard-design.md`(레이아웃/배포/데이터 파이프라인)와
+`docs/superpowers/specs/2026-07-09-dashboard-tab-content-design.md`(탭별 콘텐츠 명세·표준 골격·
+shared.js 컴포넌트·데이터 스키마)를 참고.
 
-### 파일 위치
+### 구조
 ```
-results/<benchmark>/report-charts.html
-```
-
-### 필수 구조
-
-#### 1. HTML 헤더
-```html
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>{벤치마크명} 벤치마크 리포트</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="report-nav.js" defer></script>
-    <link rel="stylesheet" href="report-common.css">
-    <style>/* 벤치마크별 고유 스타일만 (공통 변수/카드/차트/badge/navbar는 report-common.css에 있음) */</style>
-</head>
-```
-**`<link>`는 반드시 `<style>`보다 앞**에 둘 것 — 인라인 `<style>`의 규칙이 캐스케이드에서 항상 이겨서
-파일별 오버라이드가 안전하게 동작한다.
-
-#### 2. CSS 변수 (색상 표준)
-```css
-:root {
-    --graviton: #10b981;  /* 초록 - Graviton/ARM */
-    --intel: #3b82f6;     /* 파랑 - Intel */
-    --amd: #ef4444;       /* 빨강 - AMD */
-    --bg: #f8fafc;
-    --card: #ffffff;
-    --text: #1e293b;
-    --muted: #64748b;
-}
+site/
+├── index.html          # 셸(navbar 삽입 지점 + <main id="app-main">)
+├── js/app.js           # hash 라우터 — 탭은 최초 방문 시 fetch+import, 이후 DOM 재사용
+├── js/shared.js        # 컴포넌트 라이브러리(아래 목록) — 추가 금지 원칙, 여기 있는 것만 재사용
+├── js/tabs/<name>.js   # 탭별 render(root, {rows, envelope}) 모듈
+├── tabs/<name>.html    # 탭별 정적 파셜(빈 컨테이너만, <script>/onclick 금지)
+├── data/<name>.json    # scripts/dashboard/build_data.py가 생성(원시 로그 재파싱)
+├── data/instances.json # 인스턴스 canonical arch/gen/family/price(build_data.py가 생성)
+├── css/dashboard.css
+├── CNAME, favicon.png  # docs 배포 대상(아래 "배포" 섹션 참고)
 ```
 
-#### 3. 페이지 구성 (순서대로)
-1. **Header**: 그라데이션 배경, 제목, 부제목, 날짜/리전 정보
-2. **Summary Cards** (4-5개): 최고 성능, 최고 가성비, 핵심 인사이트
-3. **목차**: 섹션 링크
-4. **테스트 방법론**: 왜 이 벤치마크가 중요한지, 수집 메트릭
-5. **테스트 환경**: 인프라 구성, 인스턴스 구성, 설정 상세
-6. **성능 분석 차트들**: Chart.js 사용
-7. **전체 결과 테이블**: 필터/정렬 기능 포함
-8. **결론**: 핵심 시사점, 추천 인스턴스
-9. **Footer**: 날짜, 리전 정보
+### 새 탭 추가 시 (11개 벤치마크 중 하나를 갱신하거나 새 벤치마크를 추가할 때)
+1. `js/app.js`의 `TABS` 배열에 `{ id, name }` 1줄만 추가(navbar는 런타임에 이 배열로 자동 생성됨,
+   과거 `report-nav.js`의 `REPORTS` 배열과 같은 역할).
+2. `tabs/<name>.html`: 정적 서사 전부 + 빈 컨테이너(`<div data-slot="...">`)만. **`<script>`나
+   `onclick` 금지** — JS는 반드시 `js/tabs/<name>.js`에만.
+3. `js/tabs/<name>.js`: `export async function render(root, {rows, envelope})` 하나. `rows`는
+   `loadData(name)`이 `data/<name>.json`(측정치)과 `data/instances.json`(canonical arch/gen/
+   family/price)을 조인한 배열, `envelope`은 원본 JSON 전체(headline/notes/timeseries 등 사이드카
+   포함). shared.js 컴포넌트를 호출해 슬롯을 채우고, 표준으로 안 되는 부분만 파일 안에서 직접
+   Chart.js로 구현(레퍼런스: `site/js/tabs/sysbench.js`).
+4. 탭 전환 시 이전 탭의 Chart.js 인스턴스를 정리해야 하므로, `render()`가 반환하는 객체는 항상
+   `{ destroy() {...} }`를 포함해야 한다(생성한 모든 chart/리스너를 `handles` 배열에 모아 일괄
+   destroy — 기존 탭 파일 전부가 이 패턴을 따름).
+5. 데이터 계약: 각 `data/<name>.json`은 `{benchmark, generated, coverage, headline:{field,
+   direction, label, unit}, notes, instances:{...}}` 봉투를 따른다. `headline`은 Overview 탭이
+   벤치마크별 스키마 지식 없이 정규화 점수를 계산하는 유일한 근거(§ Overview 섹션 참고) — 새
+   벤치마크를 추가하면 반드시 이 필드를 채울 것.
 
-#### 4. 필수 차트 유형
-- **Top 20 Bar Chart** (horizontal): 주요 메트릭 순위
-- **세대별 비교 Bar Chart**: Intel vs Graviton
-- **패밀리별 비교**: C/M/R 패밀리
-- **가격 대비 성능 Bubble Chart**: X=가격, Y=성능
-- **가성비 Top 15**: 효율성 점수 순위
+### shared.js 컴포넌트 (이것이 전부 — 추가 금지 원칙)
+`loadData(name)`, `buildToc(root)`, `summaryCards(el, cards)`, `topNBar(el, rows, opts)`,
+`metricTabChart(el, rows, metrics)`, `familyChart(el, rows, metric)`, `genImprovement(el, rows,
+metric)`, `priceSection(el, rows, opts)`, `resultTable(el, rows, columns, opts)`, `fmt`, `badge`,
+`get(obj, path)`(dot-path), `perDollar`, `archColor(arch, alpha)`. metric 설정 표준형:
+`{field, label, unit, direction:'max'|'min', fmt?}` — `field`는 dot-path 지원(예: `"wrk.rps200"`,
+`"coldstart.avg_ms"`).
 
-#### 5. 스타일 클래스
-```css
-.container { max-width: 1600px; }
-.card { border-radius: 1rem; box-shadow: ... }
-.chart-section { background: var(--card); border-radius: 1rem; }
-.chart-container { height: 400px; }  /* .tall: 500px, .extra-tall: 800px */
-.badge-graviton { background: #d1fae5; color: #065f46; }
-.badge-intel { background: #dbeafe; color: #1e40af; }
-.badge-amd { background: #fee2e2; color: #991b1b; }
-.insights { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; }
+### Overview 탭 (`site/js/tabs/overview.js`)
+11개 벤치마크를 `loadData(name)`으로 모두 병렬 로드한 뒤, 각 벤치마크의 `envelope.headline`만으로
+0–100 정규화 점수를 계산한다(`direction:'min'`이면 `best/value*100`, `'max'`면 `value/best*100`).
+**overview.js에는 벤치마크별 분기 코드가 0줄이어야 한다** — 필드명을 하드코딩하지 말고 항상
+`get(row, headline.field)`로 조회할 것(새 벤치마크 추가 시 overview.js를 고칠 필요가 없어야
+정상). 54행×11열 히트맵, 벤치마크별 위너 카드, 종합 점수 Top20/버블 차트가 모두 이 정규화 점수
+하나를 재사용한다.
+
+### 데이터 파이프라인
 ```
-
-#### 6. 인사이트 박스
-```html
-<div class="insights">
-    <h4>핵심 인사이트</h4>
-    <ul>
-        <li><strong>Graviton4가 최고 성능</strong> - Intel 대비 X% 빠름</li>
-        <li>...</li>
-    </ul>
-</div>
+scripts/dashboard/build_data.py    # 원시 로그(results/**)를 재파싱해 site/data/*.json 생성
+scripts/dashboard/validate.py      # 레거시 reports/*-report.html의 수치와 상대오차 비교(회귀 감지)
 ```
+탭 UI를 수정하기 전에 항상 `python3 scripts/dashboard/build_data.py && python3
+scripts/dashboard/validate.py`를 실행해 데이터 레이어가 green인지 확인할 것. `validate.py`의
+`KNOWN_DIFFERENT_SOURCE`는 레거시 리포트가 현재 원시 로그로 재현 불가능한 필드(다른 수집
+세션의 값)를 화이트리스트로 관리 — 새로 이런 불일치를 발견하면 이 패턴을 따라 근거를 남기고
+추가할 것(임의로 파서를 레거시 값에 맞춰 조작하지 말 것 — Redis GET/Mixed 효율이 조작값이었던
+과거 사례 참고).
 
-#### 7. 결과 테이블 기능
-- 검색 필터 (인스턴스명)
-- 아키텍처 필터 (Graviton/Intel/AMD)
-- 세대 필터 (5/6/7/8세대)
-- 패밀리 필터 (C/M/R)
-- 열 헤더 클릭 정렬
-
-#### 8. 공통 navbar/CSS (`reports/` 발행본 전용, 2026-07-07 도입)
-`reports/*-report.html` 11개가 각자 navbar를 하드코딩하던 걸 걷어내고 2개 공유 파일로 뺐다.
-새 벤치마크 리포트를 추가할 때 **11개 파일을 고치지 말고**:
-1. `reports/report-nav.js`의 `REPORTS` 배열에 `{ file: '<name>-report.html', name: '<표시명>' }` 1줄만 추가.
-   (navbar `<nav>` 마크업은 이 스크립트가 `document.body` 맨 위에 런타임 주입 — HTML에는 없음)
-2. 새 리포트 `<head>`에 위 헤더 예시처럼 `<script src="report-nav.js" defer>` + `<link href="report-common.css">` 추가.
-3. `report-common.css`에는 `:root` 변수, `.container/header/.card/.chart-section/.chart-container/.grid-*/
-   .tab-*/.metric-tab/.legend-*/.insights/.analysis-box/table/.badge-*/footer/.navbar*`가 들어있음(기준본:
-   `nginx-report.html`). 벤치마크 고유 스타일(예: 커스텀 탭 UI)만 자체 `<style>`에 남길 것.
-- **`results/kafka/report-charts.html`, `results/clickhouse/report-charts.html`**(패턴 A, 스크립트가
-  데이터 주입 후 `reports/`로 복사)는 위치가 달라 `../../reports/report-common.css`,
-  `../../reports/report-nav.js` 상대경로를 쓴다. `scripts/generate-{kafka,clickhouse}-report.py`가
-  `reports/`로 복사할 때 `../../reports/` → `` 치환을 자동으로 해줌 — 새로 패턴 A 스크립트를 만들 때
-  이 치환 한 줄을 그대로 가져다 쓸 것.
-- **패턴 B**(geekbench/sysbench/passmark/stress-ng/redis — f-string으로 HTML 전체 생성, 과거 수동 집계
-  로직이라 재생성 금지 대상)는 이번에 건드리지 않음. 이 5개를 재갱신할 일이 생기면 그때 헤더에 2줄
-  추가 + navbar 마크업 제거를 적용할 것(스크립트 f-string 템플릿에 위 헤더 예시를 반영).
-- **`reports/index.html`(랜딩 페이지, 다크 테마)의 카드 링크는 `href="reports/kafka-report.html"`처럼
-  `reports/` 접두사가 붙어 있고, `report-nav.js`의 브랜드 링크는 `../index.html`이다 — 둘 다 main
-  저장소 안에서 보면(같은 `reports/` 폴더에 있으니 깨진 것처럼 보임) 틀린 것 같지만 **실제 배포
-  레이아웃(아래 "배포" 섹션) 기준으로는 정확한 경로**다. main 안에서 "정합성"만 보고 sibling 경로로
-  고치면 실제 서비스가 깨진다 — 아래 배포 섹션을 먼저 읽고 판단할 것.
-
-## 배포 (GitHub Pages / `docs` 브랜치) — 매우 중요, 오판하기 쉬움
+## 배포 (GitHub Pages / `docs` 브랜치)
 
 실제 서비스 주소는 `https://benchmark.aws.atomai.click/`이며, **GitHub Pages가 `docs` 브랜치의
-루트에서** 서빙한다(`gh api repos/Atom-oh/aws-ec2-benchmark/pages`로 확인 가능). code-server Live
-Preview는 로컬 개발 중 차트 렌더링 확인용일 뿐, **실서비스는 `main`이 아니라 `docs` 브랜치**다.
-
-### main과 docs의 디렉터리 구조가 다르다 (핵심 함정)
-- `main`: `reports/index.html`과 `reports/*-report.html`이 **같은 `reports/` 폴더에 나란히** 있음.
-- `docs`: `index.html`이 **저장소 루트**에, 리포트들은 `reports/` **하위 폴더**에 있음(+ `CNAME`,
-  `favicon.png`이 루트에 있는데 이 둘은 `main`에는 없고 `docs`에만 수동으로 존재).
-- 그래서 `reports/index.html`의 카드 링크(`href="reports/x.html"`)와 navbar 브랜드 링크
-  (`../index.html`)는 **docs 배포 기준으로 작성된 것**이고, `main`의 `reports/` 폴더 안에서 직접 열면
-  (형제 파일인데 `reports/` 접두사·`../`를 쓰니) 깨진 것처럼 보인다 — **이건 버그가 아니라 배포
-  레이아웃과 main 레이아웃이 다른 데서 오는 의도된 결과**다. 2026-07-07 세션에서 이걸 "버그"로
-  오판해 sibling 경로로 고쳤다가, 실제 배포본(docs)이 깨지는 걸 발견하고 되돌린 적이 있음 — 재현 시
-  같은 실수 반복하지 말 것.
+루트에서** 서빙한다(`gh api repos/Atom-oh/aws-ec2-benchmark/pages`로 확인 가능). **2026-07-12
+SPA 컷오버 이후 main과 docs의 레이아웃이 동일**하다 — `site/`가 그대로 `docs` 루트에 복사되며,
+`main`/`docs` 양쪽 다 상대경로가 상위 구조에 의존하지 않으므로 예전처럼 "main 안에서 정합성만
+보고 고치면 실제 배포가 깨지는" 함정 구조가 없다(레거시 `reports/` 시절의 main/docs 경로 불일치
+문제는 `reports/` 삭제로 구조적으로 해소됨).
 
 ### 배포 절차 (수동, 자동화 안 되어 있음)
 `docs` 브랜치는 CI로 자동 배포되지 않는다 — 사람이 직접 `git worktree add <tmp> docs`로 체크아웃해서
-아래처럼 파일을 복사·커밋·푸시해야 실제 사이트에 반영된다:
+`site/`를 rsync로 복사·커밋·푸시해야 실제 사이트에 반영된다:
 ```bash
 WT=/tmp/docs-deploy
 git worktree add "$WT" docs
-cp reports/index.html "$WT/index.html"                    # main reports/index.html → docs 루트
-cp reports/*.html reports/report-common.css reports/report-nav.js "$WT/reports/"
+rsync -a --delete --exclude=.git site/ "$WT/"   # --exclude=.git 필수 — 없으면 worktree의 .git이
+                                                  # 삭제돼 커밋/푸시가 깨짐(site/에는 .git이 원천적으로
+                                                  # 없으므로 --delete가 그대로 지워버림)
 cd "$WT" && git add -A && git commit -m "Deploy: ..." && git push origin docs
 cd - && git worktree remove "$WT"
 ```
-- `report-common.css`/`report-nav.js`는 `reports/` 하위 형제 파일이라 경로가 `main`/`docs` 양쪽에서
-  그대로 동작(상대경로가 상위 구조에 의존하지 않음) — 이 둘은 그냥 복사만 하면 됨.
-- `results/kafka/report-charts.html`, `results/clickhouse/report-charts.html`(패턴 A 템플릿)은 배포
-  대상이 아님 — 이미 `reports/*-report.html`로 발행된 사본만 `docs`에 올린다.
-- 리포트를 수정했는데 실서비스에 반영이 안 됐다면, `main`에 커밋만 하고 `docs` 브랜치 배포를 빼먹은
+- `site/CNAME`, `site/favicon.png`가 반드시 `site/`에 실존해야 한다(둘 다 `main`에는 없던 파일로,
+  과거 `docs` 브랜치 루트에만 수동으로 존재했다 — 2026-07-12에 `git show docs:CNAME`/`docs:favicon.png`로
+  `site/`에 복사해 이제는 `main`에도 커밋되어 있음). 빠지면 위 `--delete`가 그대로 삭제해버린다.
+- 처음 배포하거나 큰 구조 변경이 있을 때는 `--delete` 없이 1차 배포(구 파일과 병존) → 라이브
+  사이트에서 전체 탭 확인 → 문제 없으면 `--delete`로 2차 배포(구 파일 정리)하는 2단계 절차를 쓴다.
+- 배포를 수정했는데 실서비스에 반영이 안 됐다면, `main`에 커밋만 하고 `docs` 브랜치 push를 빼먹은
   경우가 가장 흔한 원인이다. **`main` 커밋 = 저장, `docs` 브랜치 push = 실제 배포**라는 걸 항상 기억.
-
-### 참고 보고서
-- `results/nginx/report-charts.html` - 가장 완성도 높음
-- `results/redis/report-charts.html` - Redis 특화
-- `results/stress-ng/report-charts.html` - 최신 생성
