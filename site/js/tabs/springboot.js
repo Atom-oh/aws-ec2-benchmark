@@ -44,6 +44,10 @@ export async function render(root, { rows, envelope }) {
 
   handles.push(familyFilterChart(root.querySelector('[data-slot="family-filter"]'), rows));
 
+  const flexHandle = flexVsStandardSection(root.querySelector('[data-slot="flex-narrative"]'), rows);
+  handles.push(flexHandle);
+  handles.push(flexConclusion(root, flexHandle.averageRpsDeltaPct));
+
   handles.push(resultTable(root.querySelector('[data-slot="table"]'), rows, [
     { field: 'name', label: '인스턴스', fmt: (v) => `<strong>${v}</strong>` },
     { field: 'arch', label: '아키텍처', fmt: (v) => badge(v) },
@@ -61,6 +65,104 @@ export async function render(root, { rows, envelope }) {
 
   return {
     destroy() { handles.forEach((h) => h && h.destroy && h.destroy()); },
+  };
+}
+
+function flexPairs(rows) {
+  return rows
+    .filter((r) => r.flex && r.name.includes('-flex'))
+    .map((r) => {
+      const stdName = r.name.replace('-flex', '');
+      const std = rows.find((x) => x.name === stdName);
+      return std ? { flex: r, std } : null;
+    })
+    .filter(Boolean);
+}
+
+function pctDelta(current, baseline) {
+  if (current == null || baseline == null || baseline === 0) return null;
+  const delta = ((current - baseline) / baseline) * 100;
+  return Number.isFinite(delta) ? delta : null;
+}
+
+function validNumbers(values) {
+  return values.filter((v) => typeof v === 'number' && Number.isFinite(v));
+}
+
+function avg(values) {
+  const nums = validNumbers(values);
+  return nums.length ? nums.reduce((sum, v) => sum + v, 0) / nums.length : null;
+}
+
+function signedPct(delta) {
+  if (delta == null) return '—';
+  return `${delta > 0 ? '+' : ''}${fmt(delta, 1)}%`;
+}
+
+function flexDirection(delta) {
+  if (delta == null) return '비교 데이터 없음';
+  if (delta > 0) return '빠름';
+  if (delta < 0) return '느림';
+  return '동일';
+}
+
+function flexSummaryText(delta) {
+  if (delta == null) return 'Flex와 Standard를 비교할 수 있는 RPS 200 데이터가 없습니다.';
+  if (delta === 0) return 'Flex가 Standard와 평균 동일';
+  return `Flex가 평균 ${fmt(Math.abs(delta), 1)}% ${flexDirection(delta)}`;
+}
+
+function flexVsStandardSection(hostEl, rows) {
+  const pairs = flexPairs(rows);
+  const pairStats = pairs.map(({ flex, std }) => ({
+    flex,
+    std,
+    rpsDeltaPct: pctDelta(get(flex, 'wrk.rps200'), get(std, 'wrk.rps200')),
+    coldDeltaPct: pctDelta(flex.cold_s, std.cold_s),
+  }));
+  const averageRpsDeltaPct = avg(pairStats.map((pair) => pair.rpsDeltaPct));
+
+  hostEl.innerHTML = `
+    <p class="description">Flex 인스턴스를 같은 이름의 Standard 인스턴스와 짝지어 200 connection 처리량과 콜드스타트 차이를 계산했다.</p>
+    <div class="summary-cards">
+      ${pairStats.map((pair) => `
+        <div class="summary-card">
+          <h3>${pair.flex.name} vs ${pair.std.name}</h3>
+          <div class="value">${signedPct(pair.rpsDeltaPct)}</div>
+          <div class="detail">RPS 200 차이</div>
+          <div class="detail">콜드스타트 차이: ${signedPct(pair.coldDeltaPct)}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card">
+        <h3>Flex 평균 처리량</h3>
+        <div class="value">${averageRpsDeltaPct == null ? '—' : `${fmt(Math.abs(averageRpsDeltaPct), 1)}%`}</div>
+        <div class="detail">${flexSummaryText(averageRpsDeltaPct)}</div>
+      </div>
+    </div>
+  `;
+
+  return { averageRpsDeltaPct, destroy() {} };
+}
+
+function flexConclusion(root, averageRpsDeltaPct) {
+  const previous = root.querySelector('[data-generated="flex-conclusion"]');
+  if (previous) previous.remove();
+
+  const conclusion = root.querySelector('#conclusion p');
+  if (!conclusion || averageRpsDeltaPct == null) return { destroy() {} };
+
+  conclusion.insertAdjacentHTML(
+    'afterend',
+    `<p data-generated="flex-conclusion">데이터 기준: Flex 인스턴스는 Standard 대비 평균 ${fmt(Math.abs(averageRpsDeltaPct), 1)}% ${flexDirection(averageRpsDeltaPct)}.</p>`,
+  );
+
+  return {
+    destroy() {
+      const generated = root.querySelector('[data-generated="flex-conclusion"]');
+      if (generated) generated.remove();
+    },
   };
 }
 
