@@ -69,10 +69,11 @@ r8i-flex.xlarge, c8i.xlarge, c8g.xlarge` — 레거시 키 `c7iFlex/c8iFlex/m7iF
 - [ ] hero: "Spring Boot PetClinic 벤치마크", coverage 배지
 - [ ] summary-cards 슬롯: 최고 처리량(rps200)/최저 콜드스타트/최고 가성비
 - [ ] methodology 섹션: wrk 3단계 설정(50/100/200 conn) 표+콜드스타트 측정 방식 설명(정적 HTML)
-- [ ] `[SLOT A: 시나리오 탭]` 빈 컨테이너 (Task 4)
-- [ ] 표준 `metricTabChart`(rps50/100/200 3-way) 컨테이너
+- [ ] 표준 `metricTabChart`(rps50/100/200 3-way) 컨테이너 — 부하 시나리오 Top20 대체(레거시의
+      전용 탭 UI는 만들지 않음, 아래 Task 4 범위 명확화 참고)
 - [ ] coldstart `topNBar` 컨테이너
-- [ ] `[SLOT A: family-filter 차트]` 빈 컨테이너 (Task 4)
+- [ ] `[SLOT A: family-filter 차트]` 빈 컨테이너 (Task 4) — 이 슬롯 하나만 존재. 시나리오 탭용
+      별도 슬롯은 만들지 않음(round 2 리뷰에서 지적: 빈 슬롯이 남아있으면 구현자가 헷갈릴 수 있음)
 - [ ] `priceSection` 컨테이너(mainMetric=rps200, gridMetrics=[rps200, cold_s(direction min)])
 - [ ] `[SLOT A: time-series 라인차트]` 빈 컨테이너 (Task 5)
 - [ ] `[SLOT A: Flex vs Standard 서사]` 빈 컨테이너 (Task 6)
@@ -104,8 +105,11 @@ Task 3에서 `topNBar`의 metrics 배열로 3-way 스위처로 표준화 완료 
 
 `data.timeseries`(Task 2가 만든 envelope 필드)를 사용해 6개 인스턴스 × 3지표(throughput/
 lat_avg_ms/lat_p99_ms) 라인차트 + 메트릭 스위처(3-way 탭 버튼, `reports/springboot-report.html`의
-`switchTimeseriesMetric` 로직 포팅) + 통계 타일(5-run 평균/최소/최대/CV, 원본 CSV의 run 컬럼이
-1개만 쓰였으므로 이 통계는 레거시처럼 "run 2 단일 실행"으로 명시).
+`switchTimeseriesMetric` 로직 포팅) + 통계 타일. **통계 정의 명확화(round 2 리뷰에서 지적된
+모순 해소)**: Task 2가 CSV의 `run==2`만 채택하므로 시간 축(60개 포인트)에 걸친 5-run 통계는
+낼 수 없다 — 대신 60개 포인트 자체에 대한 **포인트 통계**(각 지표의 시계열 평균/최소/최대/CV,
+"600초 동안의 처리량이 얼마나 안정적이었는가")를 계산한다. "5-run 평균"이 아니라 "Run 2, 60개
+샘플의 시계열 통계"임을 타일 라벨에 명시.
 
 `loadData()`가 `envelope`도 반환하므로(Phase 4 clickhouse 탭에서 이미 사용한 패턴)
 `render(root, {rows, envelope})`에서 `envelope.timeseries`로 접근.
@@ -160,7 +164,12 @@ Flex 인스턴스(`flex:true`)와 Standard 대응 인스턴스(같은 세대/패
 - Modify: `site/js/tabs/overview.js`
 
 - [ ] 순수 HTML `<table>` 히트맵: 54행 × 11열(벤치마크), 셀 배경색 = 정규화 점수 기반 green→red 그라데이션(인라인 style, 별도 차트 라이브러리 불필요)
-- [ ] 커버리지 미달 벤치마크(geekbench/passmark/stress-ng는 51개, ES는 rally 51개)의 결측 인스턴스는 셀에 "—" + `heatmap-na` 클래스(이미 `dashboard.css`에 정의됨)
+- [ ] 결측 셀 판정은 **headline 필드 값의 null 여부로만 판단**(round 2 리뷰에서 지적: rally
+      커버리지를 기준으로 삼으면 안 됨 — ES의 headline은 `coldstart.avg_ms`로 54개 전체에 값이
+      있어 결측 없음). geekbench/passmark/stress-ng(51개, headline이 51개만 값 존재)의 결측
+      3개 인스턴스만 셀에 "—" + `heatmap-na` 클래스(이미 `dashboard.css`에 정의됨) — **벤치마크별
+      분기 없이 headline 값 null 체크 하나로 자동 처리되어야 함**(Task 8의 "분기 코드 0줄" 원칙과
+      동일선상)
 - [ ] 종합 점수 = 인스턴스별 가용 정규화 점수의 평균 + 커버리지 개수 표기(예: "8/11 벤치마크 반영")
 - [ ] 히트맵에 `resultTable`과 동일한 검색/정렬 UX(공유 컴포넌트 재사용 시도 — 안 맞으면 최소 검색 input만이라도)
 
@@ -186,8 +195,9 @@ Flex 인스턴스(`flex:true`)와 Standard 대응 인스턴스(같은 세대/패
 
 ## Task 12: 배포 준비 — reports/ 삭제 + 생성 스크립트 출력 경로 전환
 
-**Files** (Modify 대상은 `scripts/generate-*`, Create는 `site/CNAME`/`site/favicon.png`, 나머지
-`reports/*`는 모두 `git rm`으로 제거 대상 — parse_plan.py는 Delete 액션이 없어 Modify로 표기):
+**Files** (`scripts/generate-*`는 기본값상 수정하지 않지만 폴백 경로(가드 이상 발견 시)를 위해
+scope에 포함— Modify로 표기해도 실제 코드 변경은 조건부. Create는 `site/CNAME`/`site/favicon.png`,
+나머지 `reports/*`는 모두 `git rm`으로 제거 대상 — parse_plan.py는 Delete 액션이 없어 Modify로 표기):
 - Modify: `scripts/generate-kafka-report.py`
 - Modify: `scripts/generate-clickhouse-report.py`
 - Create: `site/CNAME`
@@ -215,15 +225,16 @@ report.py`(L343-360)와 `generate-clickhouse-report.py`(L216-241)는 **실제로
 clickhouse}/report-charts.html`로의 1차 주입(별도 존재 위치, site/와 무관)은 계속 동작하지만
 아무도 보지 않는 죽은 산출물일 뿐 해를 끼치지 않는다.
 
-- [ ] **기본값: 두 생성 스크립트는 수정하지 않는다.** `pub.parent.exists()` 가드가 `reports/`
-      삭제 후 자동으로 발행 복사를 스킵시키는지 실제로 스크립트를 1회 실행해 확인(로그에 "reports/
-      없음" 계열 메시지가 뜨는지, 에러 없이 종료하는지)하고 결과를 이 체크박스 옆에 기록
-- [ ] 위 확인에서 실제로 에러가 나거나 예상과 다른 동작이 발견되면(예: `pub.parent.exists()` 가드가
-      없거나 다르게 동작), 그 경우에만 최소 수정(가드 추가)을 적용 — 이 조건이 발생하지 않으면 이
-      항목은 "해당 없음"으로 종료
+- [ ] **기본값: 두 생성 스크립트는 수정하지 않는다.** 이 항목은 사전 방침 확정일 뿐 — 실제 동작
+      확인은 `reports/` 삭제 **이후** 순서(아래 3번째 항목)에서 수행한다(round 2 리뷰에서 지적된
+      순서 혼동 — 삭제 전에는 `pub.parent.exists()`가 항상 `True`이므로 이 시점에 실행해봐도
+      가드 동작을 확인할 수 없음)
 - [ ] `reports/` 디렉터리 전체 삭제(11개 HTML + report-common.css + report-nav.js) — git으로 추적되므로 `git rm`
-- [ ] 삭제 후 `site/`가 `reports/`의 어떤 파일도 참조하지 않는지 grep 확인(`grep -r "reports/" site/`)
-- [ ] 삭제 후 위 두 생성 스크립트를 실제로 1회 더 실행해 에러 없이 종료하는지 최종 확인(회귀 확인)
+- [ ] **삭제 직후** 위 두 생성 스크립트를 1회 실행해 `pub.parent.exists()` 가드가 자동으로 발행
+      복사를 스킵시키는지 확인(로그에 "reports/ 없음" 계열 메시지, 에러 없이 종료)하고 결과를 이
+      체크박스 옆에 기록 — 여기서 에러가 나거나 예상과 다른 동작이 발견되면 그 경우에만 최소
+      수정(가드 추가)을 적용, 정상이면 "확인 완료, 수정 불필요"로 종료
+- [ ] `site/`가 `reports/`의 어떤 파일도 참조하지 않는지 grep 확인(`grep -r "reports/" site/`)
 - [ ] **CNAME/favicon.png를 `site/`로 복사**(`git show docs:CNAME > site/CNAME`,
       `git show docs:favicon.png > site/favicon.png`) — 상위 설계 §3.1이 이미 명시한 항목(현재
       `docs` 브랜치 루트에만 존재, `site/`에 없음)인데 이전 페이즈에서 빠져 있었다. Task 13/14의
