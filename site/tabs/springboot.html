@@ -1,0 +1,65 @@
+<header class="hero">
+    <h1>Spring Boot PetClinic 벤치마크</h1>
+    <p>wrk HTTP 부하 및 콜드스타트 분석 | Spring Boot PetClinic on EC2</p>
+    <div class="header-meta">
+        <span class="badge badge-graviton">Coverage: 54개 EC2 인스턴스 타입</span>
+        리전: ap-northeast-2 (서울) | 인스턴스 크기: xlarge (4 vCPU)
+    </div>
+</header>
+
+<div class="summary-cards" data-slot="summary-cards"></div>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="methodology">
+    <h2>테스트 방법론</h2>
+    <p class="description">Spring Boot PetClinic 애플리케이션에 대해 wrk 부하를 50, 100, 200 동시 연결 단계로 나누어 측정했다. 각 단계는 동일한 애플리케이션 엔드포인트를 대상으로 초당 요청 수와 지연 시간을 기록하며, 부하가 높아질 때 처리량이 얼마나 유지되는지 비교한다. 콜드스타트는 애플리케이션 프로세스 시작 후 서비스가 HTTP 요청을 정상 처리할 수 있을 때까지의 시간을 초 단위로 측정했다.</p>
+    <table>
+        <tr><th>단계</th><th>동시 연결</th><th>주요 지표</th></tr>
+        <tr><td>Warm load 1</td><td>50 connections</td><td>rps50, latency</td></tr>
+        <tr><td>Warm load 2</td><td>100 connections</td><td>rps100, latency</td></tr>
+        <tr><td>Peak load</td><td>200 connections</td><td>rps200, latency</td></tr>
+        <tr><td>Cold start</td><td>애플리케이션 기동</td><td>cold_s</td></tr>
+    </table>
+</section>
+
+<section class="section" id="family-filter">
+    <h2>패밀리 필터 비교</h2>
+    <div data-slot="family-filter"></div>
+</section>
+
+<section class="section" id="load-stages">
+    <h2>부하 단계별 처리량</h2>
+    <div data-slot="load-stages"></div>
+</section>
+
+<section class="section" id="coldstart">
+    <h2>콜드스타트 Top 20</h2>
+    <div data-slot="coldstart"></div>
+</section>
+
+<section class="section" id="price-performance">
+    <h2>가격 대비 성능 (Cost Efficiency)</h2>
+    <p class="description">시간당 비용 대비 200 connection 처리량과 콜드스타트 효율</p>
+    <div data-slot="price"></div>
+</section>
+
+<section class="section" id="timeseries">
+    <h2>시간대별 처리량 및 지연시간</h2>
+    <div data-slot="timeseries"></div>
+</section>
+
+<section class="section" id="flex-vs-standard">
+    <h2>Flex vs Standard 비교</h2>
+    <div data-slot="flex-narrative"></div>
+</section>
+
+<section class="section" id="full-results">
+    <h2>전체 결과</h2>
+    <div data-slot="table"></div>
+</section>
+
+<section class="section" id="conclusion">
+    <h2>결론 및 권장사항</h2>
+    <p>Spring Boot PetClinic 결과는 높은 동시 연결에서의 처리량, 콜드스타트 시간, 비용 효율을 함께 보아야 한다. 단순 최고 처리량뿐 아니라 200 connection 단계에서의 안정성과 기동 시간 요구사항을 기준으로 인스턴스 후보를 좁히는 것이 적합하다.</p>
+</section>
