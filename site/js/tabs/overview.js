@@ -1,5 +1,5 @@
 import {
-  buildToc, fmt, get, loadData, summaryCards,
+  buildToc, fmt, get, loadData, perDollar, priceSection, summaryCards, topNBar,
 } from '../shared.js';
 
 const BENCHMARKS = [
@@ -125,6 +125,105 @@ function scoreRow(instanceName, overviewData, canonicalIndex) {
   };
 }
 
+function bestMetricRow(rows, headline) {
+  const scoredRows = rows
+    .map((row) => ({ row, value: numberOrNull(get(row, headline.field)) }))
+    .filter(({ value }) => value != null)
+    .sort((a, b) => (headline.direction === 'min' ? a.value - b.value : b.value - a.value));
+  return scoredRows[0] ? scoredRows[0].row : null;
+}
+
+function bestEfficiency(rows, headline) {
+  const scoredRows = rows
+    .map((row) => {
+      const value = numberOrNull(get(row, headline.field));
+      if (value == null || !(row.price > 0)) return null;
+      return {
+        row,
+        score: headline.direction === 'min' ? value * row.price : perDollar(row, headline.field),
+      };
+    })
+    .filter((entry) => entry && entry.score != null && Number.isFinite(entry.score))
+    .sort((a, b) => (headline.direction === 'min' ? a.score - b.score : b.score - a.score));
+  return scoredRows[0] ? scoredRows[0].row : null;
+}
+
+function metricDetail(row, headline, suffix) {
+  if (!row) return suffix;
+  const value = numberOrNull(get(row, headline.field));
+  const unit = headline.unit ? ` ${escapeHtml(headline.unit)}` : '';
+  return `${fmt(value)}${unit} — ${suffix}`;
+}
+
+function renderWinners(hostEl, overviewData, results) {
+  if (!hostEl) return { destroy() {} };
+
+  const cards = overviewData.benchmarks.map((benchmark, index) => {
+    const { rows } = results[index];
+    const bestRow = bestMetricRow(rows, benchmark.headline);
+    const effRow = bestEfficiency(rows, benchmark.headline);
+    const effName = effRow ? escapeHtml(effRow.name) : '—';
+
+    return {
+      label: escapeHtml(benchmark.label),
+      value: bestRow ? escapeHtml(bestRow.name) : '—',
+      detail: metricDetail(bestRow, benchmark.headline, '최고 성능'),
+      expandHtml: `<div>가성비 최고: <strong>${effName}</strong></div><div>${metricDetail(effRow, benchmark.headline, '가격 대비 성능')}</div>`,
+    };
+  });
+
+  return summaryCards(hostEl, cards);
+}
+
+function buildInstanceLookup(results) {
+  const entries = {};
+  results.forEach(({ instances, rows }) => {
+    Object.entries(instances || {}).forEach(([name, instance]) => {
+      if (!entries[name]) entries[name] = { name, ...instance };
+    });
+    rows.forEach((row) => {
+      if (!entries[row.name]) entries[row.name] = row;
+    });
+  });
+  return entries;
+}
+
+function buildCompositeRows(overviewData, results) {
+  const instances = buildInstanceLookup(results);
+  return overviewData.canonicalInstanceNames.map((instanceName, canonicalIndex) => {
+    const row = scoreRow(instanceName, overviewData, canonicalIndex);
+    return {
+      ...(instances[instanceName] || {}),
+      name: instanceName,
+      __compositeScore: row.compositeScore,
+    };
+  });
+}
+
+function renderRankingSection(hostEl, overviewData, results) {
+  if (!hostEl) return [];
+
+  const compositeRows = buildCompositeRows(overviewData, results);
+  const compositeMetric = {
+    field: '__compositeScore',
+    label: '종합 점수',
+    unit: 'score',
+    direction: 'max',
+  };
+
+  hostEl.innerHTML = '<div data-part="rank"></div><div data-part="bubble"></div>';
+
+  return [
+    topNBar(hostEl.querySelector('[data-part="rank"]'), compositeRows, {
+      metrics: [compositeMetric],
+      n: 20,
+    }),
+    priceSection(hostEl.querySelector('[data-part="bubble"]'), compositeRows, {
+      mainMetric: compositeMetric,
+    }),
+  ];
+}
+
 function renderHeatmap(hostEl, overviewData) {
   if (!hostEl) return { destroy() {} };
 
@@ -226,6 +325,10 @@ export async function render(root, _data) {
   ]));
 
   handles.push(renderHeatmap(root.querySelector('[data-slot="heatmap"]'), overviewData));
+
+  handles.push(renderWinners(root.querySelector('[data-slot="winners"]'), overviewData, results));
+
+  handles.push(...renderRankingSection(root.querySelector('[data-slot="ranking-chart"]'), overviewData, results));
 
   handles.push(buildToc(root));
 
