@@ -21,6 +21,7 @@ EXPECTED_COVERAGE = {
     "geekbench": 51,  # 원시 로그 자체가 51개뿐(재파싱 대상 아님) — 51 미달이면만 경고
     "passmark": 51,
     "stress-ng": 51,
+    "springboot": 54,
 }
 
 
@@ -49,6 +50,7 @@ def main():
     targets = sys.argv[1:] or [
         "sysbench", "iperf3", "nginx", "redis", "elasticsearch",
         "kafka", "clickhouse", "geekbench", "passmark", "stress-ng",
+        "springboot",
     ]
     for name in targets:
         build_benchmark(name)

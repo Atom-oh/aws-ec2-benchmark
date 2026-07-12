@@ -27,20 +27,31 @@ KNOWN_INCOMPLETE_SAMPLES = {
 # 현재 원시 로그 5회 값의 최대치 235294보다도 높아 같은 실행이 아님이 확정적). 이 저장소의 원시
 # 로그만으로 만드는 새 파서는 legacy를 재현할 수 없는 게 당연하므로 3필드 전부 화이트리스트 —
 # validate.py 통과가 "새 파서가 맞다"는 뜻이지 "legacy와 같은 실행"이라는 뜻은 아님을 이 주석으로 남긴다.
-KNOWN_DIFFERENT_SOURCE = {
-    ("redis", inst, field)
-    for inst in [  # legacy/redis.json 51개 인스턴스 전체 — 같은 원인이므로 개별 나열 대신 전체 화이트리스트
-        "c5.xlarge", "c5a.xlarge", "c5d.xlarge", "c5n.xlarge", "c6g.xlarge", "c6gd.xlarge", "c6gn.xlarge",
-        "c6i.xlarge", "c6id.xlarge", "c6in.xlarge", "c7g.xlarge", "c7gd.xlarge", "c7i-flex.xlarge", "c7i.xlarge",
-        "c8g.xlarge", "c8i-flex.xlarge", "c8i.xlarge", "m5.xlarge", "m5a.xlarge", "m5ad.xlarge", "m5d.xlarge",
-        "m5zn.xlarge", "m6g.xlarge", "m6gd.xlarge", "m6i.xlarge", "m6id.xlarge", "m6idn.xlarge", "m6in.xlarge",
-        "m7g.xlarge", "m7gd.xlarge", "m7i-flex.xlarge", "m7i.xlarge", "m8g.xlarge", "m8i.xlarge", "r5.xlarge",
-        "r5a.xlarge", "r5ad.xlarge", "r5b.xlarge", "r5d.xlarge", "r5dn.xlarge", "r5n.xlarge", "r6g.xlarge",
-        "r6gd.xlarge", "r6i.xlarge", "r6id.xlarge", "r7g.xlarge", "r7gd.xlarge", "r7i.xlarge", "r8g.xlarge",
-        "r8i-flex.xlarge", "r8i.xlarge",
-    ]
-    for field in ["set_rps", "set_lat_ms", "get_lat_ms"]
-}
+KNOWN_DIFFERENT_SOURCE = (
+    {
+        ("redis", inst, field)
+        for inst in [  # legacy/redis.json 51개 인스턴스 전체 — 같은 원인이므로 개별 나열 대신 전체 화이트리스트
+            "c5.xlarge", "c5a.xlarge", "c5d.xlarge", "c5n.xlarge", "c6g.xlarge", "c6gd.xlarge", "c6gn.xlarge",
+            "c6i.xlarge", "c6id.xlarge", "c6in.xlarge", "c7g.xlarge", "c7gd.xlarge", "c7i-flex.xlarge", "c7i.xlarge",
+            "c8g.xlarge", "c8i-flex.xlarge", "c8i.xlarge", "m5.xlarge", "m5a.xlarge", "m5ad.xlarge", "m5d.xlarge",
+            "m5zn.xlarge", "m6g.xlarge", "m6gd.xlarge", "m6i.xlarge", "m6id.xlarge", "m6idn.xlarge", "m6in.xlarge",
+            "m7g.xlarge", "m7gd.xlarge", "m7i-flex.xlarge", "m7i.xlarge", "m8g.xlarge", "m8i.xlarge", "r5.xlarge",
+            "r5a.xlarge", "r5ad.xlarge", "r5b.xlarge", "r5d.xlarge", "r5dn.xlarge", "r5n.xlarge", "r6g.xlarge",
+            "r6gd.xlarge", "r6i.xlarge", "r6id.xlarge", "r7g.xlarge", "r7gd.xlarge", "r7i.xlarge", "r8g.xlarge",
+            "r8i-flex.xlarge", "r8i.xlarge",
+        ]
+        for field in ["set_rps", "set_lat_ms", "get_lat_ms"]
+    }
+    # springboot: report authored 2026-01-20, but raw log mtimes are 2026-06-25, consistent with later bulk-restamp/rsync of a different collection run.
+    | {
+        ("springboot", inst, field)
+        for inst in [
+            row["instance"]
+            for row in json.loads((LEGACY_DIR / "springboot.json").read_text())["rows"]
+        ]
+        for field in ["wrk.rps50", "wrk.rps100", "wrk.rps200", "wrk.lat50_ms", "wrk.lat99_ms"]
+    }
+)
 
 # site 필드명 -> legacy 필드명, 그리고 legacy 레코드의 인스턴스 식별 키
 FIELD_MAPS = {
@@ -91,6 +102,13 @@ FIELD_MAPS = {
                    "cache": "cache", "ctx_switch": "switch", "branch": "branch", "total": "total"},
     },
     "passmark": {"id_key": "instance", "fields": {"cpu_mark": "cpu_mark", "single": "single"}},
+    "springboot": {
+        "id_key": "instance",
+        "fields": {
+            "wrk.rps50": "rps50", "wrk.rps100": "rps100", "wrk.rps200": "rps200",
+            "wrk.lat50_ms": "lat50", "wrk.lat99_ms": "lat99", "cold_s": "cold",
+        },
+    },
 }
 
 
