@@ -4,9 +4,10 @@ wrk<N>.log의 50/100/200 connections 블록에서 Requests/sec를 파싱하고, 
 블록의 Latency Distribution에서 P50/P99(ms)를 파싱한다. coldstart<N>.log는 Spring Boot
 started 라인의 "in X.XXX seconds" 값을 사용한다.
 """
+import csv
 import re
 
-from common import RESULTS_DIR, canonical_instances, mean
+from common import BASE_DIR, RESULTS_DIR, canonical_instances, mean
 
 WRK_SECTIONS = {
     "rps50": "--- Main Page - 2 threads, 50 connections, 60s ---",
@@ -17,6 +18,15 @@ REQUESTS_PATTERN = re.compile(r"Requests/sec:\s+([\d.]+)")
 LATENCY_50_PATTERN = re.compile(r"^\s*50%\s+([\d.]+)ms\s*$", re.M)
 LATENCY_99_PATTERN = re.compile(r"^\s*99%\s+([\d.]+)ms\s*$", re.M)
 COLDSTART_PATTERN = re.compile(r"Started PetClinicApplication in ([\d.]+) seconds")
+TIMESERIES_CSV = BASE_DIR / "results" / "springboot-flex" / "timeseries-all.csv"
+TIMESERIES_INSTANCES = [
+    "c7i-flex.xlarge",
+    "c8i-flex.xlarge",
+    "m7i-flex.xlarge",
+    "r8i-flex.xlarge",
+    "c8i.xlarge",
+    "c8g.xlarge",
+]
 
 
 def section_body(content, header):
@@ -50,6 +60,30 @@ def parse_coldstart_log(path):
     content = path.read_text(errors="replace")
     m = COLDSTART_PATTERN.search(content)
     return float(m.group(1)) if m else None
+
+
+def build_timeseries():
+    rows_by_instance = {name: [] for name in TIMESERIES_INSTANCES}
+    with TIMESERIES_CSV.open(newline="") as f:
+        for row in csv.DictReader(f):
+            instance = row["instance"]
+            if row["run"] == "2" and instance in rows_by_instance:
+                rows_by_instance[instance].append(row)
+
+    series = {}
+    for instance in TIMESERIES_INSTANCES:
+        rows = sorted(rows_by_instance[instance], key=lambda row: int(row["elapsed_sec"]))
+        series[instance] = {
+            "throughput": [float(row["requests_per_sec"]) for row in rows],
+            "lat_avg_ms": [float(row["avg_latency_ms"]) for row in rows],
+            "lat_p99_ms": [float(row["p99_latency_ms"]) for row in rows],
+        }
+
+    return {
+        "interval_s": 10,
+        "points": 60,
+        "series": series,
+    }
 
 
 def build():
@@ -99,4 +133,5 @@ def build():
             "method": "wrk 2 threads, 50/100 connections 60s + 200 connections 30s, 5회 평균; Spring Boot coldstart 5회 평균",
         },
         "instances": instances,
+        "timeseries": build_timeseries(),
     }
