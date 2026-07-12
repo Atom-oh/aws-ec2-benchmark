@@ -1,0 +1,112 @@
+<header class="hero">
+    <h1>Kafka 벤치마크</h1>
+    <p>54개 EC2 인스턴스 Kafka producer/consumer 처리량·지연·가성비 비교</p>
+    <div class="header-meta">워크로드: 1KB 레코드 500만건 produce+consume · KRaft 단일 브로커 · ap-northeast-2</div>
+</header>
+
+<div class="summary-cards" data-slot="summary-cards"></div>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="method">
+    <h2>테스트 방법론 · 환경</h2>
+    <p>브로커(KRaft 단일 노드)를 대상 인스턴스에 배포하고, 별도 <code>benchmark-client</code> 노드(c6in.2xlarge,
+       같은 AZ)에서 producer-perf-test → consumer-perf-test를 5회 반복. 레코드 500만건 × 1KB(≈4.77GiB/회),
+       <code>acks=all linger.ms=10 batch.size=131072</code>. 주 지표: produce MB/s.</p>
+    <div class="analysis-box">
+        <h4>Phase 2 — 포화(saturation) 시나리오</h4>
+        <p>베이스라인(싱글, 무압축)은 단일 커넥션의 네트워크 RTT/배치 처리량에 상한이 걸려 CPU를 다 못 쓴다.
+           이를 제거하기 위해 producer/consumer 8-way 병렬 + 토픽 레벨 압축(uncompressed/lz4/zstd)을 추가
+           측정. 압축은 토픽 설정으로 강제해 CPU 비용이 브로커(대상 인스턴스)에 실리도록 함.</p>
+    </div>
+    <div class="analysis-box">
+        <h4>메모리/힙 설정 (공정성 핵심)</h4>
+        <p>Pod 고정 메모리 limit 없음 — 브로커가 노드 전체 RAM을 인식해 나머지를 OS page cache로 활용.
+           힙은 RAM의 25%(절대 바이트가 아닌 비율)로 인스턴스 크기 무관 동일 정책.</p>
+    </div>
+    <div class="warn-box">
+        <h4>네트워크 교란 — 해석 주의</h4>
+        <p>produce/consume 각 ~4.8GB가 네트워크를 지나므로 인스턴스별 네트워크 baseline/burst 대역폭이
+           결과에 반영됨 — iperf3 리포트와 교차 참조 권장. 스토리지는 gp3 2000MB/s로 통일했고 실측 결과
+           전 인스턴스가 그 캡의 90%에도 못 미쳐 스토리지는 병목이 아님을 확인.</p>
+    </div>
+</section>
+
+<section class="section" id="produce">
+    <h2>Top produce 처리량</h2>
+    <div data-slot="produce-top"></div>
+    <div class="insights" data-slot="produce-insight"></div>
+</section>
+
+<section class="section" id="bubble">
+    <h2>처리량 vs 가격 (가성비 영역)</h2>
+    <p class="description">X=시간당 가격, Y=produce MB/s, 원 크기=가성비. 오른쪽 위 + 큰 원이 최적.</p>
+    <div data-slot="price"></div>
+</section>
+
+<section class="section" id="genarch">
+    <h2>세대별 × 아키텍처 / 패밀리별 비교</h2>
+    <div data-slot="arch-gen"></div>
+    <div style="margin-top:1.5rem"><div data-slot="family"></div></div>
+</section>
+
+<section class="section" id="ram">
+    <h2>RAM 티어별 비교 (8GB · 16GB · 32GB)</h2>
+    <p class="description">RAM이 클수록 page cache 여유가 커져 consume 처리량이 특히 유리해집니다.</p>
+    <div data-slot="ram"></div>
+    <div class="insights">
+        <h4>RAM 티어 관찰</h4>
+        <p>RAM이 클수록 브로커의 page cache 여유가 커져 consume(재읽기) 처리량이 특히 유리합니다.</p>
+    </div>
+</section>
+
+<section class="section" id="improve">
+    <h2>세대별 성능 개선율</h2>
+    <div data-slot="improvement"></div>
+</section>
+
+<section class="section" id="value">
+    <h2>가성비 Top 15 / 피해야 할 인스턴스</h2>
+    <div data-slot="avoid"></div>
+</section>
+
+<section class="section" id="max">
+    <h2>포화(saturation) 처리량 · 압축 코덱 비교 (8-way 병렬)</h2>
+    <p class="description">베이스라인의 병목이 CPU가 아니라 단일 커넥션/네트워크 RTT였음을 확인 → 8-way 병렬로
+       그 병목을 제거하고 토픽 레벨 압축으로 실제 CPU 부하를 실었다.</p>
+    <div data-slot="sat-top"></div>
+    <div class="insights" data-slot="sat-insight"></div>
+    <div class="grid-2" style="margin-top:1.5rem">
+        <div><h3>압축 코덱별 produce MB/s (Top 15)</h3><div class="chart-container tall"><canvas data-slot="codec-chart"></canvas></div></div>
+        <div><h3>8-way 병렬 스케일링 배수 (Top 20)</h3><div class="chart-container tall"><canvas data-slot="scaling-chart"></canvas></div></div>
+    </div>
+</section>
+
+<section class="section" id="ramp">
+    <h2>램프업 · 포화점 · 지연곡선 (Phase 3)</h2>
+    <p class="description">§9는 항상 최대치로 밀어붙이는 방식이라 실제 포화점을 안 보여준다. 여기서는 점진
+       램프업 + 정지조건(실제/목표 99.5% 미달)으로 진짜 포화점과 지연-대-처리량 곡선을 본다.</p>
+    <div class="chart-container extra-tall"><canvas data-slot="ramp-chart"></canvas></div>
+    <div class="insights" data-slot="ramp-insight"></div>
+    <div style="margin-top:1.5rem">
+        <h3>지연-대-처리량 곡선 (p99 지연 vs 처리량)</h3>
+        <div class="table-filters" style="align-items:flex-start">
+            <div>
+                <label style="display:block;margin-bottom:.3rem;font-size:.82rem;color:var(--muted)">인스턴스 선택 (최대 5개, Ctrl/Cmd+클릭 다중 선택)</label>
+                <select data-slot="curve-select" multiple size="10" style="min-width:260px;border:1px solid #cbd5e1;border-radius:.4rem;padding:.3rem"></select>
+            </div>
+            <span style="align-self:center;color:var(--muted);font-size:.85rem" data-slot="curve-count"></span>
+        </div>
+        <div class="chart-container tall"><canvas data-slot="curve-chart"></canvas></div>
+    </div>
+</section>
+
+<section class="section" id="full-results">
+    <h2>전체 결과</h2>
+    <div data-slot="table"></div>
+</section>
+
+<section class="section" id="conclusion">
+    <h2>결론</h2>
+    <div class="insights" data-slot="conclusion"></div>
+</section>
