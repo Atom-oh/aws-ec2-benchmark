@@ -3,7 +3,6 @@ import {
 } from '../shared.js';
 
 export async function render(root, { rows, envelope }) {
-  void envelope;
   const handles = [];
   const bestBy = (field, direction = 'max') => [...rows]
     .filter((r) => get(r, field) != null)
@@ -41,6 +40,8 @@ export async function render(root, { rows, envelope }) {
     ],
   }));
 
+  handles.push(timeseriesSection(root.querySelector('[data-slot="timeseries"]'), envelope?.timeseries, rows));
+
   handles.push(familyFilterChart(root.querySelector('[data-slot="family-filter"]'), rows));
 
   handles.push(resultTable(root.querySelector('[data-slot="table"]'), rows, [
@@ -61,6 +62,131 @@ export async function render(root, { rows, envelope }) {
   return {
     destroy() { handles.forEach((h) => h && h.destroy && h.destroy()); },
   };
+}
+
+function timeseriesSection(hostEl, timeseries, rows) {
+  const metrics = [
+    { key: 'throughput', label: '처리량', unit: 'req/s', yTitle: 'req/s', digits: 0 },
+    { key: 'lat_avg_ms', label: '평균 지연', unit: 'ms', yTitle: 'ms', digits: 2 },
+    { key: 'lat_p99_ms', label: 'P99 지연', unit: 'ms', yTitle: 'ms', digits: 2 },
+  ];
+  hostEl.innerHTML = `
+    <p class="description">Run 2, 60개 샘플(10초 간격, 600초)의 시계열 포인트 통계입니다. 5회 반복 평균이 아닙니다.</p>
+    <div class="tab-buttons timeseries-tabs">
+      ${metrics.map((metric, i) => `<button class="tab-btn${i === 0 ? ' active' : ''}" data-metric="${metric.key}">${metric.label}</button>`).join('')}
+    </div>
+    <div class="chart-container tall"><canvas></canvas></div>
+    <div class="timeseries-stats"></div>
+  `;
+
+  const canvas = hostEl.querySelector('canvas');
+  const statsEl = hostEl.querySelector('.timeseries-stats');
+  const rowByName = new Map(rows.map((r) => [r.name, r]));
+  const interval = timeseries?.interval_s || 10;
+  const pointCount = timeseries?.points || 60;
+  const labels = Array.from({ length: pointCount }, (_, i) => (i + 1) * interval);
+  let chart = null;
+
+  function seriesEntries() {
+    return Object.entries(timeseries?.series || {});
+  }
+
+  function stats(values) {
+    const nums = values.filter((v) => typeof v === 'number' && Number.isFinite(v));
+    if (!nums.length) return { mean: null, min: null, max: null, cv: null };
+    const mean = nums.reduce((sum, v) => sum + v, 0) / nums.length;
+    const variance = nums.reduce((sum, v) => sum + (v - mean) ** 2, 0) / nums.length;
+    const stdev = Math.sqrt(variance);
+    return {
+      mean,
+      min: Math.min(...nums),
+      max: Math.max(...nums),
+      cv: mean ? (stdev / mean) * 100 : null,
+    };
+  }
+
+  function renderStats(metric) {
+    const rowsHtml = seriesEntries().map(([instanceName, series]) => {
+      const s = stats(series[metric.key] || []);
+      return `
+        <tr>
+          <td><strong>${instanceName}</strong></td>
+          <td>${fmt(s.mean, metric.digits)}</td>
+          <td>${fmt(s.min, metric.digits)}</td>
+          <td>${fmt(s.max, metric.digits)}</td>
+          <td>${fmt(s.cv, 1)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    statsEl.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>인스턴스</th><th>평균</th><th>최소</th><th>최대</th><th>CV(%)</th></tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+  }
+
+  function draw(metric) {
+    if (chart) chart.destroy();
+    chart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: seriesEntries().map(([instanceName, series]) => {
+          const row = rowByName.get(instanceName);
+          const color = archColor(row?.arch, 1);
+          return {
+            label: instanceName,
+            data: series[metric.key] || [],
+            borderColor: color,
+            backgroundColor: archColor(row?.arch, 0.12),
+            borderWidth: 2,
+            borderDash: instanceName.includes('-flex') ? [] : [5, 5],
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            tension: 0.25,
+          };
+        }),
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.raw, metric.digits)} ${metric.unit}`,
+            },
+          },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Elapsed seconds' } },
+          y: { beginAtZero: true, title: { display: true, text: metric.yTitle } },
+        },
+      },
+    });
+    renderStats(metric);
+  }
+
+  draw(metrics[0]);
+  const listeners = [];
+  hostEl.querySelectorAll('.tab-btn').forEach((btn) => {
+    const onClick = () => {
+      const metric = metrics.find((m) => m.key === btn.dataset.metric) || metrics[0];
+      hostEl.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      draw(metric);
+    };
+    btn.addEventListener('click', onClick);
+    listeners.push([btn, onClick]);
+  });
+
+  return { destroy() { if (chart) chart.destroy(); listeners.forEach(([el, fn]) => el.removeEventListener('click', fn)); } };
 }
 
 function familyFilterChart(hostEl, rows) {
