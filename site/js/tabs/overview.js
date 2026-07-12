@@ -97,6 +97,106 @@ function average(values) {
   return numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function colorFor(score) {
+  const clamped = Math.max(0, Math.min(100, score));
+  return `hsl(${clamped * 1.2}, 70%, 88%)`;
+}
+
+function scoreRow(instanceName, overviewData, canonicalIndex) {
+  const scores = overviewData.instanceScores[instanceName] || {};
+  const values = overviewData.benchmarks.map((benchmark) => scores[benchmark.id]);
+  const availableCount = values.filter((value) => value != null).length;
+
+  return {
+    instanceName,
+    canonicalIndex,
+    scores,
+    compositeScore: average(values),
+    availableCount,
+  };
+}
+
+function renderHeatmap(hostEl, overviewData) {
+  if (!hostEl) return { destroy() {} };
+
+  const totalBenchmarks = overviewData.benchmarks.length;
+  const rows = overviewData.canonicalInstanceNames
+    .map((instanceName, canonicalIndex) => scoreRow(instanceName, overviewData, canonicalIndex))
+    .sort((a, b) => {
+      if (a.compositeScore == null && b.compositeScore == null) {
+        return a.canonicalIndex - b.canonicalIndex;
+      }
+      if (a.compositeScore == null) return 1;
+      if (b.compositeScore == null) return -1;
+      return b.compositeScore - a.compositeScore || a.canonicalIndex - b.canonicalIndex;
+    });
+
+  hostEl.innerHTML = `
+    <div class="table-filters">
+      <input type="text" class="f-search" placeholder="인스턴스 검색...">
+    </div>
+    <div style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>인스턴스</th>
+            ${overviewData.benchmarks.map((benchmark) => `<th>${escapeHtml(BENCHMARK_LABELS[benchmark.id] || benchmark.label)}</th>`).join('')}
+            <th>종합 점수</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr data-instance="${escapeHtml(row.instanceName.toLowerCase())}">
+              <td>${escapeHtml(row.instanceName)}</td>
+              ${overviewData.benchmarks.map((benchmark) => {
+                const score = row.scores[benchmark.id];
+                if (score == null) return '<td class="heatmap-cell heatmap-na">—</td>';
+                return `<td class="heatmap-cell" style="background-color: ${colorFor(score)}">${fmt(score, 0)}</td>`;
+              }).join('')}
+              ${row.compositeScore == null
+                ? `<td class="heatmap-cell heatmap-na">—<br><small>0/${totalBenchmarks}</small></td>`
+                : `<td class="heatmap-cell" style="background-color: ${colorFor(row.compositeScore)}">${fmt(row.compositeScore, 0)}<br><small>${row.availableCount}/${totalBenchmarks}</small></td>`}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="table-count">${fmt(rows.length)}개 인스턴스 표시</div>
+  `;
+
+  const searchEl = hostEl.querySelector('.f-search');
+  const countEl = hostEl.querySelector('.table-count');
+  const tableRows = [...hostEl.querySelectorAll('tbody tr')];
+
+  const onSearch = () => {
+    const query = searchEl.value.trim().toLowerCase();
+    let visibleCount = 0;
+    tableRows.forEach((row) => {
+      const visible = !query || row.dataset.instance.includes(query);
+      row.style.display = visible ? '' : 'none';
+      if (visible) visibleCount += 1;
+    });
+    countEl.textContent = `${fmt(visibleCount)}개 인스턴스 표시`;
+  };
+
+  searchEl.addEventListener('input', onSearch);
+
+  return {
+    destroy() {
+      searchEl.removeEventListener('input', onSearch);
+    },
+  };
+}
+
 export async function render(root, _data) {
   const handles = [];
   const results = await Promise.all(BENCHMARKS.map((name) => loadData(name)));
@@ -124,6 +224,8 @@ export async function render(root, _data) {
       detail: '벤치마크당 평균 인스턴스 수',
     },
   ]));
+
+  handles.push(renderHeatmap(root.querySelector('[data-slot="heatmap"]'), overviewData));
 
   handles.push(buildToc(root));
 
