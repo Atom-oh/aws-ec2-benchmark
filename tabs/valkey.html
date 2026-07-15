@@ -1,5 +1,5 @@
 <header class="hero">
-    <h1>Redis 벤치마크</h1>
+    <h1>Valkey 벤치마크</h1>
     <p>인메모리 데이터베이스 처리량 및 지연시간 | 54개 EC2 인스턴스 타입 비교</p>
     <div class="header-meta">리전: ap-northeast-2 (서울) | 인스턴스 크기: xlarge (4 vCPU)</div>
 </header>
@@ -24,6 +24,7 @@
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
                 <span class="badge badge-graviton">Latency Test 1M keys</span>
                 <span class="badge badge-graviton">5회 반복</span>
+                <span class="badge badge-graviton">Redis와 동일 방법론</span>
             </div>
         </div>
     </div>
@@ -32,6 +33,9 @@
         <ul>
             <li><strong>Pod Anti-affinity:</strong> 각 벤치마크가 전용 노드에서 단독 실행</li>
             <li><strong>Karpenter:</strong> 인스턴스 타입별 새 노드 동적 프로비저닝</li>
+            <li><strong>Redis 대비 공정성:</strong> valkey-benchmark는 redis-benchmark와 동일한
+            CLI/CSV 포맷을 쓰는 Redis 포크 — 동일 로컬호스트 SET/GET 100M 시나리오, 5회 반복으로
+            수집해 Redis 탭과 apples-to-apples 비교 가능</li>
         </ul>
     </div>
 </section>
@@ -70,12 +74,6 @@
     <div data-slot="avoid"></div>
 </section>
 
-<section class="section" id="redis-vs-valkey">
-    <h2>Redis vs Valkey</h2>
-    <p class="description">인스턴스별 SET/GET ops/sec를 Valkey 탭 데이터와 매칭해 실측 차이(%)를 계산했다.</p>
-    <div data-slot="redis-vs-valkey"></div>
-</section>
-
 <section class="section" id="full-results">
     <h2>전체 결과</h2>
     <p class="description">행을 클릭하면 5회 반복 통계(최대/최소/변동계수) 상세를 볼 수 있습니다.</p>
@@ -87,6 +85,7 @@
     <ul style="margin-left: 1.5rem;">
         <li><strong>최고 성능/가성비</strong>: Graviton4 계열(c8g/m8g/r8g)</li>
         <li>SET/GET 처리량은 밀접하게 상관 — 한쪽이 빠르면 대부분 다른 쪽도 빠름</li>
+        <li>Redis 대비 성능 차이는 Redis 탭의 "Redis vs Valkey" 섹션에서 확인</li>
     </ul>
 </section>
 

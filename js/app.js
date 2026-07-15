@@ -11,6 +11,7 @@ const TABS = [
   { id: 'stress-ng', name: 'stress-ng' },
   { id: 'iperf3', name: 'iperf3' },
   { id: 'redis', name: 'Redis' },
+  { id: 'valkey', name: 'Valkey' },
   { id: 'nginx', name: 'Nginx' },
   { id: 'springboot', name: 'SpringBoot' },
   { id: 'elasticsearch', name: 'Elasticsearch' },
