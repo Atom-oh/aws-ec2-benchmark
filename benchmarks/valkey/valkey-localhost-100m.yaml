@@ -1,0 +1,138 @@
+# Valkey Localhost Benchmark - 100M Requests
+# Redis와 동일 방법론(benchmarks/redis/redis-localhost-100m.yaml 포팅) — apples-to-apples 비교용
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: valkey-100m-INSTANCE_SAFE-RUN_NUM
+  namespace: benchmark
+  labels:
+    benchmark: valkey-100m
+    instance-type: "${INSTANCE_TYPE}"
+    run: "RUN_NUM"
+spec:
+  ttlSecondsAfterFinished: 14400  # 4시간 (긴 벤치마크)
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: valkey-100m
+        instance-type: "${INSTANCE_TYPE}"
+        run: "RUN_NUM"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: valkey-benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/valkey:8-alpine
+          resources: {}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              # Valkey 설정
+              cat > /tmp/valkey.conf << 'VALKEY_CONF'
+              bind 127.0.0.1
+              port 6379
+              protected-mode no
+              daemonize yes
+              pidfile /tmp/valkey.pid
+              logfile /tmp/valkey.log
+              maxmemory 0
+              tcp-backlog 511
+              tcp-keepalive 300
+              save ""
+              appendonly no
+              VALKEY_CONF
+
+              echo "===== Valkey 100M Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Run: RUN_NUM"
+              echo "Date: $(date -Iseconds)"
+              echo ""
+
+              # System Info
+              echo "--- System Info ---"
+              echo "CPU: $(nproc) cores"
+              echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+              cat /proc/cpuinfo | grep "model name" | head -1 || echo "ARM processor"
+              echo ""
+
+              # Valkey 서버 시작
+              echo "--- Starting Valkey Server ---"
+              valkey-server /tmp/valkey.conf
+              sleep 2
+
+              if ! valkey-cli ping | grep -q PONG; then
+                echo "ERROR: Valkey server failed to start"
+                cat /tmp/valkey.log
+                exit 1
+              fi
+              echo "Valkey server started"
+              echo ""
+
+              # Warmup (SET only, no threads)
+              echo "--- Warmup ---"
+              valkey-benchmark -h 127.0.0.1 -t set -c 50 -n 100000 -q > /dev/null 2>&1
+              echo "Warmup complete (100K SET requests)"
+              echo ""
+
+              # Test 1: SET 100M requests (main test - ~7분 소요 예상)
+              echo "--- Test 1: SET 100M requests (50 clients, 3 threads) ---"
+              echo "Start: $(date -Iseconds)"
+              valkey-benchmark -h 127.0.0.1 -t set -c 50 -n 100000000 --threads 3 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              # Test 2: GET 100M requests
+              echo "--- Test 2: GET 100M requests (50 clients, 3 threads) ---"
+              echo "Start: $(date -Iseconds)"
+              valkey-benchmark -h 127.0.0.1 -t get -c 50 -n 100000000 --threads 3 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              # Test 3: SET with pipeline (10M - pipeline이 빨라서 줄임)
+              echo "--- Test 3: SET Pipeline 10M requests (P=16) ---"
+              echo "Start: $(date -Iseconds)"
+              valkey-benchmark -h 127.0.0.1 -t set -c 50 -n 10000000 --threads 3 -P 16 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              # Test 4: High concurrency SET 100M
+              echo "--- Test 4: SET High Concurrency 100M (100 clients) ---"
+              echo "Start: $(date -Iseconds)"
+              valkey-benchmark -h 127.0.0.1 -t set -c 100 -n 100000000 --threads 3 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              # Test 5: Latency test (1M for quick latency stats)
+              echo "--- Test 5: Latency Test SET 1M ---"
+              valkey-benchmark -h 127.0.0.1 -t set -c 50 -n 1000000 --threads 3 --csv
+              echo ""
+
+              # Test 6: Latency test GET
+              echo "--- Test 6: Latency Test GET 1M ---"
+              valkey-benchmark -h 127.0.0.1 -t get -c 50 -n 1000000 --threads 3 --csv
+              echo ""
+
+              echo "===== Benchmark Complete ====="
+              echo "End Time: $(date -Iseconds)"
+
+              # Valkey 종료
+              valkey-cli shutdown nosave || true
