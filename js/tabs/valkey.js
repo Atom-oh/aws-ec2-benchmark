@@ -1,4 +1,4 @@
-// redis.js를 그대로 포팅(라벨/변수명만 valkey로 교체) — 표준 골격 + 인스턴스 상세 모달(5-run CV).
+// redis.js를 그대로 포팅(라벨/변수명만 valkey로 교체) — 표준 골격 + 인스턴스 상세 모달(3-run CV).
 // Valkey는 Redis 포크로 valkey-benchmark 출력 포맷이 redis-benchmark와 동일해 파서/스키마
 // 무수정 재사용 가능(scripts/dashboard/parsers/valkey.py 참고).
 import {
@@ -59,7 +59,7 @@ export async function render(root, { rows }) {
     const cv = setAll.length ? (stdev(setAll) / avg(setAll)) * 100 : null;
     modalBody.innerHTML = `
       <div class="detail-section">
-        <h4>SET 처리량 (5회)</h4>
+        <h4>SET 처리량 (3회)</h4>
         <div class="detail-grid">
           <div class="detail-item"><div class="label">평균</div><div class="value">${fmt(row.set_rps)}</div></div>
           <div class="detail-item"><div class="label">최대</div><div class="value">${fmt(Math.max(...setAll))}</div></div>
@@ -78,7 +78,7 @@ export async function render(root, { rows }) {
         </div>
       </div>
       <div class="detail-section">
-        <h4>GET 처리량 (5회)</h4>
+        <h4>GET 처리량 (3회)</h4>
         <div class="detail-grid">
           <div class="detail-item"><div class="label">평균</div><div class="value">${fmt(row.get_rps)}</div></div>
           <div class="detail-item"><div class="label">최대</div><div class="value">${getAll.length ? fmt(Math.max(...getAll)) : '—'}</div></div>
