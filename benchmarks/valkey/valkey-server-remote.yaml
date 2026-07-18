@@ -1,0 +1,94 @@
+# Valkey Server (remote 벤치마크용, io-threads 없음) — benchmarks/redis/redis-server-remote.yaml과
+# 동일 방법론(Redis와 apples-to-apples 비교용).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey-remote-config
+  namespace: benchmark
+data:
+  valkey.conf: |
+    bind 0.0.0.0
+    port 6379
+    protected-mode no
+    maxmemory 0
+    tcp-backlog 511
+    tcp-keepalive 300
+    save ""
+    appendonly no
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: valkey-remote-server
+    benchmark: valkey-remote
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey-remote-server
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        app: valkey-remote-server
+        benchmark: valkey-remote
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: valkey
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/valkey:9.1-alpine
+          resources: {}
+          ports:
+            - containerPort: 6379
+          command:
+            - valkey-server
+            - /etc/valkey/valkey.conf
+          volumeMounts:
+            - name: valkey-config
+              mountPath: /etc/valkey
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: valkey-config
+          configMap:
+            name: valkey-remote-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: valkey-remote-server
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  selector:
+    app: valkey-remote-server
+    instance-type: "${INSTANCE_TYPE}"
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP

@@ -23,6 +23,8 @@ EXPECTED_COVERAGE = {
     "stress-ng": 51,
     "springboot": 54,
     "valkey": 54,
+    "redis-io4": 54,
+    "valkey-io4": 54,
 }
 
 
@@ -51,7 +53,7 @@ def main():
     targets = sys.argv[1:] or [
         "sysbench", "iperf3", "nginx", "redis", "elasticsearch",
         "kafka", "clickhouse", "geekbench", "passmark", "stress-ng",
-        "springboot", "valkey",
+        "springboot", "valkey", "redis-io4", "valkey-io4",
     ]
     for name in targets:
         build_benchmark(name)

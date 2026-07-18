@@ -1,0 +1,96 @@
+# Valkey Server (remote 벤치마크용, io-threads 4) — benchmarks/valkey/valkey-server-remote.yaml과
+# 완전히 동일하나 io-threads 4 + io-threads-do-reads yes만 추가.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey-io4-remote-config
+  namespace: benchmark
+data:
+  valkey.conf: |
+    bind 0.0.0.0
+    port 6379
+    protected-mode no
+    maxmemory 0
+    tcp-backlog 511
+    tcp-keepalive 300
+    save ""
+    appendonly no
+    io-threads 4
+    io-threads-do-reads yes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey-io4-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: valkey-io4-remote-server
+    benchmark: valkey-io4-remote
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey-io4-remote-server
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        app: valkey-io4-remote-server
+        benchmark: valkey-io4-remote
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: valkey
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/valkey:9.1-alpine
+          resources: {}
+          ports:
+            - containerPort: 6379
+          command:
+            - valkey-server
+            - /etc/valkey/valkey.conf
+          volumeMounts:
+            - name: valkey-config
+              mountPath: /etc/valkey
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: valkey-config
+          configMap:
+            name: valkey-io4-remote-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-io4-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: valkey-io4-remote-server
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  selector:
+    app: valkey-io4-remote-server
+    instance-type: "${INSTANCE_TYPE}"
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP

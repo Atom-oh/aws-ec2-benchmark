@@ -1,0 +1,102 @@
+# Redis Benchmark Client (remote) — SERVICE_NAME으로 redis-remote-INSTANCE_SAFE 또는
+# redis-io4-remote-INSTANCE_SAFE를 가리켜 no-thread/io4 양쪽에 재사용.
+# 파이프라인 미사용(-P 없음) + 커넥션 200개로 실제 네트워크 I/O 경로를 노출시켜 io-threads가
+# 병렬화할 대상이 생기게 한다(localhost 단일 파드 방식은 CPU 경합만 유발해 io-threads가 역효과를
+# 냈던 문제 — CLAUDE.md Redis/Valkey 섹션 참고). SET/GET 각 2000만 건 지속 처리량 + 1M 건
+# latency percentile(--csv) 측정.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: JOB_NAME
+  namespace: benchmark
+  labels:
+    benchmark: redis-remote-bench
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 14400
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: redis-remote-bench
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: SERVER_APP_LABEL
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+      initContainers:
+        - name: wait-for-server
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/redis:8.8-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until redis-cli -h SERVICE_NAME ping | grep -q PONG; do
+                echo "Waiting for server..."
+                sleep 2
+              done
+              echo "Server ready"
+      containers:
+        - name: benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/redis:8.8-alpine
+          resources:
+            requests:
+              cpu: "3500m"
+              memory: "2Gi"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              HOST="SERVICE_NAME"
+
+              echo "===== Redis Remote Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Server: ${HOST}"
+              echo "Run: RUN_NUM"
+              echo "Date: $(date -Iseconds)"
+              echo ""
+
+              redis-benchmark -h "$HOST" -t set -c 50 -n 100000 -q > /dev/null 2>&1
+              echo "Warmup complete"
+              echo ""
+
+              echo "--- Test 1: SET 20M requests (200 clients, 4 threads, no pipeline) ---"
+              echo "Start: $(date -Iseconds)"
+              redis-benchmark -h "$HOST" -t set -c 200 -n 20000000 --threads 4 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              echo "--- Test 2: GET 20M requests (200 clients, 4 threads, no pipeline) ---"
+              echo "Start: $(date -Iseconds)"
+              redis-benchmark -h "$HOST" -t get -c 200 -n 20000000 --threads 4 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              echo "--- Test 5: Latency Test SET 1M ---"
+              redis-benchmark -h "$HOST" -t set -c 50 -n 1000000 --threads 4 --csv
+              echo ""
+
+              echo "--- Test 6: Latency Test GET 1M ---"
+              redis-benchmark -h "$HOST" -t get -c 50 -n 1000000 --threads 4 --csv
+              echo ""
+
+              echo "===== Benchmark Complete ====="
+              echo "End Time: $(date -Iseconds)"
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

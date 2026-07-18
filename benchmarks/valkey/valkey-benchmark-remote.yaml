@@ -1,0 +1,99 @@
+# Valkey Benchmark Client (remote) — SERVICE_NAME으로 valkey-remote-INSTANCE_SAFE 또는
+# valkey-io4-remote-INSTANCE_SAFE를 가리켜 no-thread/io4 양쪽에 재사용.
+# benchmarks/redis/redis-benchmark-remote.yaml과 동일 방법론(apples-to-apples 비교).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: JOB_NAME
+  namespace: benchmark
+  labels:
+    benchmark: valkey-remote-bench
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 14400
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: valkey-remote-bench
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: SERVER_APP_LABEL
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+      initContainers:
+        - name: wait-for-server
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/valkey:9.1-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until valkey-cli -h SERVICE_NAME ping | grep -q PONG; do
+                echo "Waiting for server..."
+                sleep 2
+              done
+              echo "Server ready"
+      containers:
+        - name: benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/valkey:9.1-alpine
+          resources:
+            requests:
+              cpu: "3500m"
+              memory: "2Gi"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              HOST="SERVICE_NAME"
+
+              echo "===== Valkey Remote Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Server: ${HOST}"
+              echo "Run: RUN_NUM"
+              echo "Date: $(date -Iseconds)"
+              echo ""
+
+              valkey-benchmark -h "$HOST" -t set -c 50 -n 100000 -q > /dev/null 2>&1
+              echo "Warmup complete"
+              echo ""
+
+              echo "--- Test 1: SET 20M requests (200 clients, 4 threads, no pipeline) ---"
+              echo "Start: $(date -Iseconds)"
+              valkey-benchmark -h "$HOST" -t set -c 200 -n 20000000 --threads 4 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              echo "--- Test 2: GET 20M requests (200 clients, 4 threads, no pipeline) ---"
+              echo "Start: $(date -Iseconds)"
+              valkey-benchmark -h "$HOST" -t get -c 200 -n 20000000 --threads 4 -q
+              echo "End: $(date -Iseconds)"
+              echo ""
+
+              echo "--- Test 5: Latency Test SET 1M ---"
+              valkey-benchmark -h "$HOST" -t set -c 50 -n 1000000 --threads 4 --csv
+              echo ""
+
+              echo "--- Test 6: Latency Test GET 1M ---"
+              valkey-benchmark -h "$HOST" -t get -c 50 -n 1000000 --threads 4 --csv
+              echo ""
+
+              echo "===== Benchmark Complete ====="
+              echo "End Time: $(date -Iseconds)"
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

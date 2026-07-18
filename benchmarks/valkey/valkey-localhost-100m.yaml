@@ -1,5 +1,14 @@
 # Valkey Localhost Benchmark - 100M Requests
 # Redis와 동일 방법론(benchmarks/redis/redis-localhost-100m.yaml 포팅) — apples-to-apples 비교용
+#
+# ⚠️ 2026-07 재측정: Valkey 8.1.8 -> 9.1-alpine(공식 최신)로 업그레이드, io-threads 미설정
+# (기본, 단일 스레드 I/O) 유지 — Redis와의 io-threads 유무 비교를 위해 이 버전은 baseline.
+# io-threads 4 버전은 benchmarks/valkey-io4/valkey-io4-localhost-100m.yaml 참고.
+#
+# ⚠️ Test 5/6(--csv, 1M 요청 단발) 값은 대시보드에서 더 이상 headline throughput으로 쓰지
+# 않음(redis-benchmark 계열 CSV 요약 durations이 0.25초 단위로만 반올림돼 짧은 구간에서
+# 양자화 노이즈가 심함 — benchmarks/redis 쪽 주석 참고). Test 1의 "overall" 진행률 로그
+# 마지막 값을 지속 처리량으로 파싱(scripts/dashboard/parsers/valkey.py).
 ---
 apiVersion: batch/v1
 kind: Job
@@ -38,7 +47,7 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: valkey-benchmark
-          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/valkey:8-alpine
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/valkey:9.1-alpine
           resources: {}
           command:
             - /bin/sh
@@ -46,7 +55,7 @@ spec:
             - |
               set -e
 
-              # Valkey 설정
+              # Valkey 설정 (io-threads 미설정 = 기본 단일 스레드 I/O)
               cat > /tmp/valkey.conf << 'VALKEY_CONF'
               bind 127.0.0.1
               port 6379
@@ -93,14 +102,14 @@ spec:
               echo "Warmup complete (100K SET requests)"
               echo ""
 
-              # Test 1: SET 100M requests (main test - ~7분 소요 예상)
+              # Test 1: SET 100M requests (main test - 지속 처리량 지표로 사용)
               echo "--- Test 1: SET 100M requests (50 clients, 3 threads) ---"
               echo "Start: $(date -Iseconds)"
               valkey-benchmark -h 127.0.0.1 -t set -c 50 -n 100000000 --threads 3 -q
               echo "End: $(date -Iseconds)"
               echo ""
 
-              # Test 2: GET 100M requests
+              # Test 2: GET 100M requests (지속 처리량 지표로 사용)
               echo "--- Test 2: GET 100M requests (50 clients, 3 threads) ---"
               echo "Start: $(date -Iseconds)"
               valkey-benchmark -h 127.0.0.1 -t get -c 50 -n 100000000 --threads 3 -q
@@ -121,12 +130,12 @@ spec:
               echo "End: $(date -Iseconds)"
               echo ""
 
-              # Test 5: Latency test (1M for quick latency stats)
+              # Test 5: Latency percentile 참고용(1M, --csv) — throughput 지표로는 미사용
               echo "--- Test 5: Latency Test SET 1M ---"
               valkey-benchmark -h 127.0.0.1 -t set -c 50 -n 1000000 --threads 3 --csv
               echo ""
 
-              # Test 6: Latency test GET
+              # Test 6: Latency percentile 참고용 GET
               echo "--- Test 6: Latency Test GET 1M ---"
               valkey-benchmark -h 127.0.0.1 -t get -c 50 -n 1000000 --threads 3 --csv
               echo ""

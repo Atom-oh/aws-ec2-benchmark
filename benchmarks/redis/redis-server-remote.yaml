@@ -1,0 +1,98 @@
+# Redis Server (remote 벤치마크용, io-threads 없음)
+# 대상 인스턴스에 서버만 단독 배포 — 클라이언트는 benchmarks/redis/redis-benchmark-remote.yaml로
+# 별도 benchmark-client 노드풀(c6in.2xlarge)에서 실행. localhost 방식(4 vCPU 안에서 서버+클라이언트
+# 스레드가 경합)이 io-threads 효과를 왜곡시키는 걸 확인해(io-threads 4 켠 Valkey가 -26% 역효과)
+# 원격 분리로 재측정한다 — 이제 대상 인스턴스 4 vCPU 전체가 서버 전용, 클라이언트는 별도 8 vCPU
+# 고네트워크 인스턴스에서 실제 네트워크 I/O를 발생시킨다.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-remote-config
+  namespace: benchmark
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    port 6379
+    protected-mode no
+    maxmemory 0
+    tcp-backlog 511
+    tcp-keepalive 300
+    save ""
+    appendonly no
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: redis-remote-server
+    benchmark: redis-remote
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-remote-server
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        app: redis-remote-server
+        benchmark: redis-remote
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: redis
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/redis:8.8-alpine
+          resources: {}
+          ports:
+            - containerPort: 6379
+          command:
+            - redis-server
+            - /etc/redis/redis.conf
+          volumeMounts:
+            - name: redis-config
+              mountPath: /etc/redis
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-remote-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: redis-remote-server
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  selector:
+    app: redis-remote-server
+    instance-type: "${INSTANCE_TYPE}"
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP
