@@ -23,7 +23,7 @@
             <h4 style="margin-bottom: 0.75rem;">테스트 설정</h4>
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
                 <span class="badge badge-graviton">SET/GET 2000만 건 (원격 client→server)</span>
-                <span class="badge badge-graviton">3회 반복</span>
+                <span class="badge badge-graviton">5회 반복</span>
             </div>
         </div>
     </div>
@@ -77,15 +77,25 @@
 
 <section class="section" id="full-results">
     <h2>전체 결과</h2>
-    <p class="description">행을 클릭하면 3회 반복 통계(최대/최소/변동계수) 상세를 볼 수 있습니다.</p>
+    <p class="description">행을 클릭하면 5회 반복 통계(최대/최소/변동계수) 상세를 볼 수 있습니다.</p>
     <div data-slot="table"></div>
 </section>
 
 <section class="section" id="conclusion">
     <h2>결론 및 추천</h2>
     <ul style="margin-left: 1.5rem;">
-        <li><strong>최고 성능/가성비</strong>: Graviton4 계열(c8g/m8g/r8g)</li>
+        <li><strong>최고 SET 처리량</strong>: c8i-flex.xlarge — Graviton4 계열(c8g/m8g/r8g, 서로 3%
+        이내로 수렴)보다 5회 반복 평균 기준 약 8~9% 높음. AZ를 54개 전체 동일(ap-northeast-2a,
+        c7i-flex.xlarge만 오퍼링 없어 2b)로 고정한 뒤에도 재현되는 결과 — zone 배치 아티팩트가
+        아니라 인스턴스 타입 고유의 특성으로 확인됨.</li>
         <li>SET/GET 처리량은 밀접하게 상관 — 한쪽이 빠르면 대부분 다른 쪽도 빠름</li>
+        <li><strong>네트워크 jitter 이상 현상(iperf3 교차 참조)</strong>: 세대별 jitter 평균이
+        5→6→7세대는 정상적으로 감소(0.022→0.012→0.006ms)하다가 8세대에서 다시 상승(0.017ms).
+        8세대 내부에서도 C/M/R 패밀리별로 들쭉날쭉해(r8i.xlarge는 8세대 중 최저인 0.006ms인 반면
+        c8i.xlarge/m8i.xlarge는 0.019~0.021ms로 높음) "flex 계열이 유리하다"는 단순한 설명은
+        성립하지 않음. Redis latency 재측정에서도 AZ 고정 전후로 인스턴스별 순위가 계속 흔들리는
+        걸 확인했으므로, 이 세대별 jitter 편차는 노드별 개별 변동(noisy neighbor 등)에 가까운
+        것으로 추정 — 근본 원인 미확정.</li>
     </ul>
 </section>
 

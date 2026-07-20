@@ -94,7 +94,11 @@ docker/springboot-petclinic/Dockerfile   # full PetClinic app
 |----------|------|------|------|--------|-----------|
 | sysbench CPU | 54/54 | 51/54 | 5회 | `benchmarks/system/sysbench-cpu.yaml` | `results/sysbench-cpu/<instance>/` |
 | sysbench Memory | 54/54 | 51/54 | 5회 | `benchmarks/system/sysbench-memory.yaml` | `results/sysbench-memory/<instance>/` |
-| Redis | 54/54 | 51/54 | 5회 | `benchmarks/redis/redis-*.yaml` | `results/redis/<instance>/run<N>.log` |
+| Redis (2026-01, 폐기) | 54/54 | — | 5회 | `benchmarks/redis/redis-server.yaml` 등(localhost) | `results/redis-old-8.4/<instance>/run<N>.log` |
+| Redis (원격, AZ고정) | **54/54** | **54/54** | 5회 | `benchmarks/redis/redis-server-remote.yaml` + `redis-benchmark-remote.yaml` | `results/redis-remote/<instance>/run<N>.log` |
+| Redis io-threads 4 | **54/54** | **54/54** | 5회 | `benchmarks/redis-io4/redis-io4-server-remote.yaml` | `results/redis-io4-remote/<instance>/run<N>.log` |
+| Valkey (원격, AZ고정) | **54/54** | **54/54** | 5회 | `benchmarks/valkey/valkey-server-remote.yaml` + `valkey-benchmark-remote.yaml` | `results/valkey-remote/<instance>/run<N>.log` |
+| Valkey io-threads 4 | **54/54** | **54/54** | 5회 | `benchmarks/valkey-io4/valkey-io4-server-remote.yaml` | `results/valkey-io4-remote/<instance>/run<N>.log` |
 | Nginx (wrk) | 54/54 | 51/54 | 5회 | `benchmarks/nginx/nginx-*.yaml` | `results/nginx/<instance>/run<N>.log` |
 | ES Coldstart | 54/54 | 51/54 | 5회 | `benchmarks/elasticsearch/elasticsearch-coldstart.yaml` | `results/elasticsearch/<instance>/run<N>.log` |
 | SpringBoot Coldstart | 54/54 | 51/54 | 5회 | `benchmarks/springboot/springboot-coldstart.yaml` | `results/springboot/<instance>/coldstart<N>.log` |
@@ -719,10 +723,75 @@ results/iperf3/<instance>.log
   - C/M/R 패밀리 간 메모리 차이 (8GB/16GB/32GB)로 인한 성능 차이 확인
   - 노드 재시작, 스케일 아웃 시나리오에 중요
 
-### Redis 벤치마크
+### Redis / Valkey 벤치마크 (2026-07 재측정 — 원격 client→server 토폴로지, AZ 고정)
 
-#### Redis Server + Benchmark
-- **목적**: 인메모리 데이터베이스 처리량 측정
+**⚠️ 2026-01(memtier, localhost 방식) 데이터는 폐기됨.** 사용자가 "Valkey가 Redis보다 느리고 Graviton이
+Intel보다 느리다"는 대시보드 결과(실제 통설과 반대)를 지적해 재조사한 결과, 두 단계의 방법론 결함이
+연쇄로 확인되어 전면 재측정했다.
+
+1. **1차 결함 — Test5(1M, `--csv` 단발) CSV duration이 0.25초 단위로만 반올림**: 1M 요청이
+   4~16초에 끝나는 짧은 테스트라 반올림 오차가 RPS에 수% 반영돼, 서로 다른 54개 인스턴스끼리
+   완전히 같은 값으로 겹치는 양자화 노이즈가 실측 확인됨(unique 값 30개뿐). → headline 지표를
+   Test1/2(SET/GET 지속 처리량, 진행률 로그의 마지막 "overall:" 값, 수천 회 샘플 누적평균이라
+   노이즈 무시 가능)로 교체.
+2. **2차 결함 — localhost 토폴로지(server+client 같은 파드, 4 vCPU 공유)가 io-threads 효과를
+   왜곡**: "no io-threads"는 정확히 4 스레드(1 server + 3 client)로 4 vCPU와 일치하지만
+   "io-threads 4"는 8 스레드(1 + 4 + 3)로 오버서브스크립션 → CPU 경합만 유발해 Valkey
+   io-threads가 -26% 역효과로 나타남. → server를 대상 인스턴스에 단독 배포, client를 별도
+   고네트워크 인스턴스(`benchmark-client` 노드풀, c6in.2xlarge)에서 실행하는 원격 토폴로지로
+   전환(redis 8.4→8.8, valkey 8.1.8→9.1로 버전도 갱신). io-threads가 실제 네트워크 I/O를
+   병렬화할 대상을 얻어 +22~30% 정상 효과로 반전됨.
+3. **3차 결함(발견했으나 일반화되지 않음) — AZ(zone) 배치가 개별 인스턴스 latency를 좌우하는 것처럼
+   보였음**: 원격 토폴로지 1차 재측정(zone 랜덤 배치)에서 c8g.xlarge가 Graviton4 동료(m8g/r8g)나
+   c8i-flex.xlarge보다 느리게 나와 "Graviton4가 유독 느리다"는 가설이 섰으나, 5개 인스턴스만
+   AZ를 `ap-northeast-2a`로 고정해 재측정하니 순위가 또 바뀜(zone 고정 자체가 원인이 아니라
+   해당 5개 샘플의 우연한 상관이었음). **54개 전체를 AZ 고정 재측정한 결과, 전체 latency 분산은
+   zone 고정 전후로 거의 동일했다(stdev 0.235 vs 0.238ms)** — zone은 소수 샘플에서만 우연히
+   상관관계처럼 보였을 뿐, 54개 전체로는 인스턴스 성능 차이를 설명하지 못함. 다만
+   **c8i-flex.xlarge가 Graviton4(c8g/m8g/r8g)보다 SET 처리량이 높다는 결과 자체는 AZ 고정
+   전후 모두 재현**되어 진짜 신호로 확인됨(zone 아티팩트 아님).
+
+**최종 방법론(4개 변형 × 54개 × 5회 반복, 총 1080개 로그)**:
+- **템플릿**: `benchmarks/redis/redis-server-remote.yaml` + `redis-benchmark-remote.yaml`(no
+  io-threads), `benchmarks/redis-io4/redis-io4-server-remote.yaml`(io-threads 4),
+  `benchmarks/valkey/valkey-server-remote.yaml` + `valkey-benchmark-remote.yaml`,
+  `benchmarks/valkey-io4/valkey-io4-server-remote.yaml`
+- **AZ 고정**: 서버 `nodeSelector`에 `topology.kubernetes.io/zone: ${AZ}` 고정(클라이언트는
+  기존 podAffinity로 서버 zone을 따라가므로 자동으로 같은 zone). 54개 중
+  `c7i-flex.xlarge`만 `ap-northeast-2a`에 인스턴스 오퍼링이 없어 `ap-northeast-2b`로 개별
+  오버라이드(`scripts/generate-cache-remote-benchmark.sh`의 `az_for()` 함수, 나머지 53개는
+  전부 `2a`)
+- **워크로드**: SET/GET 각 2000만 건(200 connections, no pipeline — 파이프라이닝을 쓰면 여러
+  요청이 한 syscall에 배치돼 io-threads가 병렬화할 네트워크 I/O가 사라지므로 반드시 미사용),
+  1M 건 `--csv` latency test(Test5/6)
+- **이미지**: `benchmark/redis:8.8-alpine`, `benchmark/valkey:9.1-alpine`(Docker Hub에서
+  `docker buildx imagetools create`로 ECR에 매니페스트 복사, 재빌드 없음)
+- **실행**: `scripts/generate-cache-remote-benchmark.sh <name> <server-template> <client-template>
+  <app-label> [runs] [az]` — 인스턴스별 서버 배포→ready 대기→client Job N회 순차→서버 정리,
+  인스턴스 간 완전 병렬. `results/<name>-remote/<instance>/run<N>.log`
+- **파서**: `scripts/dashboard/parsers/redis.py`/`redis_io4.py`/`valkey.py`/`valkey_io4.py`가
+  각각 `results/redis-remote`/`redis-io4-remote`/`valkey-remote`/`valkey-io4-remote`를 가리킴
+  (localhost 시절 원시 로그는 `results/redis-old-8.4`, `results/valkey-old-8.1.8`에 보관 —
+  파서는 더 이상 참조하지 않음. `results/redis-io4`, `results/valkey-io4`는 io-threads
+  오해석 문제를 처음 발견한 localhost 원시 데이터로, 재현 시 참고용 보관)
+- **⚠️ 재현 시 주의 — 클러스터 부하로 인한 산발적 타임아웃**: 54개 인스턴스를 동시에 재측정할
+  때 몇 개(보통 5세대 AMD나 특정 Graviton3)가 `JOB_TIMEOUT`(2400s) 안에 못 끝나거나 서버
+  기동 자체가 실패하는 경우가 매 배치마다 1~5개꼴로 발생(client nodepool 순간 용량 부족
+  추정). 스크립트가 이미 완료된 run은 스킵하므로 실패한 인스턴스만 골라 동일 커맨드로
+  재실행하면 됨(멱등).
+
+**최종 결과(5회 반복 평균, AZ 고정)**:
+- **c8i-flex.xlarge가 Graviton4 계열(c8g/m8g/r8g, 서로 3% 이내로 수렴)보다 SET 처리량이
+  8~9% 높음** — legacy(2026-01, localhost) 데이터에서는 반대였던 순위가 방법론 교정 후
+  뒤집힘. Redis와 Valkey 코어 성능(둘 다 io-threads 없음) 차이는 거의 사라짐(수% 이내).
+- **네트워크 jitter 이상 현상(iperf3 교차 참조, `site/data/iperf3.json`)**: 세대별 jitter
+  평균이 5→6→7세대는 정상적으로 감소(0.022→0.012→0.006ms)하다가 8세대에서 재상승(0.017ms).
+  8세대 내부에서도 C/M/R 패밀리별로 들쭉날쭉해(r8i.xlarge가 8세대 중 최저인 0.006ms인 반면
+  c8i.xlarge/m8i.xlarge는 0.019~0.021ms) "flex 계열이 유리하다" 같은 단순 설명은 성립하지
+  않음. Redis latency 재측정에서 AZ 고정 전후로 5개 샘플 순위가 계속 흔들렸던 것과 결이
+  같아 노드별 개별 변동(noisy neighbor 등)에 가까운 것으로 추정 — 근본 원인 미확정.
+
+#### Redis Server + Benchmark (2026-01, 폐기됨 — 참고용)
 - **템플릿**:
   - `benchmarks/redis/redis-server.yaml`: Redis 서버
   - `benchmarks/redis/redis-benchmark.yaml`: 벤치마크 클라이언트 (Graviton)
