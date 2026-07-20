@@ -1,4 +1,4 @@
-// redis 고유 SLOT B: 인스턴스 상세 모달(테이블 행 클릭 → 3-run 통계 + CV 해석).
+// redis 고유 SLOT B: 인스턴스 상세 모달(테이블 행 클릭 → 5-run 통계 + CV 해석).
 // GET 효율은 레거시 리포트의 조작값(SET×1.1/1.05)을 폐기하고 이 파서의 실측 get_rps를 사용 —
 // 데이터 스키마 설계에서 결정한 "드롭이 아닌 실측 교체".
 // SLOT B(추가): Redis vs Valkey 4자 비교(엔진 × io-threads 유무) — redis-io4/valkey/valkey-io4
@@ -70,7 +70,7 @@ export async function render(root, { rows }) {
     const cv = setAll.length ? (stdev(setAll) / avg(setAll)) * 100 : null;
     modalBody.innerHTML = `
       <div class="detail-section">
-        <h4>SET 처리량 (3회)</h4>
+        <h4>SET 처리량 (5회)</h4>
         <div class="detail-grid">
           <div class="detail-item"><div class="label">평균</div><div class="value">${fmt(row.set_rps)}</div></div>
           <div class="detail-item"><div class="label">최대</div><div class="value">${fmt(Math.max(...setAll))}</div></div>
@@ -89,7 +89,7 @@ export async function render(root, { rows }) {
         </div>
       </div>
       <div class="detail-section">
-        <h4>GET 처리량 (3회)</h4>
+        <h4>GET 처리량 (5회)</h4>
         <div class="detail-grid">
           <div class="detail-item"><div class="label">평균</div><div class="value">${fmt(row.get_rps)}</div></div>
           <div class="detail-item"><div class="label">최대</div><div class="value">${getAll.length ? fmt(Math.max(...getAll)) : '—'}</div></div>
