@@ -1,37 +1,49 @@
 <header class="hero overview">
-    <h1>종합 벤치마크 대시보드</h1>
-    <p>11개 벤치마크의 대표 지표를 54개 EC2 인스턴스 타입 기준으로 통합 비교</p>
-    <div class="header-meta">리전: ap-northeast-2 (서울) | 인스턴스 크기: xlarge (4 vCPU)</div>
+    <div class="eyebrow">EC2 PERFORMANCE LAB</div>
+    <h1>워크로드에 맞는 인스턴스,<br>데이터로 비교하세요.</h1>
+    <p data-slot="subtitle">성능부터 비용 효율까지, EC2 벤치마크를 한눈에 탐색하세요.</p>
+    <div class="header-meta"><span>서울 · ap-northeast-2</span><span>xlarge · 4 vCPU</span><span>Intel · AMD · AWS Graviton</span></div>
 </header>
 
 <div class="summary-cards" data-slot="summary-cards"></div>
 
 <div class="toc"><h2>목차</h2></div>
 
-<section class="section" id="methodology">
-    <h2>정규화 방법론</h2>
-    <p class="description">
-        각 벤치마크는 자체 headline 지표와 방향성을 제공한다. 값이 클수록 좋은 지표는
-        value / best * 100으로, 값이 작을수록 좋은 지표는 best / value * 100으로 변환해
-        벤치마크별 최고 성능을 100점으로 맞춘다.
-    </p>
-</section>
-
 <section class="section" id="heatmap">
-    <h2>벤치마크별 히트맵</h2>
+    <div class="eyebrow">COMPARE INSTANCES</div>
+    <h2>어떤 워크로드에 강할까요?</h2>
+    <p class="description">각 벤치마크의 최고 성능은 100점입니다. 색이 진할수록 성능이 높으며, —는 측정값이 없는 항목입니다.</p>
+    <div class="comparison-controls">
+        <label>인스턴스 검색<input type="search" data-filter="search" placeholder="예: c8g, m7i" autocomplete="off"></label>
+        <label>아키텍처<select data-filter="arch"><option value="">전체 아키텍처</option><option value="graviton">Graviton</option><option value="intel">Intel</option><option value="amd">AMD</option></select></label>
+        <label>세대<select data-filter="gen"><option value="">전체 세대</option><option value="5">5세대</option><option value="6">6세대</option><option value="7">7세대</option><option value="8">8세대</option></select></label>
+        <label>패밀리<select data-filter="family"><option value="">전체 패밀리</option><option value="C">C · 컴퓨팅</option><option value="M">M · 범용</option><option value="R">R · 메모리</option></select></label>
+        <label>측정 범위<select data-filter="coverage"><option value="">모든 인스턴스</option><option value="complete">모든 벤치마크 측정</option></select></label>
+        <button class="tab-btn" data-action="reset">초기화</button>
+    </div>
+    <div class="comparison-meta"><span data-slot="filter-count" role="status"></span><div class="score-legend"><span>0</span><span class="score-gradient" aria-hidden="true"></span><span>100점</span></div></div>
     <div data-slot="heatmap"></div>
 </section>
 
 <section class="section" id="ranking">
+    <div class="eyebrow">PERFORMANCE & VALUE</div>
     <h2>종합 랭킹</h2>
-    <div data-slot="winners"></div>
+    <p class="description">위 필터가 랭킹에도 적용됩니다. 종합 점수는 측정된 지표의 단순 평균이며, 측정 항목이 다른 인스턴스의 순위는 직접 비교에 주의해 주세요. 가격은 저장된 시간당 요금 기준입니다.</p>
     <div data-slot="ranking-chart"></div>
 </section>
 
-<section class="section" id="conclusion">
-    <h2>결론</h2>
+<section class="section" id="winners">
+    <div class="eyebrow">WORKLOAD LEADERS</div>
+    <h2>벤치마크별 최고 성능</h2>
+    <p class="description">전체 데이터 기준으로 각 워크로드의 최고 성능과 가격 대비 성능을 확인하세요.</p>
+    <div class="summary-cards winner-cards" data-slot="winners"></div>
+</section>
+
+<section class="section" id="methodology">
+    <h2>점수는 어떻게 계산하나요?</h2>
     <p class="description">
-        종합 탭은 벤치마크별 대표 지표를 동일한 0-100 점수 체계로 맞춰 비교의 기준을 제공한다.
-        세부 워크로드 판단은 각 벤치마크 탭의 원본 지표와 함께 확인한다.
+        처리량처럼 높을수록 좋은 지표는 측정값 / 최고값 × 100, 지연 시간처럼 낮을수록 좋은 지표는
+        최저값 / 측정값 × 100으로 정규화합니다. 필터를 변경해도 점수의 기준은 전체 데이터로 유지됩니다.
+        종합 점수 아래의 숫자는 측정된 벤치마크 수입니다. 세부 워크로드 판단은 각 벤치마크 탭의 원본 지표와 함께 확인하세요.
     </p>
 </section>

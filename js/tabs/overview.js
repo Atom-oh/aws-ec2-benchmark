@@ -1,5 +1,5 @@
 import {
-  buildToc, fmt, get, loadData, perDollar, priceSection, summaryCards, topNBar,
+  badge, buildToc, fmt, get, loadData, perDollar, priceSection, summaryCards, topNBar,
 } from '../shared.js';
 
 const BENCHMARKS = [
@@ -110,7 +110,7 @@ function escapeHtml(value) {
 
 function colorFor(score) {
   const clamped = Math.max(0, Math.min(100, score));
-  return `hsl(${clamped * 1.2}, 70%, 88%)`;
+  return `hsl(169, 48%, ${97 - clamped * 0.64}%)`;
 }
 
 function scoreRow(instanceName, overviewData, canonicalIndex) {
@@ -213,7 +213,11 @@ function renderRankingSection(hostEl, overviewData, results) {
     direction: 'max',
   };
 
-  hostEl.innerHTML = '<div data-part="rank"></div><div data-part="bubble"></div>';
+  hostEl.innerHTML = '<div class="grid-2"><div><h3>성능 상위 20개</h3><div data-part="rank"></div></div><div><h3>비용과 성능 비교</h3><div data-part="bubble"></div></div></div>';
+  if (!compositeRows.some((row) => row.__compositeScore != null)) {
+    hostEl.innerHTML = '<p class="empty-state">조건에 맞는 측정값이 없습니다. 필터를 변경해 주세요.</p>';
+    return [];
+  }
 
   return [
     topNBar(hostEl.querySelector('[data-part="rank"]'), compositeRows, {
@@ -226,7 +230,7 @@ function renderRankingSection(hostEl, overviewData, results) {
   ];
 }
 
-function renderHeatmap(hostEl, overviewData) {
+function renderHeatmap(hostEl, overviewData, instances) {
   if (!hostEl) return { destroy() {} };
 
   const totalBenchmarks = overviewData.benchmarks.length;
@@ -242,60 +246,37 @@ function renderHeatmap(hostEl, overviewData) {
     });
 
   hostEl.innerHTML = `
-    <div class="table-filters">
-      <input type="text" class="f-search" placeholder="인스턴스 검색...">
-    </div>
-    <div style="overflow-x: auto;">
-      <table>
+    <div class="table-scroll heatmap-scroll" tabindex="0" role="region" aria-label="벤치마크 점수 히트맵, 가로 및 세로 스크롤 가능">
+      <table class="heatmap-table">
+        <caption class="sr-only">벤치마크별 정규화 점수와 측정 범위, 종합 점수 내림차순</caption>
         <thead>
           <tr>
             <th>인스턴스</th>
-            ${overviewData.benchmarks.map((benchmark) => `<th>${escapeHtml(BENCHMARK_LABELS[benchmark.id] || benchmark.label)}</th>`).join('')}
+            ${overviewData.benchmarks.map((benchmark) => `<th scope="col"><a href="#${benchmark.id}">${escapeHtml(BENCHMARK_LABELS[benchmark.id] || benchmark.label)} ↗</a></th>`).join('')}
             <th>종합 점수</th>
           </tr>
         </thead>
         <tbody>
           ${rows.map((row) => `
             <tr data-instance="${escapeHtml(row.instanceName.toLowerCase())}">
-              <td>${escapeHtml(row.instanceName)}</td>
+              <th scope="row">${escapeHtml(row.instanceName)}<span class="instance-arch">${badge(instances[row.instanceName]?.arch)}</span></th>
               ${overviewData.benchmarks.map((benchmark) => {
                 const score = row.scores[benchmark.id];
                 if (score == null) return '<td class="heatmap-cell heatmap-na">—</td>';
-                return `<td class="heatmap-cell" style="background-color: ${colorFor(score)}">${fmt(score, 0)}</td>`;
+                return `<td class="heatmap-cell" title="${escapeHtml(row.instanceName)} · ${escapeHtml(benchmark.label)}: ${fmt(score, 1)}점" style="background-color: ${colorFor(score)};color:${score >= 97 ? '#fff' : '#000'}">${fmt(score, 0)}</td>`;
               }).join('')}
               ${row.compositeScore == null
                 ? `<td class="heatmap-cell heatmap-na">—<br><small>0/${totalBenchmarks}</small></td>`
-                : `<td class="heatmap-cell" style="background-color: ${colorFor(row.compositeScore)}">${fmt(row.compositeScore, 0)}<br><small>${row.availableCount}/${totalBenchmarks}</small></td>`}
+                : `<td class="heatmap-cell" style="background-color: ${colorFor(row.compositeScore)};color:${row.compositeScore >= 97 ? '#fff' : '#000'}">${fmt(row.compositeScore, 0)}<br><small>${row.availableCount}/${totalBenchmarks}</small></td>`}
             </tr>
-          `).join('')}
+          `).join('') || `<tr><td colspan="${totalBenchmarks + 2}" class="empty-state">조건에 맞는 인스턴스가 없습니다. 필터를 변경해 주세요.</td></tr>`}
         </tbody>
       </table>
     </div>
     <div class="table-count">${fmt(rows.length)}개 인스턴스 표시</div>
   `;
 
-  const searchEl = hostEl.querySelector('.f-search');
-  const countEl = hostEl.querySelector('.table-count');
-  const tableRows = [...hostEl.querySelectorAll('tbody tr')];
-
-  const onSearch = () => {
-    const query = searchEl.value.trim().toLowerCase();
-    let visibleCount = 0;
-    tableRows.forEach((row) => {
-      const visible = !query || row.dataset.instance.includes(query);
-      row.style.display = visible ? '' : 'none';
-      if (visible) visibleCount += 1;
-    });
-    countEl.textContent = `${fmt(visibleCount)}개 인스턴스 표시`;
-  };
-
-  searchEl.addEventListener('input', onSearch);
-
-  return {
-    destroy() {
-      searchEl.removeEventListener('input', onSearch);
-    },
-  };
+  return { destroy() {} };
 }
 
 export async function render(root, _data) {
@@ -310,27 +291,57 @@ export async function render(root, _data) {
 
   handles.push(summaryCards(root.querySelector('[data-slot="summary-cards"]'), [
     {
-      label: '로드된 벤치마크',
+      label: '비교 워크로드',
       value: `${loadedCount}/${BENCHMARKS.length}`,
-      detail: 'headline 계약 기준으로 로드',
+      detail: 'CPU · 메모리 · 네트워크 · 애플리케이션',
     },
     {
       label: '인스턴스 수',
       value: fmt(totalInstances),
-      detail: 'canonical instances.json 기준',
+      detail: 'C · M · R 패밀리 / 5–8세대',
     },
     {
-      label: '평균 커버리지',
+      label: '평균 측정 인스턴스',
       value: averageCoverage == null ? '—' : fmt(averageCoverage, 1),
       detail: '벤치마크당 평균 인스턴스 수',
     },
   ]));
 
-  handles.push(renderHeatmap(root.querySelector('[data-slot="heatmap"]'), overviewData));
+  root.querySelector('[data-slot="subtitle"]').textContent = `${loadedCount}개 벤치마크 · ${totalInstances}개 EC2 인스턴스의 성능과 비용 효율을 비교하세요.`;
 
   handles.push(renderWinners(root.querySelector('[data-slot="winners"]'), overviewData, results));
 
-  handles.push(...renderRankingSection(root.querySelector('[data-slot="ranking-chart"]'), overviewData, results));
+  const instances = buildInstanceLookup(results);
+  const filters = [...root.querySelectorAll('[data-filter]')];
+  let comparisonHandles = [];
+  function updateComparison() {
+    comparisonHandles.forEach((handle) => handle.destroy());
+    const values = Object.fromEntries(filters.map((el) => [el.dataset.filter, el.value]));
+    const names = overviewData.canonicalInstanceNames.filter((name) => {
+      const instance = instances[name];
+      return name.toLowerCase().includes(values.search.trim().toLowerCase())
+        && (!values.arch || instance.arch === values.arch)
+        && (!values.gen || String(instance.gen) === values.gen)
+        && (!values.family || instance.family === values.family)
+        && (!values.coverage || overviewData.benchmarks.every((benchmark) => overviewData.instanceScores[name][benchmark.id] != null));
+    });
+    const filtered = { ...overviewData, canonicalInstanceNames: names };
+    root.querySelector('[data-slot="filter-count"]').textContent = `${names.length} / ${totalInstances}개 인스턴스 · 전체 데이터 기준 점수`;
+    comparisonHandles = [
+      renderHeatmap(root.querySelector('[data-slot="heatmap"]'), filtered, instances),
+      ...renderRankingSection(root.querySelector('[data-slot="ranking-chart"]'), filtered, results),
+    ];
+  }
+  filters.forEach((el) => el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', updateComparison));
+  const reset = root.querySelector('[data-action="reset"]');
+  const onReset = () => { filters.forEach((el) => { el.value = ''; }); updateComparison(); };
+  reset.addEventListener('click', onReset);
+  updateComparison();
+  handles.push({ destroy() {
+    comparisonHandles.forEach((handle) => handle.destroy());
+    filters.forEach((el) => el.removeEventListener(el.tagName === 'INPUT' ? 'input' : 'change', updateComparison));
+    reset.removeEventListener('click', onReset);
+  } });
 
   handles.push(buildToc(root));
 
