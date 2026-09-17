@@ -79,8 +79,12 @@ export function buildToc(rootEl) {
     if (!h2) return;
     const li = document.createElement('li');
     const a = document.createElement('a');
+    a.href = `#${sec.id}`;
     a.textContent = h2.textContent;
-    a.addEventListener('click', () => sec.scrollIntoView({ behavior: 'smooth' }));
+    a.addEventListener('click', (event) => {
+      event.preventDefault();
+      sec.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    });
     li.appendChild(a);
     ul.appendChild(li);
   });
@@ -149,6 +153,7 @@ export function topNBar(hostEl, rows, opts) {
   const { metrics, n = 20, ascending = false } = opts;
   hostEl.innerHTML = `
     ${metricTabsMarkup(metrics, 0)}
+    <div class="chart-context"></div>
     <div class="chart-container tall"><canvas></canvas></div>
   `;
   const canvas = hostEl.querySelector('canvas');
@@ -161,6 +166,9 @@ export function topNBar(hostEl, rows, opts) {
       .filter((r) => get(r, metric.field) != null)
       .sort((a, b) => sortDir * (get(a, metric.field) - get(b, metric.field)))
       .slice(0, n);
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', `${metric.label} 순위, ${metric.direction === 'min' ? '낮을수록' : '높을수록'} 좋음`);
+    hostEl.querySelector('.chart-context').innerHTML = `<span>${metric.direction === 'min' ? '↓ 낮을수록 좋음' : '↑ 높을수록 좋음'} · ${top.length}개 인스턴스</span><span>${ARCHES.map((arch) => badge(arch)).join(' ')}</span>`;
     const cfg = {
       type: 'bar',
       data: {
@@ -175,7 +183,10 @@ export function topNBar(hostEl, rows, opts) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => `${ARCH_LABEL[top[ctx.dataIndex].arch] || ''}: ${fmt(ctx.raw, 2)} ${metric.unit || ''}` } },
+        },
         indexAxis: 'y',
         scales: { x: { title: { display: true, text: metric.unit || '' } } },
       },
@@ -336,6 +347,10 @@ export function priceSection(hostEl, rows, opts) {
     ${gridMetrics.length ? `<div class="tab-content" data-i="2"><div class="grid-3">${gridMetrics.map(() => '<div class="chart-container"><canvas></canvas></div>').join('')}</div></div>` : ''}
   `;
   const charts = [];
+  hostEl.querySelectorAll('canvas').forEach((canvas) => {
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', `${mainMetric.label} 가격 대비 성능 비교`);
+  });
   const contents = [...hostEl.querySelectorAll('.tab-content')];
 
   // 탭 0: 버블 (price vs mainMetric, r = 가성비 스케일)
@@ -408,13 +423,13 @@ export function priceSection(hostEl, rows, opts) {
 export function resultTable(hostEl, rows, columns, opts = {}) {
   hostEl.innerHTML = `
     <div class="table-filters">
-      <input type="text" class="f-search" placeholder="인스턴스 검색...">
-      <select class="f-arch"><option value="">전체 아키텍처</option><option value="graviton">Graviton</option><option value="intel">Intel</option><option value="amd">AMD</option></select>
-      <select class="f-gen"><option value="">전체 세대</option>${GENS.map((g) => `<option value="${g}">${g}세대</option>`).join('')}</select>
-      <select class="f-family"><option value="">전체 패밀리</option><option value="C">C</option><option value="M">M</option><option value="R">R</option></select>
+      <input type="search" class="f-search" aria-label="인스턴스 검색" placeholder="인스턴스 검색...">
+      <select class="f-arch" aria-label="아키텍처 필터"><option value="">전체 아키텍처</option><option value="graviton">Graviton</option><option value="intel">Intel</option><option value="amd">AMD</option></select>
+      <select class="f-gen" aria-label="세대 필터"><option value="">전체 세대</option>${GENS.map((g) => `<option value="${g}">${g}세대</option>`).join('')}</select>
+      <select class="f-family" aria-label="패밀리 필터"><option value="">전체 패밀리</option><option value="C">C</option><option value="M">M</option><option value="R">R</option></select>
     </div>
     <table>
-      <thead><tr>${columns.map((c) => `<th data-field="${c.field}">${c.label}</th>`).join('')}</tr></thead>
+      <thead><tr>${columns.map((c) => `<th scope="col" tabindex="0" data-field="${c.field}">${c.label}</th>`).join('')}</tr></thead>
       <tbody></tbody>
     </table>
     <div class="table-count"></div>
@@ -449,11 +464,11 @@ export function resultTable(hostEl, rows, columns, opts = {}) {
     tbody.innerHTML = sorted.map((r, i) => `<tr${opts.onRowClick ? ` class="clickable-row" data-i="${i}"` : ''}>${columns.map((c) => {
       const v = get(r, c.field);
       return `<td>${c.fmt ? c.fmt(v, r) : (v == null ? '—' : v)}</td>`;
-    }).join('')}</tr>`).join('');
+    }).join('')}</tr>`).join('') || `<tr><td colspan="${columns.length}" class="empty-state">조건에 맞는 인스턴스가 없습니다.</td></tr>`;
     countEl.textContent = `${sorted.length}개 인스턴스 표시`;
 
     if (opts.onRowClick) {
-      tbody.querySelectorAll('tr').forEach((tr, i) => {
+      tbody.querySelectorAll('tr.clickable-row').forEach((tr, i) => {
         tr.addEventListener('click', () => opts.onRowClick(sorted[i]));
       });
     }
@@ -461,6 +476,7 @@ export function resultTable(hostEl, rows, columns, opts = {}) {
     hostEl.querySelectorAll('th').forEach((th) => {
       th.classList.toggle('sort-active', th.dataset.field === sortField);
       th.classList.toggle('asc', th.dataset.field === sortField && sortDir === 1);
+      th.setAttribute('aria-sort', th.dataset.field === sortField ? (sortDir === 1 ? 'ascending' : 'descending') : 'none');
     });
   }
 
@@ -479,6 +495,11 @@ export function resultTable(hostEl, rows, columns, opts = {}) {
     };
     th.addEventListener('click', onClick);
     listeners.push([th, 'click', onClick]);
+    const onKeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick(); }
+    };
+    th.addEventListener('keydown', onKeydown);
+    listeners.push([th, 'keydown', onKeydown]);
   });
 
   render();
