@@ -1,6 +1,6 @@
 {
   "benchmark": "elasticsearch",
-  "coverage": 54,
+  "coverage": 55,
   "headline": {
     "field": "coldstart.avg_ms",
     "direction": "min",
@@ -597,6 +597,32 @@
             14526.0,
             14694.0,
             14162.0
+          ]
+        }
+      }
+    },
+    "c9g.xlarge": {
+      "rally": null,
+      "coldstart": {
+        "avg_ms": 9231.8,
+        "sequential_index_ms": 988.2,
+        "bulk_index_ms": 162.8,
+        "search_match_all_ms": null,
+        "search_term_ms": null
+      },
+      "r": {
+        "cold_ms": {
+          "value": 9464.0,
+          "cv": 11.67,
+          "n": 5,
+          "min": 7738.0,
+          "max": 10657.0,
+          "runs": [
+            10007.0,
+            7738.0,
+            9464.0,
+            8293.0,
+            10657.0
           ]
         }
       }
@@ -2093,6 +2119,25 @@
           "ppd": 1.0414,
           "flags": []
         },
+        "c9g.xlarge": {
+          "value": 9464.0,
+          "cv": 11.67,
+          "n": 5,
+          "min": 7738.0,
+          "max": 10657.0,
+          "runs": [
+            10007.0,
+            7738.0,
+            9464.0,
+            8293.0,
+            10657.0
+          ],
+          "perf": 1.6775,
+          "ppd": 1.7317,
+          "flags": [
+            "회차 최대/최소 1.38배"
+          ]
+        },
         "m5.xlarge": {
           "value": 17956.0,
           "cv": 4.57,
@@ -2714,6 +2759,7 @@
         }
       },
       "rank_perf": [
+        "c9g.xlarge",
         "c8gn.xlarge",
         "c8g.xlarge",
         "m8g.xlarge",
@@ -2770,6 +2816,7 @@
         "r5ad.xlarge"
       ],
       "rank_ppd": [
+        "c9g.xlarge",
         "c8g.xlarge",
         "c7g.xlarge",
         "m8g.xlarge",
@@ -2915,6 +2962,16 @@
           "group": "8세대",
           "verdict": "Graviton 우위",
           "perf_verdict": "비슷"
+        },
+        {
+          "left": "c9g.xlarge",
+          "right": "c8i.xlarge",
+          "perf": 1.5349,
+          "price": 0.923,
+          "ppd": 1.6629,
+          "group": "최신(Graviton5 vs Intel 8세대)",
+          "verdict": "Graviton 우위",
+          "perf_verdict": "Graviton 우위"
         }
       ],
       "amd_pairs": [
@@ -3099,7 +3156,8 @@
           "chain": [
             "c6g.xlarge",
             "c7g.xlarge",
-            "c8g.xlarge"
+            "c8g.xlarge",
+            "c9g.xlarge"
           ],
           "steps": [
             {
@@ -3115,6 +3173,13 @@
               "perf": 1.2811,
               "price": 1.1043,
               "ppd": 1.1601
+            },
+            {
+              "from": "c8g.xlarge",
+              "to": "c9g.xlarge",
+              "perf": 1.1085,
+              "price": 1.0871,
+              "ppd": 1.0197
             }
           ]
         },
@@ -3273,13 +3338,14 @@
       ],
       "peer_outliers": [],
       "thresholds": {
-        "cv": 11.98,
-        "spread": 1.356,
+        "cv": 12.22,
+        "spread": 1.363,
         "peer": 0.15
       },
       "memory_sensitive": true,
       "known_suspects": null,
       "flagged": [
+        "c9g.xlarge",
         "m8i-flex.xlarge",
         "m8i.xlarge",
         "r8i.xlarge"
