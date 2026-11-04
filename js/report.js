@@ -210,3 +210,106 @@ export function bandNote(A) {
 }
 
 export { ARCH_COLOR, ARCH_LABEL };
+
+// ---------------------------------------------------------------------------
+// 표준 리포트 골격 — analysis 블록 하나(A)로 리포트 섹션 전체를 hostEl 안에 생성한다.
+// 각 탭은 cfg로 지표 이름·단위·자릿수, 보조 시나리오(extra scenarios), 벤치마크 고유 서사(lead/notes)만 준다.
+// 문장은 전부 A의 값으로 조립한다(숫자 하드코딩 금지). SpringBoot 탭은 이 골격을 쓰지 않고 수동 구성(파일럿).
+// cfg = { title, unit, digits, scenarios:[{name, pair}], leadHtml, recsExtra:[...], numberPrefix }
+// ---------------------------------------------------------------------------
+const STEP = (A, a, b) => A.uplift.flatMap((u) => u.steps).find((s) => s.from === a && s.to === b);
+const PAIR = (A, a, b) => [...A.pairs, ...A.flex_pairs, ...A.amd_pairs].find((q) => q.left === a && q.right === b);
+
+/** 다른 analysis 블록의 짝을 종합 판정 시나리오 행으로. */
+export function scenario(A, name, left, right) {
+  const q = PAIR(A, left, right);
+  return q ? { name, ...q } : null;
+}
+
+export function standardReport(hostEl, rows, A, cfg = {}) {
+  const handles = [];
+  const unit = cfg.unit ?? A.metric.unit;
+  const digits = cfg.digits ?? 0;
+  const lower = A.metric.direction === 'min';
+  const T = A.table;
+  const odd = new Set(A.peer_outliers.map((o) => o.left));
+  const topPerf = A.rank_perf.find((n) => !odd.has(n));
+  const topPpd = A.rank_ppd.find((n) => !odd.has(n));
+  const g8 = PAIR(A, 'c8g.xlarge', 'c8i.xlarge');
+  const g7 = PAIR(A, 'c7g.xlarge', 'c7i.xlarge');
+  const g9 = PAIR(A, 'c9g.xlarge', 'c8i.xlarge');
+  const upG = STEP(A, 'c7g.xlarge', 'c8g.xlarge');
+  const upG5 = STEP(A, 'c8g.xlarge', 'c9g.xlarge');
+  const upI = STEP(A, 'c7i.xlarge', 'c8i.xlarge');
+  const n = (k) => `${cfg.numberPrefix || ''}${k}`;
+  const sec = (id, title, inner) => `<section class="section" id="${id}"><h2>${title}</h2>${inner}</section>`;
+  const slots = {};
+  const s = (name) => { slots[name] = true; return `<div data-r="${name}"></div>`; };
+  const cap = (t) => `<p class="caption">${t}</p>`;
+  const P = (t) => (t ? `<p>${t}</p>` : '');
+  const fmtv = (v) => `${fmt(v, digits)} ${unit}`;
+  const dirWord = lower ? '짧을수록(낮을수록) 좋습니다' : '높을수록 좋습니다';
+
+  const lead = [
+    `${Object.keys(T).length}개 인스턴스를 <strong>${A.metric.label}</strong>(${unit}, ${dirWord}) 기준으로, 회차 중앙값을 써서 비교했습니다. 기준선은 ${A.baseline} = 1.00배, 가격은 서울 리전 Linux On-Demand입니다.`,
+    g8 ? `8세대끼리는 c8g/c8i가 성능 ${x(g8.perf)}, 가격 ${x(g8.price)}로 가격 대비 성능 <strong>${x(g8.ppd)} (${g8.verdict})</strong>${g7 ? `이고, 7세대 c7g/c7i는 ${x(g7.ppd)}(${g7.verdict})` : ''}입니다.${g9 ? ` Graviton5 c9g는 c8i 대비 ${x(g9.ppd)}(${g9.verdict})입니다.` : ''}` : '',
+  ];
+  const kf = [
+    topPerf && { item: `${A.metric.label} 1위`, result: topPerf, note: `${fmtv(T[topPerf].value)} · ${A.baseline} 대비 ${x(T[topPerf].perf)}` },
+    topPpd && { item: '가격 대비 성능 1위', result: topPpd, note: `${A.baseline} 대비 ${x(T[topPpd].ppd)}` },
+    g8 && { item: 'Graviton4 vs Intel 8세대', result: `c8g / c8i ${x(g8.ppd)}`, note: `성능 ${x(g8.perf)}, 가격 ${x(g8.price)} — ${g8.verdict}` },
+    g9 && { item: 'Graviton5 vs Intel 8세대', result: `c9g / c8i ${x(g9.ppd)}`, note: `성능 ${x(g9.perf)}, 가격 ${x(g9.price)} — ${g9.verdict}` },
+    upG && { item: 'Graviton3 → Graviton4', result: pct(upG.perf - 1), note: `c7g → c8g, 가격 대비 성능 ${pct(upG.ppd - 1)}` },
+    upG5 && { item: 'Graviton4 → Graviton5', result: pct(upG5.perf - 1), note: `c8g → c9g, 가격 대비 성능 ${pct(upG5.ppd - 1)}` },
+    upI && { item: 'Sapphire Rapids → Granite Rapids', result: pct(upI.perf - 1), note: `c7i → c8i, 가격 대비 성능 ${pct(upI.ppd - 1)}` },
+    { item: '신뢰도 경고', result: `${A.flagged.length}개`, note: A.peer_outliers.length ? `같은 프로세서 이상치: ${A.peer_outliers.map((o) => `${short(o.left)}/${short(o.right)} ${x(o.perf)}`).join(', ')}` : '같은 프로세서 이상치 없음' },
+  ].filter(Boolean);
+
+  const scen = [
+    ...['8', '7', '6'].flatMap((g) => ['c', 'm', 'r'].map((f) => PAIR(A, `${f}${g}g.xlarge`, `${f}${g}i.xlarge`)).filter(Boolean)
+      .map((q) => ({ name: `${A.metric.label}, ${q.group} ${short(q.left)[0].toUpperCase()}`, ...q }))),
+    ...(g9 ? [{ name: `${A.metric.label}, Graviton5 vs Intel 8세대`, ...g9 }] : []),
+    ...(cfg.scenarios || []).filter(Boolean),
+  ];
+  const fam8 = A.families.find((f) => f[0].name === 'c8g.xlarge') || A.families[0];
+  const fl8 = A.flex_pairs.filter((q) => q.group === '8세대' && q.verdict !== '재측정 필요');
+  const amdAll = A.amd_pairs.length && A.amd_pairs.every((q) => q.verdict === 'Intel 우위');
+  const recs = [
+    topPpd && `${A.metric.label} 기준 가격 대비 성능은 <strong>${short(topPpd)}</strong>가 1위입니다(${A.baseline} 대비 ${x(T[topPpd].ppd)}). 절대 성능이 우선이면 ${short(topPerf)}(${x(T[topPerf].perf)})입니다.`,
+    g8 && `8세대 C 패밀리에서는 ${g8.verdict === '비슷' ? 'c8g와 c8i가 가격 대비 성능이 비슷합니다' : `${g8.verdict.replace(' 우위', '')}가 가격 대비 성능에서 앞섭니다`}(c8g/c8i ${x(g8.ppd)}).`,
+    upG && `Graviton3(c7g)에서 운영 중이라면 c8g로 바꾸는 것만으로 가격 대비 성능이 ${pct(upG.ppd - 1)} 달라집니다.`,
+    fam8 && fam8.length > 1 && `메모리가 더 필요하지 않다면 C 패밀리가 유리합니다. ${short(fam8[0].name)} = 1.00배일 때 ${fam8.slice(1).map((r) => `${short(r.name)} ${x(r.ppd)}`).join(', ')}입니다.`,
+    fl8.length && `8세대 Intel이 필요하면 flex를 검토하십시오(flex ÷ 표준 가격 대비 성능 ${xRange(fl8.map((q) => q.ppd))}).`,
+    amdAll && `5세대 AMD는 같은 세대 Intel보다 가격 대비 성능이 ${A.amd_pairs.map((q) => `${short(q.left)} ${x(q.ppd)}`).join(', ')}로 뒤집니다.`,
+    ...(cfg.recsExtra || []),
+  ].filter(Boolean);
+
+  hostEl.innerHTML = [
+    `<section class="section report-lead">${P(lead.join(' '))}${cfg.leadHtml || ''}${s('kf')}${cap(`<strong>표 ${n(1)}.</strong> 핵심 결과`)}</section>`,
+    sec('r-reliability', '측정 신뢰도', `${s('rel')}${cap(`<strong>표 ${n(2)}.</strong> 회차 간 변동이 크거나 같은 프로세서와 어긋나는 인스턴스`)}`),
+    sec('r-rank', `${A.metric.label} 순위`, `${s('rank')}${cap(`<strong>그림 ${n(1)}.</strong> 막대 = 회차 중앙값, 점 = 회차별 값 (${unit}, ${dirWord}). 진한 막대는 8세대 이상.`)}`),
+    sec('r-price', '가격 대비 성능', `${s('price')}${cap(`<strong>표 ${n(3)}.</strong> 가격 대비 성능 상위 15개`)}`),
+    sec('r-pairs', '같은 세대의 Graviton과 Intel', `${P('xlarge의 vCPU 4개는 Graviton에서 물리 코어 4개, Intel/AMD에서 물리 코어 2개 × 하이퍼스레딩입니다.')}${s('pairs-chart')}${cap(`<strong>그림 ${n(2)}.</strong> 가격 대비 성능 (Graviton ÷ Intel). 회색 띠는 ±${A.band * 100}%`)}${s('pairs')}<h3>5세대 AMD와 Intel</h3>${s('amd')}`),
+    sec('r-uplift', '세대 간 향상', `${s('uplift-chart')}${cap(`<strong>그림 ${n(3)}.</strong> 이전 세대(빈 원) → 다음 세대(채운 원)`)}${s('uplift')}`),
+    sec('r-family', '패밀리(C/M/R)와 flex', `${s('family')}<h3>flex와 표준</h3>${s('flex')}`),
+    sec('r-verdict', '종합 판정과 권고', `${s('verdict-chart')}${cap(`<strong>그림 ${n(4)}.</strong> 시나리오별 가격 대비 성능 (왼쪽 ÷ 오른쪽)`)}${s('verdict')}${cap(bandNote(A))}<h3>권고</h3><ul class="recs">${recs.map((r) => `<li>${r}</li>`).join('')}</ul>`),
+  ].join('');
+  const at = (k) => hostEl.querySelector(`[data-r="${k}"]`);
+  handles.push(keyFindings(at('kf'), kf));
+  handles.push(reliability(at('rel'), A, { unit, digits,
+    extra: [`경고 임계값: 회차 간 변동계수 ${A.thresholds.cv}% · 회차 최대/최소 ${A.thresholds.spread}배 · 같은 프로세서 짝 차이 ±${A.thresholds.peer * 100}%.`] }));
+  handles.push(dotBar(at('rank'), rows, A, { names: A.rank_perf, digits, unit }));
+  handles.push(priceTable(at('price'), rows, A, { digits, limit: 15 }));
+  handles.push(ratioBars(at('pairs-chart'), A.pairs.map((q) => ({ label: `${short(q.left)} / ${short(q.right)}`, value: q.ppd })), { band: A.band, title: '가격 대비 성능 (Graviton ÷ Intel)' }));
+  handles.push(pairTable(at('pairs'), A.pairs));
+  handles.push(pairTable(at('amd'), A.amd_pairs));
+  handles.push(dumbbell(at('uplift-chart'), rows, A, { digits, unit }));
+  handles.push(upliftTable(at('uplift'), rows, A));
+  handles.push(familyTable(at('family'), rows, A));
+  handles.push(pairTable(at('flex'), A.flex_pairs));
+  handles.push(ratioBars(at('verdict-chart'), scen.map((q) => ({ label: q.name, value: q.ppd })), { band: A.band }));
+  const vt = at('verdict');
+  vt.innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>시나리오</th><th>비교</th><th>성능</th><th>가격</th><th>가격 대비 성능</th><th>판정</th></tr></thead><tbody>${
+    scen.map((q) => `<tr><td>${q.name}</td><td>${short(q.left)} / ${short(q.right)}</td><td>${x(q.perf)}</td><td>${q.price == null ? '—' : x(q.price)}</td><td><strong>${x(q.ppd)}</strong></td><td>${verdictBadge(q.verdict)}</td></tr>`).join('')}</tbody></table></div>`;
+  return { destroy() { handles.forEach((h) => h && h.destroy && h.destroy()); hostEl.innerHTML = ''; } };
+}

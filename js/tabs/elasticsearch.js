@@ -5,9 +5,11 @@
 import {
   buildToc, summaryCards, topNBar, metricTabChart, priceSection, resultTable, fmt, archColor,
 } from '../shared.js';
+import { standardReport, scenario } from '../report.js';
 
-export async function render(root, { rows }) {
+export async function render(root, { rows, envelope }) {
   const handles = [];
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.cold_ms, { unit: 'ms', leadHtml: '<p class="caption">JVM 힙을 RAM의 60%로 잡으므로 C/M/R의 메모리 차이가 기동 시간에 영향을 줍니다. 그래서 같은 프로세서 C/M/R 이상치 검사는 끄고, flex/표준 짝만 검사했습니다.</p>' }));
   const rallyRows = rows.filter((r) => r.rally != null);
 
   const topRally = [...rallyRows].sort((a, b) => b.rally.throughput - a.rally.throughput)[0];

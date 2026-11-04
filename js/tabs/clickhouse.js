@@ -4,9 +4,11 @@
 import {
   buildToc, summaryCards, topNBar, metricTabChart, familyChart, genImprovement, priceSection, resultTable, fmt, ARCH_COLOR,
 } from '../shared.js';
+import { standardReport, scenario } from '../report.js';
 
 export async function render(root, { rows, envelope }) {
   const handles = [];
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.hot_total_s, { unit: 's', digits: 1, leadHtml: '<p class="caption">데이터셋(13.44 GiB)이 C 패밀리(8 GiB) 메모리보다 커서 C에서는 hot 쿼리도 EBS를 읽습니다. 메모리 용량이 결과를 좌우하므로 같은 프로세서 C/M/R 이상치 검사는 끄고 flex/표준 짝만 검사했습니다.</p>' }));
   const wh = rows.filter((r) => r.hot_total_s != null);
   const best = [...wh].sort((a, b) => a.hot_total_s - b.hot_total_s)[0];
   const bestVal = rows.filter((r) => r.value).sort((a, b) => b.value - a.value)[0];

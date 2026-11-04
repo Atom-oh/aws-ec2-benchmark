@@ -4,9 +4,11 @@
 import {
   buildToc, summaryCards, topNBar, metricTabChart, priceSection, resultTable, fmt,
 } from '../shared.js';
+import { standardReport, scenario } from '../report.js';
 
-export async function render(root, { rows }) {
+export async function render(root, { rows, envelope }) {
   const handles = [];
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.cpu_mt, { unit: 'events/s', scenarios: [scenario(envelope.analysis.cpu_st, 'CPU 단일 스레드, 8세대 C', 'c8g.xlarge', 'c8i.xlarge'), scenario(envelope.analysis.cpu_st, 'CPU 단일 스레드, 7세대 C', 'c7g.xlarge', 'c7i.xlarge'), scenario(envelope.analysis.mem_seq_read, '메모리 순차 읽기, 8세대 C (변동 큼)', 'c8g.xlarge', 'c8i.xlarge')] }));
   const bestBy = (field) => [...rows].filter((r) => r[field] != null).sort((a, b) => b[field] - a[field])[0];
 
   const topMt = bestBy('cpu_mt');
@@ -102,6 +104,20 @@ export async function render(root, { rows }) {
     { field: 'mem_large_block', label: 'Large Block', fmt: (v) => `<strong>${fmt(v)}</strong>` },
     { field: 'price', label: '$/hr', fmt: (v) => `$${v.toFixed(3)}` },
   ]));
+
+  // ---- 고유 섹션: 4 vCPU 스케일링 (멀티 ÷ 단일) — 값은 parsers/sysbench.py smt_scaling ----
+  const sc = envelope.smt_scaling;
+  const g = (k) => sc[k];
+  const label = { graviton: 'Graviton', intel: 'Intel', amd: 'AMD' };
+  const bes = root.querySelector('[data-slot="bespoke"]');
+  bes.innerHTML = `<p>멀티스레드(4 threads) 점수를 단일 스레드 점수로 나누면 vCPU 4개가 코어 하나의 몇 배를 내는지 알 수 있습니다. `
+    + `Graviton은 vCPU 하나가 물리 코어 하나라서 ${fmt(g('graviton-8').median, 2)}배(4에 근접)이고, Intel 6~8세대는 ${fmt(g('intel-6').median, 2)}~${fmt(Math.max(g('intel-7').median, g('intel-8').median), 2)}배, AMD 5세대는 ${fmt(g('amd-5').median, 2)}배입니다. `
+    + `xlarge Intel/AMD의 vCPU 4개는 물리 코어 2개를 하이퍼스레딩으로 나눈 것이고, sysbench cpu(소수 계산)는 실행 유닛을 이미 채우는 부하라 두 번째 스레드가 거의 보탬이 되지 않습니다. `
+    + `예외는 5세대 Intel(${fmt(g('intel-5').median, 2)}배)로, 하이퍼스레딩으로 약 ${Math.round((g('intel-5').median / 2 - 1) * 100)}%를 더 얻었습니다. `
+    + `<strong>그래서 멀티스레드 격차(Graviton이 같은 세대 Intel의 약 1.8배)는 코어 성능 차이가 아니라 물리 코어 수 차이에서 나옵니다.</strong> 단일 스레드는 Intel이 조금 빠릅니다(리포트 종합 판정 참고).</p>`
+    + `<div class="table-scroll"><table class="report-table"><thead><tr><th>아키텍처</th><th>세대</th><th>인스턴스 수</th><th>멀티 ÷ 단일 (중앙값)</th><th>범위</th></tr></thead><tbody>${
+      Object.entries(sc).map(([k, v]) => { const [a, gen] = k.split('-'); return `<tr><td>${label[a]}</td><td>${gen}세대</td><td>${v.n}</td><td><strong>${fmt(v.median, 2)}배</strong></td><td>${fmt(v.min, 2)} ~ ${fmt(v.max, 2)}</td></tr>`; }).join('')
+    }</tbody></table></div><p class="caption">CPU 멀티스레드 ÷ 단일 스레드 (회차 중앙값 기준)</p>`;
 
   handles.push(buildToc(root));
 

@@ -4,9 +4,11 @@
 import {
   buildToc, summaryCards, topNBar, metricTabChart, familyChart, genImprovement, priceSection, resultTable, fmt,
 } from '../shared.js';
+import { standardReport, scenario } from '../report.js';
 
-export async function render(root, { rows }) {
+export async function render(root, { rows, envelope }) {
   const handles = [];
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.set_rps, { unit: 'ops/s', scenarios: [scenario(envelope.analysis.get_rps, 'Valkey GET, 8세대 C', 'c8g.xlarge', 'c8i.xlarge'), scenario(envelope.analysis.get_rps, 'Valkey GET, 7세대 C', 'c7g.xlarge', 'c7i.xlarge')] }));
   const topSet = [...rows].filter((r) => r.set_rps != null).sort((a, b) => b.set_rps - a.set_rps)[0];
   const topGet = [...rows].filter((r) => r.get_rps != null).sort((a, b) => b.get_rps - a.get_rps)[0];
   const topEff = rows.filter((r) => r.set_rps != null && r.price).map((r) => ({ ...r, __eff: r.set_rps / r.price }))

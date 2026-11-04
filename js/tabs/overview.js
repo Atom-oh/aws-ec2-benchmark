@@ -1,6 +1,7 @@
 import {
   badge, buildToc, fmt, get, loadData, perDollar, priceSection, summaryCards, topNBar,
 } from '../shared.js';
+import { ratioBars, x as xTimes } from '../report.js';
 
 const BENCHMARKS = [
   'sysbench',
@@ -285,6 +286,8 @@ export async function render(root, _data) {
   const overviewData = buildOverviewData(results);
   root.__overviewData = overviewData;
 
+  handles.push(verdictMatrix(root, results));
+
   const loadedCount = results.length;
   const totalInstances = overviewData.canonicalInstanceNames.length;
   const averageCoverage = average(overviewData.benchmarks.map((benchmark) => benchmark.coverage));
@@ -352,4 +355,37 @@ export async function render(root, _data) {
       handles.forEach((handle) => handle && handle.destroy && handle.destroy());
     },
   };
+}
+
+
+// 벤치마크별 Graviton ÷ Intel 판정 매트릭스 — envelope.headline.analysis_key가 가리키는 분석 블록만 읽는다
+// (벤치마크별 분기 0줄). 짝 정의·판정 규칙은 scripts/dashboard/analysis.py와 동일.
+const MATRIX_COLS = [
+  ['c9g.xlarge', 'c8i.xlarge', 'Graviton5 / Intel 8세대'],
+  ['c8g.xlarge', 'c8i.xlarge', '8세대 (c8g / c8i)'],
+  ['c7g.xlarge', 'c7i.xlarge', '7세대 (c7g / c7i)'],
+  ['c6g.xlarge', 'c6i.xlarge', '6세대 (c6g / c6i)'],
+];
+function verdictMatrix(root, results) {
+  const rowsData = results.map(({ envelope }) => {
+    const key = envelope.headline?.analysis_key;
+    const A = key && envelope.analysis?.[key];
+    if (!A) return null;
+    const cells = MATRIX_COLS.map(([l, r]) => A.pairs.find((q) => q.left === l && q.right === r) || null);
+    return { name: BENCHMARK_LABELS[envelope.benchmark] || envelope.benchmark, label: A.metric.label, cells, caveat: envelope.headline?.caveat };
+  }).filter(Boolean);
+  const cols = MATRIX_COLS.filter((_, i) => rowsData.some((r) => r.cells[i]));
+  const colIdx = cols.map((c) => MATRIX_COLS.indexOf(c));
+  const cls = (v) => (!v ? '' : v === '비슷' ? 'verdict-even' : v === '재측정 필요' ? 'verdict-hold' : v.startsWith('Graviton') ? 'verdict-left' : 'verdict-right');
+  const g8 = rowsData.map((r) => r.cells[1]).filter(Boolean);
+  const count = (v) => g8.filter((q) => q.verdict === v).length;
+  root.querySelector('[data-slot="verdict-lead"]').innerHTML = `<p>8세대(c8g / c8i) 기준으로 ${g8.length}개 벤치마크 중 Graviton 우위 ${count('Graviton 우위')}개, 비슷 ${count('비슷')}개, Intel 우위 ${count('Intel 우위')}개${count('재측정 필요') ? `, 판정 보류 ${count('재측정 필요')}개` : ''}입니다. `
+    + '같은 하드웨어라도 워크로드(멀티코어 계산, 단일 스레드, 확장 명령어, 메모리 용량, 네트워크)에 따라 판정이 갈리므로, 자신의 워크로드에 가장 가까운 벤치마크의 판정을 보십시오.</p>';
+  const chart = ratioBars(root.querySelector('[data-slot="verdict-chart"]'),
+    rowsData.filter((r) => r.cells[1]).map((r) => ({ label: `${r.name} · ${r.label}`, value: r.cells[1].ppd })), { band: 0.05, title: 'c8g / c8i 가격 대비 성능' });
+  root.querySelector('[data-slot="verdict-matrix"]').innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>벤치마크</th><th>기본 지표</th>${cols.map((c) => `<th>${c[2]}</th>`).join('')}</tr></thead><tbody>${
+    rowsData.map((r) => `<tr><td><strong>${r.name}</strong>${r.caveat ? ' <sup>※</sup>' : ''}</td><td>${r.label}</td>${colIdx.map((i) => { const q = r.cells[i]; return `<td>${q ? `${xTimes(q.ppd)} <span class="verdict ${cls(q.verdict)}">${q.verdict}</span>` : '—'}</td>`; }).join('')}</tr>`).join('')
+  }</tbody></table></div><p class="caption">셀 = 가격 대비 성능 배수(Graviton ÷ Intel)와 판정. '재측정 필요'는 같은 프로세서 이상치나 알려진 측정 이슈가 낀 짝입니다.</p>${
+    rowsData.filter((r) => r.caveat).map((r) => `<p class="caption" style="text-align:left">※ <strong>${r.name}</strong>: ${r.caveat}</p>`).join('')}`;
+  return { destroy() { chart.destroy(); } };
 }

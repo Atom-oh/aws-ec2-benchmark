@@ -3,9 +3,11 @@
 import {
   buildToc, summaryCards, topNBar, metricTabChart, familyChart, priceSection, resultTable, fmt,
 } from '../shared.js';
+import { standardReport, scenario } from '../report.js';
 
-export async function render(root, { rows }) {
+export async function render(root, { rows, envelope }) {
   const handles = [];
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.parallel_gbps, { unit: 'Gbps', digits: 2, scenarios: [scenario(envelope.analysis.single_gbps, 'TCP 단일 스트림, 8세대 C', 'c8g.xlarge', 'c8i.xlarge')], leadHtml: '<p class="caption">xlarge의 네트워크 대역폭은 인스턴스별 기준(baseline)과 버스트 상한이 정해져 있습니다. 30초 측정은 버스트 구간이 포함될 수 있어 지속 대역폭과 다를 수 있습니다.</p>' }));
   const topParallel = [...rows].filter((r) => r.parallel_gbps != null).sort((a, b) => b.parallel_gbps - a.parallel_gbps)[0];
   const topJitter = [...rows].filter((r) => r.jitter_ms != null).sort((a, b) => a.jitter_ms - b.jitter_ms)[0];
   const topEff = rows.filter((r) => r.parallel_gbps != null && r.price).map((r) => ({ ...r, __eff: r.parallel_gbps / r.price }))
