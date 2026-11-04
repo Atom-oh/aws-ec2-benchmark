@@ -1,169 +1,196 @@
+// SpringBoot 탭 — 리포트 구조(핵심 결과 → 방법·신뢰도 → 처리량 → 가격 대비 성능 → 짝 비교 → 세대 향상 →
+// 패밀리/flex → 지연 → 기동 → 종합 판정·권고). 모든 수치는 envelope.analysis(scripts/dashboard/analysis.py)에서
+// 오고, 문장도 그 값으로 조립한다 — HTML에 숫자를 하드코딩하지 않는다(데이터 갱신 시 본문이 어긋나지 않게).
+import { archColor, fmt, metricTabChart, resultTable, badge, buildToc } from '../shared.js';
 import {
-  buildToc, summaryCards, topNBar, metricTabChart, priceSection, resultTable, fmt, badge, get, perDollar, archColor,
-} from '../shared.js';
+  keyFindings, specTable, reliability, dotBar, ratioBars, pairTable, dumbbell, upliftTable, familyTable,
+  priceTable, bandNote, x, pct, short, xRange,
+} from '../report.js';
+
+const SPEC_NAMES = ['c5.xlarge', 'c5a.xlarge', 'c6g.xlarge', 'c6i.xlarge', 'c7g.xlarge', 'c7i.xlarge', 'c7i-flex.xlarge',
+  'c8g.xlarge', 'c8i.xlarge', 'c8i-flex.xlarge', 'c9g.xlarge', 'm8g.xlarge', 'm8i.xlarge', 'r8g.xlarge', 'r8i.xlarge'];
+
+const p = (html) => `<p>${html}</p>`;
+const findPair = (A, left, right) => A.pairs.find((q) => q.left === left && q.right === right)
+  || A.flex_pairs.find((q) => q.left === left && q.right === right)
+  || A.amd_pairs.find((q) => q.left === left && q.right === right);
+const step = (A, from, to) => A.uplift.flatMap((u) => u.steps).find((s) => s.from === from && s.to === to);
+const outliers = (A) => new Set(A.peer_outliers.flatMap((o) => [o.left]));
 
 export async function render(root, { rows, envelope }) {
   const handles = [];
-  const bestBy = (field, direction = 'max') => [...rows]
-    .filter((r) => get(r, field) != null)
-    .sort((a, b) => (direction === 'min' ? get(a, field) - get(b, field) : get(b, field) - get(a, field)))[0];
+  const slot = (name) => root.querySelector(`[data-slot="${name}"]`);
+  const fill = (name, html) => { const el = slot(name); if (el) el.innerHTML = html; };
+  const AT = envelope.analysis.throughput;
+  const AC = envelope.analysis.coldstart;
+  const AP = envelope.analysis.p99;
+  const T = AT.table;
+  const odd = outliers(AT);
+  const topPerf = AT.rank_perf.find((n) => !odd.has(n));
+  const topPpd = AT.rank_ppd.find((n) => !odd.has(n));
+  const g8 = findPair(AT, 'c8g.xlarge', 'c8i.xlarge');
+  const g7 = findPair(AT, 'c7g.xlarge', 'c7i.xlarge');
+  const g9 = findPair(AT, 'c9g.xlarge', 'c8i.xlarge');
+  const up_g = step(AT, 'c7g.xlarge', 'c8g.xlarge');
+  const up_i = step(AT, 'c7i.xlarge', 'c8i.xlarge');
+  const coldTop = AC.rank_perf[0];
+  const c7iflex = AT.peer_outliers.find((o) => o.left === 'c7i-flex.xlarge');
 
-  const topRps = bestBy('wrk.rps200');
-  const topCold = bestBy('cold_s', 'min');
-  const topEff = rows
-    .filter((r) => get(r, 'wrk.rps200') != null && r.price)
-    .map((r) => ({ ...r, __eff: perDollar(r, 'wrk.rps200') }))
-    .sort((a, b) => b.__eff - a.__eff)[0];
-
-  handles.push(summaryCards(root.querySelector('[data-slot="summary-cards"]'), [
-    { label: '최고 처리량 (200 conn)', value: topRps.name, detail: `${fmt(get(topRps, 'wrk.rps200'))} req/s` },
-    { label: '최저 콜드스타트', value: topCold.name, detail: `${fmt(topCold.cold_s, 2)} s` },
-    { label: '최고 가성비', value: topEff.name, detail: `${fmt(topEff.__eff)} req/s per $/hr` },
+  // ---------- 핵심 결과 ----------
+  fill('lead', [
+    p(`xlarge(4 vCPU) ${Object.keys(T).length}개 인스턴스에서 Spring Boot 최대 처리량과 PetClinic 기동 시간을 측정했습니다. `
+      + `가격 대비 성능은 서울 리전 On-Demand 가격으로 계산했고, ${AT.baseline}를 1.00배로 표시했습니다.`),
+    p(`8세대끼리 비교하면 Graviton4 기반 c8g.xlarge는 처리량이 c8i.xlarge의 ${x(g8.perf)}이지만 시간당 가격이 ${x(g8.price)}라서, `
+      + `가격 대비 성능은 <strong>${x(g8.ppd)} (${g8.verdict})</strong>입니다. 7세대에서는 c7g가 c7i의 ${x(g7.ppd)}(${g7.verdict})였으므로, `
+      + `Graviton은 세대 교체로 Intel과의 격차를 크게 좁혔습니다.${g9 ? ` Graviton5 c9g.xlarge는 c8i 대비 ${x(g9.ppd)}(${g9.verdict})입니다.` : ''}`),
+    p(`다만 이 우위는 C2 전용 JVM 플래그(<code>-XX:-TieredCompilation</code>) 조건입니다. 운영에서 흔한 JVM 기본값으로는 c8g/c8i 가격 대비 성능이 `
+      + `${x(envelope.sustained_default.pairs[0].ppd)}(${envelope.sustained_default.pairs[0].verdict})로 뒤집힙니다(§10). 판정과 권고는 §11에 정리했습니다.`),
+  ].join(''));
+  handles.push(keyFindings(slot('key-findings'), [
+    { item: '최대 처리량 1위', result: topPerf, note: `${AT.baseline} 대비 ${x(T[topPerf].perf)}${c7iflex ? ` (c7i-flex ${x(T['c7i-flex.xlarge'].perf)}는 같은 프로세서와 어긋나는 이상치라 제외, §2)` : ''}` },
+    { item: '가격 대비 성능 1위', result: topPpd, note: `${AT.baseline} 대비 ${x(T[topPpd].ppd)}` },
+    { item: 'Graviton4 vs Intel 8세대 (C2 전용)', result: `c8g / c8i 가격 대비 성능 ${x(g8.ppd)}`, note: `처리량 ${x(g8.perf)}, 가격 ${x(g8.price)} — ${g8.verdict}` },
+    { item: 'JVM 기본값일 때', result: `c8g / c8i 가격 대비 성능 ${x(envelope.sustained_default.pairs[0].ppd)}`, note: `처리량 ${x(envelope.sustained_default.pairs[0].perf)} — ${envelope.sustained_default.pairs[0].verdict} (§10)` },
+    { item: 'Graviton3 → Graviton4', result: pct(up_g.perf - 1), note: 'c7g → c8g 최대 처리량' },
+    { item: 'Sapphire Rapids → Granite Rapids', result: pct(up_i.perf - 1), note: 'c7i → c8i 최대 처리량 (c7i는 호스트 편차 있음, §2)' },
+    { item: '콜드 스타트 최단', result: coldTop, note: `PetClinic 기동 ${fmt(AC.table[coldTop].value, 2)}초, JVM 기본값${AC.flagged.includes(coldTop) ? ' — 회차 변동이 커서 순위는 잠정적' : ''}` },
   ]));
 
-  handles.push(metricTabChart(root.querySelector('[data-slot="load-stages"]'), rows, [
-    { field: 'wrk.rps50', label: '50 connections', unit: 'req/s', direction: 'max', icon: '50' },
-    { field: 'wrk.rps100', label: '100 connections', unit: 'req/s', direction: 'max', icon: '100' },
-    { field: 'wrk.rps200', label: '200 connections', unit: 'req/s', direction: 'max', icon: '200' },
+  // ---------- 1. 방법 ----------
+  handles.push(specTable(slot('specs'), rows, SPEC_NAMES));
+
+  // ---------- 2. 신뢰도 ----------
+  handles.push(reliability(slot('reliability'), AT, {
+    unit: 'req/s',
+    extra: [`경고 임계값: 회차 간 변동계수 ${AT.thresholds.cv}% · 회차 최대/최소 ${AT.thresholds.spread}배 · 같은 프로세서 짝(flex/표준, 같은 세대 C/M/R) 차이 ±${AT.thresholds.peer * 100}%. `
+      + `${AT.baseline}(기준선)도 회차가 두 무리(${T[AT.baseline].runs.map((v) => fmt(v)).join(', ')})로 갈립니다. 중앙값은 높은 쪽 무리에 속하지만, 기준선 대비 배수는 이 편차만큼 불확실합니다.`],
+  }));
+  const drift = envelope.session_drift.filter((r) => r.arch === 'graviton');
+  const absd = drift.map((r) => Math.abs(r.change)).sort((a, b) => a - b);
+  const within = absd.filter((v) => v <= AT.band).length;
+  const mid = absd.length % 2 ? absd[(absd.length - 1) / 2] : (absd[absd.length / 2 - 1] + absd[absd.length / 2]) / 2;
+  fill('drift-lead', p(`Graviton ${drift.length}개는 다른 세션에서도 같은 설정(C2 전용)으로 측정된 기록이 있습니다. 두 세션의 차이는 `
+    + `중앙값 ${(mid * 100).toFixed(1)}%, 최대 ${(absd[absd.length - 1] * 100).toFixed(1)}%였고 ${drift.length}개 중 ${within}개가 ±${AT.band * 100}% 안이었습니다. `
+    + `이 문서에서 ±${AT.band * 100}% 안의 차이를 '비슷'으로 판정하는 근거이며, 그 이상의 차이도 단일 호스트 측정이라면 재측정으로 확인해야 합니다. `
+    + `Intel/AMD는 다른 세션이 JVM 기본값(Tiered 켜짐)이라 프로파일 효과와 세션 편차를 분리할 수 없어 제외했습니다.`));
+  handles.push(ratioBars(slot('drift'), drift.map((r) => ({ label: short(r.name), value: 1 + r.change })), { band: AT.band, title: '다른 세션 ÷ 현재 세션', neutral: true, min: 0.8 }));
+
+  // ---------- 3. 처리량 ----------
+  fill('throughput-lead', p(`최대 처리량 지수는 회차마다 커넥션 50/100/200 단계 중 가장 높은 처리량을 고른 뒤, 5회의 중앙값을 취한 값입니다. `
+    + `상위권은 Intel 8세대(c8i/m8i/r8i와 flex)가 차지하고, Graviton4(r8g/c8g/m8g)가 그 뒤를 잇습니다. `
+    + `${c7iflex ? `c7i-flex.xlarge는 같은 Sapphire Rapids인 c7i.xlarge의 ${x(c7iflex.perf)}로, 같은 프로세서로는 설명되지 않는 차이라 재측정이 필요합니다.` : ''}`));
+  handles.push(dotBar(slot('throughput-chart'), rows, AT, { names: AT.rank_perf, unit: 'req/s' }));
+
+  // ---------- 4. 가격 대비 성능 ----------
+  const pp = AT.rank_ppd.filter((n) => !odd.has(n)).slice(0, 3);
+  fill('price-lead', p(`가격 대비 성능은 성능 배수를 시간당 가격 배수로 나눈 값입니다(${AT.baseline} = 1.00배). `
+    + `이상치를 제외한 상위는 ${pp.map((n) => `${short(n)}(${x(T[n].ppd)})`).join(', ')}입니다. `
+    + `시간당 가격이 c8i보다 ${pct(g8.price - 1)} 낮은 c8g가 처리량 손실(${pct(g8.perf - 1)})보다 가격 절감이 커서 앞섭니다. `
+    + `요청 10억 건당 비용은 c8g $${T['c8g.xlarge'].cost.toFixed(2)}, c8i $${T['c8i.xlarge'].cost.toFixed(2)}, ${AT.baseline} $${T[AT.baseline].cost.toFixed(2)}입니다.`));
+  handles.push(priceTable(slot('price-table'), rows, AT, { limit: 15 }));
+
+  // ---------- 5. 짝 비교 ----------
+  const gpairs = AT.pairs;
+  const wins = (gen) => gpairs.filter((q) => q.group === gen);
+  const summarizeGen = (gen) => { const ps = wins(gen); return ps.length ? `${gen} ${ps.map((q) => `${short(q.left)[0]} ${x(q.ppd)}`).join(' · ')}` : ''; };
+  fill('pairs-lead', p(`같은 세대·같은 패밀리끼리 가격 대비 성능을 나누면 ${['6세대', '7세대', '8세대'].map(summarizeGen).filter(Boolean).join(', ')}입니다. `
+    + `6·7세대 Graviton은 시간당 가격이 Intel의 약 0.8배인데 처리량이 ${x(Math.min(...['6세대', '7세대'].flatMap((g) => wins(g).map((q) => q.perf))))}~${x(Math.max(...['6세대', '7세대'].flatMap((g) => wins(g).map((q) => q.perf))))}라 가격 대비 성능에서 밀렸습니다. 8세대에서는 처리량이 ${x(Math.min(...wins('8세대').map((q) => q.perf)))}~${x(Math.max(...wins('8세대').map((q) => q.perf)))}로 올라와 가격 차이만큼 앞서거나 비슷해졌습니다.`));
+  handles.push(ratioBars(slot('pairs-chart'), gpairs.map((q) => ({ label: `${short(q.left)} / ${short(q.right)}`, value: q.ppd })), { band: AT.band, title: '가격 대비 성능 (Graviton ÷ Intel)' }));
+  handles.push(pairTable(slot('pairs-table'), gpairs));
+  handles.push(pairTable(slot('amd-table'), AT.amd_pairs, { caption: '5세대 AMD(EPYC 7R32/7571)는 Intel 5세대보다 약 10% 저렴하지만 처리량이 더 크게 낮아 모든 패밀리에서 가격 대비 성능이 뒤졌습니다.' }));
+
+  // ---------- 6. 세대 향상 ----------
+  fill('uplift-lead', p(`세대 교체 효과는 Graviton이 더 컸습니다. c7g → c8g는 처리량 ${pct(up_g.perf - 1)}(가격 ${pct(up_g.price - 1)}, 가격 대비 성능 ${pct(up_g.ppd - 1)}), `
+    + `c7i → c8i는 ${pct(up_i.perf - 1)}(가격 ${pct(up_i.price - 1)}, 가격 대비 성능 ${pct(up_i.ppd - 1)})입니다. Intel 쪽은 6 → 7세대 향상이 7 → 8세대보다 컸습니다. `
+    + `노드 사양으로 보면 Graviton4는 코어(Neoverse V1 → V2)와 클럭(2.6 → 2.8 GHz)이, Granite Rapids는 클럭(3.2 → 3.9 GHz)이 바뀌었습니다.`));
+  handles.push(dumbbell(slot('uplift-chart'), rows, AT, { unit: 'req/s' }));
+  handles.push(upliftTable(slot('uplift-table'), rows, AT));
+
+  // ---------- 7. 패밀리 / flex ----------
+  const famPerf = AT.families.flatMap((f) => f.map((r) => r.perf));
+  fill('family-lead', p(`같은 프로세서의 C/M/R은 처리량 차이가 ${x(Math.min(...famPerf))}~${x(Math.max(...famPerf))}로 작습니다(C = 1.00배). 메모리가 2배씩 늘면서 가격이 올라가므로, 힙을 RAM 비율로 잡은 이번 시험처럼 늘어난 메모리가 처리량에 기여하지 않는 워크로드에서는 C 패밀리의 가격 대비 성능이 가장 좋습니다.`));
+  handles.push(familyTable(slot('family-table'), rows, AT));
+  const fl8 = AT.flex_pairs.filter((q) => q.left.includes('8i-flex'));
+  fill('flex-lead', p(`8세대 flex의 처리량은 표준의 ${xRange(fl8.map((q) => q.perf))}로 같고 가격이 약 5% 낮아, 가격 대비 성능이 그만큼 좋습니다. `
+    + 'flex는 기준 성능 이상을 버스트로 제공하는 상품이므로 지속 부하에서 같은 성능이 유지되는지는 부록 A의 장시간 측정으로 확인하십시오. 7세대 flex의 큰 차이는 표준 쪽(c7i, m7i)의 호스트 편차가 섞여 있어 그대로 일반화하지 않습니다.'));
+  handles.push(pairTable(slot('flex-table'), AT.flex_pairs));
+
+  // ---------- 8. 지연 ----------
+  handles.push(metricTabChart(slot('steps'), rows, [
+    { field: 'steps.rps50.value', label: '50 connections', unit: 'req/s', direction: 'max' },
+    { field: 'steps.rps100.value', label: '100 connections', unit: 'req/s', direction: 'max' },
+    { field: 'steps.rps200.value', label: '200 connections', unit: 'req/s', direction: 'max' },
   ]));
+  handles.push(dotBar(slot('p99-chart'), rows, AP, { topN: 20, digits: 2, unit: 'ms' }));
 
-  handles.push(topNBar(root.querySelector('[data-slot="coldstart"]'), rows, {
-    metrics: [{ field: 'cold_s', label: 'Cold start', unit: 's', direction: 'min', icon: '⏱️' }],
-    n: 20,
-  }));
+  // ---------- 9. 기동 ----------
+  const cg8 = findPair(AC, 'c8g.xlarge', 'c8i.xlarge');
+  const cg6 = findPair(AC, 'c6g.xlarge', 'c6i.xlarge');
+  fill('cold-lead', p(`PetClinic 기동 시간은 ${short(AC.rank_perf[0])} ${fmt(AC.table[AC.rank_perf[0]].value, 2)}초, ${short(AC.rank_perf[1])} ${fmt(AC.table[AC.rank_perf[1]].value, 2)}초 순으로 짧습니다. `
+    + `처리량과 달리 기동은 8세대에서 Graviton이 Intel보다 빨랐고(c8g/c8i ${x(cg8.perf)}), 6세대에서는 반대였습니다(c6g/c6i ${x(cg6.perf)}). `
+    + `회차 간 변동계수 중앙값이 처리량보다 크므로(경고 임계 ${AC.thresholds.cv}%) ±${AC.band * 100}% 안의 순위 차이는 의미를 두지 않습니다.`));
+  handles.push(dotBar(slot('cold-chart'), rows, AC, { topN: 20, digits: 2, unit: 's' }));
+  handles.push(pairTable(slot('cold-pairs'), AC.pairs.map((q) => ({ ...q, ppd: q.perf, verdict: q.perf_verdict }))));
+  fill('cold-excluded', `<p class="caption">비교 제외: ${envelope.coldstart_excluded.map(short).join(', ')} — 2026-07 백필 시점의 템플릿이 C2 전용(<code>-XX:-TieredCompilation</code>)이어서 다른 인스턴스(2026-01-20, JVM 기본값)와 프로파일이 다릅니다. C2 전용은 C1 컴파일러 없이 인터프리터로 시작해 기동이 느립니다.</p>`);
 
-  handles.push(priceSection(root.querySelector('[data-slot="price"]'), rows, {
-    mainMetric: { field: 'wrk.rps200', label: '200 connections', unit: 'req/s', direction: 'max' },
-    gridMetrics: [
-      { field: 'wrk.rps200', label: '200 conn 처리량', unit: 'req/s', direction: 'max' },
-      { field: 'cold_s', label: '콜드스타트', unit: 's', direction: 'min' },
-    ],
-  }));
+  // ---------- 10. JVM 프로파일 ----------
+  const SD = envelope.sustained_default;
+  const JE = envelope.jvm_profile_effect;
+  const sd8 = SD.pairs.find((q) => q.left === 'c8g.xlarge');
+  const effG = JE.filter((r) => r.arch === 'graviton');
+  const effI = JE.filter((r) => r.arch !== 'graviton');
+  fill('jvm-lead', p(`JVM 기본값으로 바꾸면 Graviton(${effG.map((r) => `${short(r.name)} ${pct(r.change)}`).join(', ')})은 처리량이 줄었고, `
+    + `Intel(${effI.map((r) => `${short(r.name)} ${pct(r.change)}`).join(', ')})은 거의 변하지 않거나 오히려 늘었습니다. `
+    + `그 결과 JVM 기본값에서는 c8g/c8i가 처리량 ${x(sd8.perf)}, 가격 대비 성능 <strong>${x(sd8.ppd)} (${sd8.verdict})</strong>로, C2 전용(${x(g8.ppd)}, ${g8.verdict})과 판정이 바뀝니다. `
+    + `Graviton 표본이 c8g 하나이고 두 측정의 세션이 다르므로 크기는 잠정적이지만, 방향은 재측정 편차(±${AT.band * 100}%)보다 큽니다.`));
+  handles.push(ratioBars(slot('jvm-chart'), JE.map((r) => ({ label: short(r.name), value: 1 + r.change })), { band: AT.band, title: 'JVM 기본값 ÷ C2 전용 (c100)', neutral: true, min: 0.8 }));
+  handles.push(pairTable(slot('jvm-table'), SD.pairs.map((q) => ({ ...q, group: 'JVM 기본값' }))));
 
-  handles.push(timeseriesSection(root.querySelector('[data-slot="timeseries"]'), envelope?.timeseries, rows));
+  // ---------- 11. 종합 판정 ----------
+  const scen = [
+    { name: '최대 처리량, 8세대 C (C2 전용)', ...g8 },
+    { name: '지속 부하, 8세대 C (JVM 기본값)', ...sd8 },
+    { name: '최대 처리량, 8세대 M', ...findPair(AT, 'm8g.xlarge', 'm8i.xlarge') },
+    { name: '최대 처리량, 8세대 R', ...findPair(AT, 'r8g.xlarge', 'r8i.xlarge') },
+    ...(g9 ? [{ name: '최대 처리량, Graviton5 vs Intel 8세대', ...g9 }] : []),
+    { name: '최대 처리량, 7세대 C', ...g7 },
+    { name: '최대 처리량, 6세대 C', ...findPair(AT, 'c6g.xlarge', 'c6i.xlarge') },
+    { name: '기동 속도, 8세대 C (가격 무관)', ...cg8, ppd: cg8.perf, verdict: cg8.perf_verdict, price: null },
+  ];
+  fill('verdict-lead', p(`이번 측정의 목적은 Spring Boot 워크로드에서 어떤 인스턴스의 가격 대비 성능이 좋은지 판단하는 것입니다. xlarge·서울 On-Demand 기준으로 `
+    + `C2 전용 플래그 조건에서 8세대 Graviton4는 Intel과 같거나 앞섰고(C ${x(g8.ppd)}), JVM 기본값에서는 Intel이 앞섰습니다(${x(sd8.ppd)}). 7세대 이하는 두 조건 모두 Intel 우위이고, 처리량 자체는 모든 세대에서 Intel이 높습니다. `
+    + `즉 8세대에서 Graviton을 고를지는 JVM 플래그를 함께 바꿀 수 있는지에 달려 있습니다.`));
+  handles.push(ratioBars(slot('verdict-chart'), scen.map((s) => ({ label: s.name, value: s.ppd })), { band: AT.band }));
+  const vt = slot('verdict-table');
+  vt.innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>시나리오</th><th>비교</th><th>성능</th><th>가격</th><th>가격 대비 성능</th><th>판정</th></tr></thead><tbody>${scen.map((s) => `<tr><td>${s.name}</td><td>${short(s.left)} / ${short(s.right)}</td><td>${x(s.perf)}</td><td>${s.price == null ? '—' : x(s.price)}</td><td><strong>${x(s.ppd)}</strong></td><td><span class="verdict ${s.verdict === '비슷' ? 'verdict-even' : s.verdict.startsWith('Graviton') ? 'verdict-left' : 'verdict-right'}">${s.verdict}</span></td></tr>`).join('')}</tbody></table></div>`;
+  fill('band-note', bandNote(AT));
+  const fam8 = AT.families.find((f) => f[0].name === 'c8g.xlarge');
+  const recs = [
+    `JVM 기본값 그대로 운영하는 xlarge Spring Boot API는 <strong>c8i</strong>(또는 같은 처리량에 약 5% 저렴한 c8i-flex)를 기본으로 권고합니다. JVM 기본값에서 c8g/c8i 가격 대비 성능은 ${x(sd8.ppd)}입니다.`,
+    `<code>-XX:-TieredCompilation</code>(C2 전용)을 적용할 수 있다면 <strong>c8g</strong>가 가격 대비 성능 1위(${AT.baseline} 대비 ${x(T['c8g.xlarge'].ppd)}, c8i 대비 ${x(g8.ppd)})입니다. 이 플래그는 기동 시간을 늘리므로 기동 속도가 중요한 서비스(오토스케일링 등)에서는 기동 시간을 함께 측정하십시오.`,
+    `Graviton2/3(c6g, c7g)에서 운영 중이라면 교체 효과가 큽니다. c7g → c8g만으로 가격 대비 성능이 ${pct(up_g.ppd - 1)} 좋아집니다.`,
+    `메모리가 많이 필요하지 않다면 C 패밀리가 유리합니다. 같은 Graviton4에서 m8g는 ${x(fam8[1].ppd)}, r8g는 ${x(fam8[2].ppd)}입니다(c8g = 1.00배).`,
+    '8세대 Intel이 필요하면 flex를 먼저 검토하십시오. 처리량은 같고 가격이 약 5% 낮습니다. 다만 장시간 지속 부하 특성(부록 A)을 확인하십시오.',
+    `5세대 AMD(c5a/m5a/r5a)는 같은 세대 Intel보다 약 10% 저렴하지만 가격 대비 성능이 ${AT.amd_pairs.map((q) => `${short(q.left)} ${x(q.ppd)}`).join(', ')}로 모든 패밀리에서 뒤지므로 신규 배치에서 제외합니다.`,
+    '이 결과는 xlarge, 고정 문자열 응답, wrk 2스레드 조건입니다. 인스턴스 크기, 엔드포인트 구성(JSON·DB·락 경합), JVM 프로파일이 다르면 결론이 바뀔 수 있으므로 실제 요청 구성으로 다시 측정한 뒤 결정합니다. Savings Plans·Spot 가격을 쓸 때도 같은 방식으로 다시 계산해야 합니다.',
+  ];
+  fill('recommendations', `<ul class="recs">${recs.map((r) => `<li>${r}</li>`).join('')}</ul>`);
 
-  handles.push(familyFilterChart(root.querySelector('[data-slot="family-filter"]'), rows));
-
-  const flexHandle = flexVsStandardSection(root.querySelector('[data-slot="flex-narrative"]'), rows);
-  handles.push(flexHandle);
-  handles.push(flexConclusion(root, flexHandle.averageRpsDeltaPct));
-
-  handles.push(resultTable(root.querySelector('[data-slot="table"]'), rows, [
+  // ---------- 부록 ----------
+  handles.push(timeseriesSection(slot('timeseries'), envelope?.timeseries, rows));
+  handles.push(resultTable(slot('table'), rows, [
     { field: 'name', label: '인스턴스', fmt: (v) => `<strong>${v}</strong>` },
     { field: 'arch', label: '아키텍처', fmt: (v) => badge(v) },
     { field: 'gen', label: '세대', fmt: (v) => `${v}세대` },
-    { field: 'wrk.rps50', label: 'RPS 50', fmt: fmt },
-    { field: 'wrk.rps100', label: 'RPS 100', fmt: fmt },
-    { field: 'wrk.rps200', label: 'RPS 200', fmt: fmt },
-    { field: 'wrk.lat50_ms', label: 'Lat 50 (ms)', fmt: (v) => fmt(v, 2) },
-    { field: 'wrk.lat99_ms', label: 'Lat 99 (ms)', fmt: (v) => fmt(v, 2) },
-    { field: 'cold_s', label: 'Cold start (s)', fmt: (v) => fmt(v, 2) },
-    { field: 'price', label: '$/hr', fmt: (v) => `$${v.toFixed(3)}` },
+    { field: 'peak.value', label: '최대 처리량', fmt },
+    { field: 'peak.cv', label: 'CV (%)', fmt: (v) => fmt(v, 1) },
+    { field: 'peak_p99_ms.value', label: 'p99 (ms)', fmt: (v) => fmt(v, 2) },
+    { field: 'cold.value', label: '기동 (s)', fmt: (v) => fmt(v, 2) },
+    { field: 'price', label: '$/hr', fmt: (v) => `$${v.toFixed(4)}` },
   ]));
-
   handles.push(buildToc(root));
 
-  return {
-    destroy() { handles.forEach((h) => h && h.destroy && h.destroy()); },
-  };
-}
-
-function flexPairs(rows) {
-  return rows
-    .filter((r) => r.flex && r.name.includes('-flex'))
-    .map((r) => {
-      const stdName = r.name.replace('-flex', '');
-      const std = rows.find((x) => x.name === stdName);
-      return std ? { flex: r, std } : null;
-    })
-    .filter(Boolean);
-}
-
-function pctDelta(current, baseline) {
-  if (current == null || baseline == null || baseline === 0) return null;
-  const delta = ((current - baseline) / baseline) * 100;
-  return Number.isFinite(delta) ? delta : null;
-}
-
-function validNumbers(values) {
-  return values.filter((v) => typeof v === 'number' && Number.isFinite(v));
-}
-
-function avg(values) {
-  const nums = validNumbers(values);
-  return nums.length ? nums.reduce((sum, v) => sum + v, 0) / nums.length : null;
-}
-
-function signedPct(delta) {
-  if (delta == null) return '—';
-  return `${delta > 0 ? '+' : ''}${fmt(delta, 1)}%`;
-}
-
-function flexDirection(delta) {
-  if (delta == null) return '비교 데이터 없음';
-  if (delta > 0) return '빠름';
-  if (delta < 0) return '느림';
-  return '동일';
-}
-
-function flexSummaryText(delta) {
-  if (delta == null) return 'Flex와 Standard를 비교할 수 있는 RPS 200 데이터가 없습니다.';
-  if (delta === 0) return 'Flex가 Standard와 평균 동일';
-  return `Flex가 평균 ${fmt(Math.abs(delta), 1)}% ${flexDirection(delta)}`;
-}
-
-function flexVsStandardSection(hostEl, rows) {
-  const pairs = flexPairs(rows);
-  const pairStats = pairs.map(({ flex, std }) => ({
-    flex,
-    std,
-    rpsDeltaPct: pctDelta(get(flex, 'wrk.rps200'), get(std, 'wrk.rps200')),
-    coldDeltaPct: pctDelta(flex.cold_s, std.cold_s),
-  }));
-  const averageRpsDeltaPct = avg(pairStats.map((pair) => pair.rpsDeltaPct));
-
-  hostEl.innerHTML = `
-    <p class="description">Flex 인스턴스를 같은 이름의 Standard 인스턴스와 짝지어 200 connection 처리량과 콜드스타트 차이를 계산했다.</p>
-    <div class="summary-cards">
-      ${pairStats.map((pair) => `
-        <div class="summary-card">
-          <h3>${pair.flex.name} vs ${pair.std.name}</h3>
-          <div class="value">${signedPct(pair.rpsDeltaPct)}</div>
-          <div class="detail">RPS 200 차이</div>
-          <div class="detail">콜드스타트 차이: ${signedPct(pair.coldDeltaPct)}</div>
-        </div>
-      `).join('')}
-    </div>
-    <div class="summary-cards">
-      <div class="summary-card">
-        <h3>Flex 평균 처리량</h3>
-        <div class="value">${averageRpsDeltaPct == null ? '—' : `${fmt(Math.abs(averageRpsDeltaPct), 1)}%`}</div>
-        <div class="detail">${flexSummaryText(averageRpsDeltaPct)}</div>
-      </div>
-    </div>
-  `;
-
-  return { averageRpsDeltaPct, destroy() {} };
-}
-
-function flexConclusion(root, averageRpsDeltaPct) {
-  const previous = root.querySelector('[data-generated="flex-conclusion"]');
-  if (previous) previous.remove();
-
-  const conclusion = root.querySelector('#conclusion p');
-  if (!conclusion || averageRpsDeltaPct == null) return { destroy() {} };
-
-  conclusion.insertAdjacentHTML(
-    'afterend',
-    `<p data-generated="flex-conclusion">데이터 기준: Flex 인스턴스는 Standard 대비 평균 ${fmt(Math.abs(averageRpsDeltaPct), 1)}% ${flexDirection(averageRpsDeltaPct)}.</p>`,
-  );
-
-  return {
-    destroy() {
-      const generated = root.querySelector('[data-generated="flex-conclusion"]');
-      if (generated) generated.remove();
-    },
-  };
+  return { destroy() { handles.forEach((h) => h && h.destroy && h.destroy()); } };
 }
 
 function timeseriesSection(hostEl, timeseries, rows) {
@@ -283,92 +310,6 @@ function timeseriesSection(hostEl, timeseries, rows) {
       hostEl.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       draw(metric);
-    };
-    btn.addEventListener('click', onClick);
-    listeners.push([btn, onClick]);
-  });
-
-  return { destroy() { if (chart) chart.destroy(); listeners.forEach(([el, fn]) => el.removeEventListener('click', fn)); } };
-}
-
-function familyFilterChart(hostEl, rows) {
-  hostEl.innerHTML = `
-    <div class="tab-buttons family-filter-tabs">
-      <button class="tab-btn active" data-family="all">전체</button>
-      <button class="tab-btn" data-family="C">C</button>
-      <button class="tab-btn" data-family="M">M</button>
-      <button class="tab-btn" data-family="R">R</button>
-    </div>
-    <div class="chart-container tall"><canvas></canvas></div>
-  `;
-  const canvas = hostEl.querySelector('canvas');
-  const metrics = [
-    { field: 'wrk.rps50', label: '50 conn', alpha: 0.5 },
-    { field: 'wrk.rps100', label: '100 conn', alpha: 0.75 },
-    { field: 'wrk.rps200', label: '200 conn', alpha: 1 },
-  ];
-  let chart = null;
-
-  function sortByRps200Desc(items) {
-    return [...items].sort((a, b) => {
-      const av = get(a, 'wrk.rps200');
-      const bv = get(b, 'wrk.rps200');
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      return bv - av;
-    });
-  }
-
-  function filteredRows(family) {
-    const candidates = family === 'all'
-      ? rows
-      : rows.filter((r) => r.family === family);
-    const sorted = sortByRps200Desc(candidates);
-    return family === 'all' ? sorted.slice(0, 10) : sorted;
-  }
-
-  function draw(family) {
-    const selected = filteredRows(family);
-    if (chart) chart.destroy();
-    chart = new Chart(canvas, {
-      type: 'bar',
-      data: {
-        labels: selected.map((r) => r.name),
-        datasets: metrics.map((metric) => ({
-          label: metric.label,
-          data: selected.map((r) => get(r, metric.field)),
-          backgroundColor: selected.map((r) => archColor(r.arch, metric.alpha)),
-          borderColor: selected.map((r) => archColor(r.arch, 1)),
-          borderWidth: 1,
-        })),
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top' },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.raw)} req/s`,
-            },
-          },
-        },
-        scales: {
-          x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45 } },
-          y: { beginAtZero: true, title: { display: true, text: 'Requests/sec' } },
-        },
-      },
-    });
-  }
-
-  draw('all');
-  const listeners = [];
-  hostEl.querySelectorAll('.tab-btn').forEach((btn) => {
-    const onClick = () => {
-      hostEl.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      draw(btn.dataset.family);
     };
     btn.addEventListener('click', onClick);
     listeners.push([btn, onClick]);
