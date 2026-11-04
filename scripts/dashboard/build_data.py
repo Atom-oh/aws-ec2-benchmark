@@ -29,6 +29,16 @@ EXPECTED_COVERAGE = {
 }
 
 
+# 종합 탭 '종합 분석'의 워크로드 유형 분류(벤치마크 → 유형). 판정 매트릭스 행에 같이 실린다.
+CATEGORY = {
+    "sysbench": "CPU 연산", "geekbench": "CPU 연산", "passmark": "CPU 연산", "stress-ng": "CPU 연산",
+    "iperf3": "네트워크", "nginx": "웹 서버·프록시",
+    "redis": "인메모리 캐시", "valkey": "인메모리 캐시", "redis-io4": "인메모리 캐시", "valkey-io4": "인메모리 캐시",
+    "springboot": "웹 프레임워크(런타임)", "web": "웹 프레임워크(런타임)",
+    "elasticsearch": "검색·분석", "clickhouse": "검색·분석", "kafka": "스트리밍",
+}
+
+
 def write_instances_json():
     SITE_DATA_DIR.mkdir(parents=True, exist_ok=True)
     payload = build_instances()
@@ -44,6 +54,8 @@ def build_benchmark(name):
     # 분기 없이 Graviton/Intel 판정표를 만들 때 이 키만 읽는다.
     if data.get("analysis") and "analysis_key" not in data["headline"]:
         data["headline"]["analysis_key"] = next(iter(data["analysis"]))
+    if name in CATEGORY:
+        data["headline"]["category"] = CATEGORY[name]
     path = SITE_DATA_DIR / f"{name}.json"
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     expected = EXPECTED_COVERAGE.get(name)
@@ -59,7 +71,7 @@ def main():
         "sysbench", "iperf3", "nginx", "redis", "elasticsearch",
         "kafka", "clickhouse", "geekbench", "passmark", "stress-ng",
         "springboot", "valkey", "redis-io4", "valkey-io4",
-        # "web": 본 실행(55x5x5) 완료 + 탭 추가 후 기본 대상에 넣을 것 — 그 전에는 부분 데이터라 수동 실행만
+        "web",  # 측정 중인 스택은 parsers/web.py가 자동 제외(pending_stacks)
     ]
     for name in targets:
         build_benchmark(name)
