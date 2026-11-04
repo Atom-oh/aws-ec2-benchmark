@@ -34,6 +34,20 @@ EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54�
 - `scripts/dashboard/fetch_hardware.py` → `config/hardware-4vcpu.json`(EC2 DescribeInstanceTypes + Pricing
   physicalProcessor, 조회일 포함). `instances.json`의 `hw` 필드로 조인. 인스턴스 추가 시 재실행.
 
+### 리포트 골격 전 탭 확산 (2026-11-04)
+- 12개 벤치마크 탭 모두 상단에 `standardReport()`(site/js/report.js)를 쓰고, 기존 차트는 "부록: 상세 차트"로 남김
+  (SpringBoot만 수동 구성 파일럿). 각 파서는 `analysis.report(runs, specs, PRICE)`로 회차 요약(`instances[n].r`)과
+  `analysis` 블록을 만들고, build_data가 `headline.analysis_key`(= analysis 첫 키)를 채운다. 종합 탭은 이 키만으로
+  벤치마크별 Graviton ÷ Intel 판정 매트릭스를 그리며(분기 0줄), `headline.caveat`이 있으면 각주로 표시.
+- 지표 옵션: `memory_sensitive`(ClickHouse/ES/Kafka — C/M/R 차이가 정상이라 같은 프로세서 C/M/R 이상치 검사 끔),
+  `known_suspects`(문서화된 알려진 이상 — Kafka 베이스라인 고지연 11개가 낀 짝은 판정 보류).
+- 회차 값 출처: geekbench는 로컬 로그 점수가 0(Browser 업로드 전용)이라 레거시 평균 1개(n=1, CV 산출 불가).
+  passmark는 원시 로그 SUMM_CPU/CPU_SINGLETHREAD(레거시 평균과 일치 확인). stress-ng 종합 지수는 7종 bogo ops/s
+  회차별 기하평균(레거시 `total`은 산식 미상이라 미사용). clickhouse는 세트별 43쿼리 hot 합계, kafka는 회차별 produce MB/s
+  — 둘 다 기존 리포트 스크립트의 parse_log를 importlib로 불러 씀.
+- PassMark만 c8g/c8i가 0.57배(Intel 우위): 정수 연산은 동등, 부동소수점은 c8g 우위인데 압축·암호화·AVX-512(arm64는 0점)
+  항목이 x86에 유리 → 아키텍처 비교에 부적합하다고 탭·종합 각주에 명시.
+
 ### SpringBoot 원시 데이터에서 확인된 사실 (리포트에 반영)
 - wrk 로그 270개 소켓/HTTP 오류 0건. wrk 대상은 `springboot-simple`의 `/`(기존 탭의 "PetClinic에 wrk"는 오기였음).
 - **콜드스타트 JVM 프로파일 혼재**: 2026-01-20 수집 51개는 JVM 기본값(템플릿 `aef8bca`), 2026-07 백필 3개

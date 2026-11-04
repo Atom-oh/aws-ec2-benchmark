@@ -6,7 +6,8 @@
 """
 import re
 
-from common import RESULTS_DIR, canonical_instances, mean
+import analysis
+from common import PRICE, RESULTS_DIR, canonical_instances, mean
 
 SECTION_PATTERN = re.compile(
     r"=== wrk Test \((\d+) threads, (\d+) connections, 30s\) ===\n(.*?)(?=\n===|\Z)", re.S
@@ -29,6 +30,7 @@ def parse_log(path):
 def build():
     base = RESULTS_DIR / "nginx"
     instances = {}
+    rep = {"req_sec": {}, "latency_ms": {}}
     for name in canonical_instances():
         inst_dir = base / name
         if not inst_dir.is_dir():
@@ -43,8 +45,13 @@ def build():
         if not req_runs:
             continue
         instances[name] = {"req_sec": mean(req_runs), "latency_ms": mean(lat_runs)}
+        rep["req_sec"][name], rep["latency_ms"][name] = req_runs, lat_runs
 
     coverage = sum(1 for v in instances.values() if v["req_sec"] is not None)
+    summaries, blocks = analysis.report(rep, {"req_sec": {"label": "Nginx 처리량 (8t/400c)", "unit": "req/s", "direction": "max", "cost_unit": {"per": 1e9, "label": "요청 10억 건당 (USD)"}}, "latency_ms": {"label": "Nginx 평균 지연", "unit": "ms", "direction": "min"}}, PRICE)
+    for _n, _r in summaries.items():
+        if _n in instances:
+            instances[_n]["r"] = _r
     return {
         "benchmark": "nginx",
         "coverage": coverage,
@@ -53,4 +60,5 @@ def build():
             "method": "wrk -t8 -c400 -d30s, 5회 평균 (100/200커넥션 warm-up 단계도 로그에 있으나 헤드라인은 8t/400c)",
         },
         "instances": instances,
+        "analysis": blocks,
     }

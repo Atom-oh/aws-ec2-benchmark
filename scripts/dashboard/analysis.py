@@ -92,7 +92,7 @@ def pair(stats, prices, left, right, direction="max", lname="Graviton", rname="I
     return r
 
 
-def analyze(stats, prices, metric, cost_unit=None):
+def analyze(stats, prices, metric, cost_unit=None, peer_families=True, known_suspects=None):
     """stats: {instance: summarize(...)}, prices: {instance: USD/hr}.
 
     metric: {field, label, unit, direction}. cost_unit: 처리량 지표일 때 '작업 1단위당 비용' 환산
@@ -156,7 +156,9 @@ def analyze(stats, prices, metric, cost_unit=None):
     # 같은 프로세서 짝(flex/표준, 같은 세대 C/M/R)은 성능이 비슷해야 정상 — ±PEER_WARN 밖이면
     # 회차 변동(CV)으로는 안 잡히는 '호스트 차이' 의심(예: SpringBoot c7i-flex 1.38배 vs c7i).
     peer_outliers = []
-    same_proc = [(a, b) for a, b, _ in FLEX_PAIRS] + [(f[0], o) for f in FAMILY_SETS for o in f[1:]]
+    # peer_families=False: 메모리 용량이 결과를 좌우하는 지표(ClickHouse 13.4GiB 데이터셋, ES 힙=RAM 60%,
+    # Kafka page cache)는 C/M/R 차이가 정상이므로 같은 프로세서 C/M/R 검사를 끈다(flex/표준은 메모리가 같아 유지).
+    same_proc = [(a, b) for a, b, _ in FLEX_PAIRS] + ([(f[0], o) for f in FAMILY_SETS for o in f[1:]] if peer_families else [])
     for a, b in same_proc:
         r = _ratio_row(a, b, stats, prices, direction)
         if r and abs(r["perf"] - 1) > PEER_WARN:
@@ -165,11 +167,17 @@ def analyze(stats, prices, metric, cost_unit=None):
                 table[n]["flags"].append(f"같은 프로세서 {b if n == a else a}와 {r['perf']:.2f}배 차이")
 
     suspects = {n for o in peer_outliers for n in (o["left"], o["right"])}
+    # known_suspects = {"names": [...], "reason": "..."}: 문서화된 알려진 이상(예: Kafka 베이스라인 고지연 11개)
+    if known_suspects:
+        for n in known_suspects["names"]:
+            if n in table:
+                table[n]["flags"].append(known_suspects["reason"])
+                suspects.add(n)
 
     def mark(pairs):
         """같은 프로세서 이상치가 낀 짝은 판정을 보류한다 — 호스트 차이를 아키텍처 차이로 읽지 않기 위해."""
         for q in pairs:
-            if q["left"] in suspects and q["right"] in suspects:
+            if (q["left"] in suspects and q["right"] in suspects) or (known_suspects and (q["left"] in known_suspects["names"] or q["right"] in known_suspects["names"])):
                 q["verdict"] = q["perf_verdict"] = "재측정 필요"
         return pairs
 
@@ -193,5 +201,31 @@ def analyze(stats, prices, metric, cost_unit=None):
         "families": families,
         "peer_outliers": peer_outliers,
         "thresholds": {"cv": round(cv_thr, 2), "spread": round(spread_thr, 3), "peer": PEER_WARN},
+        "memory_sensitive": not peer_families,
+        "known_suspects": known_suspects,
         "flagged": sorted(n for n in table if table[n]["flags"]),
     }
+
+
+def report(runs_by_metric, specs, prices):
+    """파서용 헬퍼: 지표별 회차 리스트 -> (인스턴스별 요약, 지표별 analyze 결과).
+
+    runs_by_metric = {key: {instance: [회차 값...]}}
+    specs = {key: {"label", "unit", "direction", "cost_unit"?}}
+    반환: summaries = {instance: {key: summarize(...)}}, blocks = {key: analyze(...)}
+    파서는 instances[name]["r"] = summaries[name], envelope["analysis"] = blocks 로 붙인다.
+    """
+    summaries, blocks = {}, {}
+    for key, per_inst in runs_by_metric.items():
+        spec = specs[key]
+        stats = {}
+        for inst, runs in per_inst.items():
+            s = summarize(runs)
+            if s:
+                stats[inst] = s
+                summaries.setdefault(inst, {})[key] = s
+        if stats:
+            blocks[key] = analyze(stats, prices, {"field": f"r.{key}.value", **{k: spec[k] for k in ("label", "unit", "direction")}},
+                                  cost_unit=spec.get("cost_unit"), peer_families=not spec.get("memory_sensitive", False),
+                                  known_suspects=spec.get("known_suspects"))
+    return summaries, blocks

@@ -4,6 +4,10 @@ HTML 51행 테이블 파싱 결과(extract_legacy.py가 이미 `priceData` 배�
 detailData(Top-15만 커버)에서 온 값으로, cpu_mark 비율 추정치라는 캐비어트를 notes에 명시.
 """
 import json
+import re
+
+import analysis
+from common import PRICE, RESULTS_DIR
 
 from common import LEGACY_DIR
 
@@ -19,13 +23,44 @@ def build():
             "int": r.get("int"), "float": r.get("float"),
             "encryption": r.get("encryption"), "compression": r.get("compression"),
         }
+    rep = {"cpu_mark": {}, "single": {}}
+    for name in instances:
+        for lp in sorted((RESULTS_DIR / "passmark" / name).glob("run*.log")):
+            t = lp.read_text(errors="replace")
+            for key, pat in (("cpu_mark", r"SUMM_CPU:\s*([\d.]+)"), ("single", r"CPU_SINGLETHREAD:\s*([\d.]+)")):
+                m = re.search(pat, t)
+                if m and float(m.group(1)) > 0:
+                    rep[key].setdefault(name, []).append(float(m.group(1)))
+    # 세부 항목: Graviton/Intel 격차가 어디서 나오는지(정수 연산 vs 암호화·확장 명령어). arm64 빌드는
+    # AVX/AVX-512 항목이 0점으로 기록된다 — x86 전용 경로라 ARM 대응 항목(SVE 등)이 없다.
+    sub_keys = ("CPU_INTEGER_MATH", "CPU_FLOATINGPOINT_MATH", "CPU_ENCRYPTION", "CPU_COMPRESSION", "CPU_avx512", "CPU_SINGLETHREAD")
+    subscores = {}
+    for name in ("c8g.xlarge", "c8i.xlarge", "c7g.xlarge", "c7i.xlarge"):
+        vals = {k: [] for k in sub_keys}
+        for lp in sorted((RESULTS_DIR / "passmark" / name).glob("run*.log")):
+            t = lp.read_text(errors="replace")
+            if not re.search(r"SUMM_CPU:\s*[1-9]", t):
+                continue
+            for k in sub_keys:
+                m = re.search(rf"^\s+{k}:\s*([\d.]+)", t, re.M)
+                if m:
+                    vals[k].append(float(m.group(1)))
+        subscores[name] = {k: analysis.summarize(v)["value"] if v else None for k, v in vals.items()}
+    summaries, blocks = analysis.report(rep, {
+        "cpu_mark": {"label": "PassMark CPU Mark", "unit": "점", "direction": "max"},
+        "single": {"label": "PassMark 단일 스레드", "unit": "점", "direction": "max"}}, PRICE)
+    for _n, _r in summaries.items():
+        instances[_n]["r"] = _r
     return {
         "benchmark": "passmark",
         "coverage": len(instances),
-        "headline": {"field": "cpu_mark", "direction": "max", "label": "CPU Mark", "unit": "score"},
+        "headline": {"field": "cpu_mark", "direction": "max", "label": "CPU Mark", "unit": "score",
+                     "caveat": "x86 전용 확장 명령어(AVX/AVX-512) 항목이 arm64에서 0점이고 압축·암호화 경로가 x86에 유리 — 아키텍처 비교에는 부적합(PassMark 탭)"},
         "notes": {
             "coverage_caveat": "51/54 — 신규 3개 인스턴스는 원시 로그 없음",
             "estimated": "int/float/encryption/compression은 Top-15만 커버하는 상세테스트 결과(cpu_mark 비율 추정 섞임) — 51개 전체에 값이 있는 것은 cpu_mark/single뿐",
         },
         "instances": instances,
+        "analysis": blocks,
+        "subscores": subscores,
     }

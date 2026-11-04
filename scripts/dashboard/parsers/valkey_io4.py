@@ -6,7 +6,8 @@ parsers/valkey.py를 그대로 포팅(경로만 RESULTS_DIR/"valkey-io4-remote"�
 """
 import re
 
-from common import RESULTS_DIR, canonical_instances, mean
+import analysis
+from common import PRICE, RESULTS_DIR, canonical_instances, mean
 
 TEST1_SET_PATTERN = re.compile(r'--- Test 1:.*?--- Test 2:', re.S)
 TEST2_GET_PATTERN = re.compile(r'--- Test 2:.*?--- Test 5:', re.S)
@@ -50,6 +51,7 @@ def parse_log(path):
 def build():
     base = RESULTS_DIR / "valkey-io4-remote"
     instances = {}
+    rep = {"set_rps": {}, "get_rps": {}}
     for name in canonical_instances():
         inst_dir = base / name
         if not inst_dir.is_dir():
@@ -69,8 +71,13 @@ def build():
             "set_rps_all": [round(v, 2) for v in runs["set_rps"]],
             "get_rps_all": [round(v, 2) for v in runs["get_rps"]],
         }
+        rep["set_rps"][name], rep["get_rps"][name] = runs["set_rps"], runs["get_rps"]
 
     coverage = sum(1 for v in instances.values() if v["set_rps"] is not None)
+    summaries, blocks = analysis.report(rep, {"set_rps": {"label": "Valkey io-threads 4 SET 처리량", "unit": "ops/s", "direction": "max"}, "get_rps": {"label": "Valkey io-threads 4 GET 처리량", "unit": "ops/s", "direction": "max"}}, PRICE)
+    for _n, _r in summaries.items():
+        if _n in instances:
+            instances[_n]["r"] = _r
     return {
         "benchmark": "valkey-io4",
         "coverage": coverage,
@@ -79,4 +86,5 @@ def build():
             "method": "valkey-benchmark(io-threads 4) SET/GET 각 2000만 건(200 connections, no pipeline, Test 1/2 지속 처리량) 반복 평균 — Redis io4와 동일 방법론. 원격 client→server 토폴로지(client=benchmark-client c6in.2xlarge, server=대상 인스턴스 전용). Latency percentile은 별도 Latency Test(1M, --csv)에서 파싱. set_rps_all/get_rps_all은 반복별 원시값(인스턴스 상세 모달의 CV 계산용).",
         },
         "instances": instances,
+        "analysis": blocks,
     }

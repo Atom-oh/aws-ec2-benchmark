@@ -5,11 +5,13 @@
 import {
   buildToc, summaryCards, topNBar, metricTabChart, familyChart, genImprovement, priceSection, resultTable, fmt, ARCH_COLOR,
 } from '../shared.js';
+import { standardReport, scenario } from '../report.js';
 
 const CURVE_MAX = 5;
 
-export async function render(root, { rows }) {
+export async function render(root, { rows, envelope }) {
   const handles = [];
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.max_produce_mb, { unit: 'MB/s', scenarios: [scenario(envelope.analysis.produce_mb, 'Kafka 베이스라인(단일 producer), 8세대 C', 'c8g.xlarge', 'c8i.xlarge'), scenario(envelope.analysis.produce_mb, 'Kafka 베이스라인, 6세대 C', 'c6g.xlarge', 'c6i.xlarge')], leadHtml: '<p class="caption">기본 지표는 8-way 무압축 포화 처리량입니다. 단일 producer 베이스라인은 고지연 인스턴스 11개(5/5회 재현, 원인 미확정) 때문에 해당 인스턴스가 낀 짝의 판정을 보류했습니다.</p>' }));
   const top = [...rows].filter((r) => r.produce_mb_per_sec != null).sort((a, b) => b.produce_mb_per_sec - a.produce_mb_per_sec);
   const bestValue = rows.filter((r) => r.value).sort((a, b) => b.value - a.value)[0];
   const bestConsume = [...rows].filter((r) => r.consume_mb_per_sec != null).sort((a, b) => b.consume_mb_per_sec - a.consume_mb_per_sec)[0];

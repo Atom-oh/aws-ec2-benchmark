@@ -40,6 +40,10 @@ def write_instances_json():
 def build_benchmark(name):
     module = __import__(f"parsers.{name.replace('-', '_')}", fromlist=["build"])
     data = module.build()
+    # 리포트 분석이 있으면 기본 분석 블록 키(= analysis의 첫 키)를 headline에 명시 — overview가 벤치마크별
+    # 분기 없이 Graviton/Intel 판정표를 만들 때 이 키만 읽는다.
+    if data.get("analysis") and "analysis_key" not in data["headline"]:
+        data["headline"]["analysis_key"] = next(iter(data["analysis"]))
     path = SITE_DATA_DIR / f"{name}.json"
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     expected = EXPECTED_COVERAGE.get(name)

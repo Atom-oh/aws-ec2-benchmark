@@ -7,7 +7,8 @@ UDP는 크레딧 소진/타이밍 문제로 일부 run에서 완전히 실패(�
 """
 import re
 
-from common import RESULTS_DIR, canonical_instances, mean
+import analysis
+from common import PRICE, RESULTS_DIR, canonical_instances, mean
 
 # results/iperf3/ 디렉터리명이 이 벤치마크에서만 'c7i-flex.xlarge' 대신 'c7i.flex.xlarge'로
 # 되어 있음(다른 8개 벤치마크 디렉터리는 정상 하이픈 표기) — 원본 데이터는 보존하고 파서에서만 매핑.
@@ -66,6 +67,7 @@ def parse_log(path):
 def build():
     base = RESULTS_DIR / "iperf3"
     instances = {}
+    rep = {"parallel_gbps": {}, "single_gbps": {}}
     for name in canonical_instances():
         inst_dir = base / DIR_ALIASES.get(name, name)
         if not inst_dir.is_dir():
@@ -80,8 +82,13 @@ def build():
         if not any(runs.values()):
             continue
         instances[name] = {k: mean(v) for k, v in runs.items()}
+        rep["parallel_gbps"][name], rep["single_gbps"][name] = runs["parallel_gbps"], runs["single_gbps"]
 
     coverage = sum(1 for v in instances.values() if v["parallel_gbps"] is not None)
+    summaries, blocks = analysis.report(rep, {"parallel_gbps": {"label": "TCP 8-병렬 대역폭", "unit": "Gbps", "direction": "max"}, "single_gbps": {"label": "TCP 단일 스트림 대역폭", "unit": "Gbps", "direction": "max"}}, PRICE)
+    for _n, _r in summaries.items():
+        if _n in instances:
+            instances[_n]["r"] = _r
     return {
         "benchmark": "iperf3",
         "coverage": coverage,
@@ -92,4 +99,5 @@ def build():
             "single_stream_caveat": "c7g/c7i/m8i.xlarge는 5회 중 1회가 'Broken pipe' 오류로 완전 실패해 TCP Single Stream이 4회 평균(다른 필드는 5회)",
         },
         "instances": instances,
+        "analysis": blocks,
     }

@@ -9,7 +9,8 @@ nullable 규약: c8gn/r8gd.xlarge는 rally 로그가 없음(coldstart만 존재)
 """
 import re
 
-from common import RESULTS_DIR, canonical_instances, mean
+import analysis
+from common import PRICE, RESULTS_DIR, canonical_instances, mean
 
 RALLY_PATTERNS = {
     "throughput": r"Mean Throughput \| index-append \|\s*([\d.]+)",
@@ -49,6 +50,7 @@ def parse_coldstart_log(path):
 def build():
     base = RESULTS_DIR / "elasticsearch"
     instances = {}
+    rep = {"cold_ms": {}}
     for name in canonical_instances():
         inst_dir = base / name
         if not inst_dir.is_dir():
@@ -81,9 +83,14 @@ def build():
         if rally is None and coldstart is None:
             continue
         instances[name] = {"rally": rally, "coldstart": coldstart}
+        rep["cold_ms"][name] = cold_runs["avg_ms"]
 
     rally_coverage = sum(1 for v in instances.values() if v["rally"] is not None)
     cold_coverage = sum(1 for v in instances.values() if v["coldstart"] is not None)
+    summaries, blocks = analysis.report(rep, {"cold_ms": {"label": "Elasticsearch 기동 시간", "unit": "ms", "direction": "min", "memory_sensitive": True}}, PRICE)
+    for _n, _r in summaries.items():
+        if _n in instances:
+            instances[_n]["r"] = _r
     return {
         "benchmark": "elasticsearch",
         "coverage": cold_coverage,
@@ -93,4 +100,5 @@ def build():
             "rally_coverage": f"rally는 {rally_coverage}개 인스턴스만 커버(c8gn/r8gd.xlarge는 coldstart 로그만 존재)",
         },
         "instances": instances,
+        "analysis": blocks,
     }

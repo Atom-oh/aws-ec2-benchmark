@@ -5,7 +5,9 @@
     "field": "peak.value",
     "direction": "max",
     "label": "최대 처리량 (회차 중앙값)",
-    "unit": "req/s"
+    "unit": "req/s",
+    "caveat": "C2 전용 JVM 플래그 조건입니다. JVM 기본값(Tiered 켜짐)에서는 c8g/c8i 가격 대비 성능 0.94배(Intel 우위) — SpringBoot 탭 §10",
+    "analysis_key": "throughput"
   },
   "notes": {
     "method": "wrk 2 threads, 50/100 connections 60s + 200 connections 30s, 5회. 최대 처리량 = 회차마다 커넥션 단계 중 최댓값, 인스턴스 값 = 회차 중앙값. Spring Boot coldstart 5회 중앙값"
@@ -1590,6 +1592,8 @@
         "spread": 1.1,
         "peer": 0.15
       },
+      "memory_sensitive": false,
+      "known_suspects": null,
       "flagged": [
         "c5.xlarge",
         "c6gd.xlarge",
@@ -3052,6 +3056,8 @@
         "spread": 1.195,
         "peer": 0.15
       },
+      "memory_sensitive": false,
+      "known_suspects": null,
       "flagged": [
         "c8g.xlarge",
         "m5a.xlarge",
@@ -4613,6 +4619,8 @@
         "spread": 1.105,
         "peer": 0.15
       },
+      "memory_sensitive": false,
+      "known_suspects": null,
       "flagged": [
         "c5.xlarge",
         "c5a.xlarge",

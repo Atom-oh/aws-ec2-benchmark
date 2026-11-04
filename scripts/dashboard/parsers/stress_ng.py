@@ -3,6 +3,11 @@
 설계 §3 결정).
 """
 import json
+import math
+import re
+
+import analysis
+from common import PRICE, RESULTS_DIR
 
 from common import LEGACY_DIR
 
@@ -19,10 +24,22 @@ def build():
         }
         for r in rows
     }
+    rep = {"geomean": {}}
+    row = re.compile(r"stress-ng: info:\s+\[\d+\]\s+([a-z]+)\s+\d+\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+")
+    for name in instances:
+        for lp in sorted((RESULTS_DIR / "stress-ng" / name).glob("run*.log")):
+            vals = [float(v) for _, v in row.findall(lp.read_text(errors="replace"))]
+            if len(vals) == 7 and all(v > 0 for v in vals):
+                rep["geomean"].setdefault(name, []).append(math.exp(sum(math.log(v) for v in vals) / 7))
+    summaries, blocks = analysis.report(rep, {
+        "geomean": {"label": "stress-ng 종합 지수 (7종 기하평균)", "unit": "bogo ops/s", "direction": "max"}}, PRICE)
+    for _n, _r in summaries.items():
+        instances[_n]["r"] = _r
     return {
         "benchmark": "stress-ng",
         "coverage": len(instances),
         "headline": {"field": "total", "direction": "max", "label": "종합 점수", "unit": "score"},
         "notes": {"coverage_caveat": "51/54 — 신규 3개 인스턴스는 원시 로그 없음"},
         "instances": instances,
+        "analysis": blocks,
     }

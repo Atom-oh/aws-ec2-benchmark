@@ -6,7 +6,10 @@
 import re
 from pathlib import Path
 
-from common import RESULTS_DIR, canonical_instances, mean
+import analysis
+import statistics
+
+from common import PRICE, RESULTS_DIR, canonical_instances, gen_family, mean
 
 
 def parse_cpu_log(path):
@@ -43,6 +46,7 @@ def build():
     cpu_dir = RESULTS_DIR / "sysbench-cpu"
     mem_dir = RESULTS_DIR / "sysbench-memory"
     instances = {}
+    runs = {"cpu_mt": {}, "cpu_st": {}, "mem_seq_read": {}}
     for name in canonical_instances():
         cpu_logs = sorted((cpu_dir / name).glob("run*.log")) if (cpu_dir / name).is_dir() else []
         mem_logs = sorted((mem_dir / name).glob("run*.log")) if (mem_dir / name).is_dir() else []
@@ -70,7 +74,15 @@ def build():
         }
         entry.update({k: mean(v) for k, v in mem_runs.items()})
         instances[name] = entry
+        runs["cpu_mt"][name], runs["cpu_st"][name], runs["mem_seq_read"][name] = mt_runs, st_runs, mem_runs["mem_seq_read"]
 
+    summaries, blocks = analysis.report(runs, {
+        "cpu_mt": {"label": "CPU 멀티스레드", "unit": "events/s", "direction": "max"},
+        "cpu_st": {"label": "CPU 단일 스레드", "unit": "events/s", "direction": "max"},
+        "mem_seq_read": {"label": "메모리 순차 읽기", "unit": "MiB/s", "direction": "max"},
+    }, PRICE)
+    for name, r in summaries.items():
+        instances[name]["r"] = r
     coverage = sum(1 for v in instances.values() if v["cpu_mt"] is not None)
     return {
         "benchmark": "sysbench",
@@ -80,4 +92,21 @@ def build():
             "method": "sysbench CPU(4threads, 60s) 3회 평균 + Single Thread 1회, sysbench Memory 5종 블록 테스트 5회 평균",
         },
         "instances": instances,
+        "analysis": blocks,
+        "smt_scaling": smt_scaling(summaries),
     }
+
+
+def smt_scaling(summaries):
+    """멀티스레드(4 threads) ÷ 단일 스레드 = vCPU 4개가 단일 코어의 몇 배를 내는가.
+
+    Graviton은 vCPU = 물리 코어라 4에 가깝고, Intel/AMD xlarge는 물리 2코어 x 하이퍼스레딩이라 2 + HT 이득.
+    sysbench cpu(소수 계산)는 실행 유닛을 꽉 채우는 부하라 HT 이득이 작게 나오는 편이다.
+    """
+    groups = {}
+    for name, r in summaries.items():
+        if "cpu_mt" in r and "cpu_st" in r and r["cpu_st"]["value"]:
+            g = gen_family(name)
+            groups.setdefault(f"{g['arch']}-{g['gen']}", []).append(r["cpu_mt"]["value"] / r["cpu_st"]["value"])
+    return {k: {"n": len(v), "median": round(statistics.median(v), 3), "min": round(min(v), 3), "max": round(max(v), 3)}
+            for k, v in sorted(groups.items())}

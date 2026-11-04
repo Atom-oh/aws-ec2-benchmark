@@ -2,9 +2,11 @@
 import {
   buildToc, summaryCards, topNBar, metricTabChart, familyChart, genImprovement, priceSection, resultTable, fmt,
 } from '../shared.js';
+import { standardReport, scenario } from '../report.js';
 
-export async function render(root, { rows }) {
+export async function render(root, { rows, envelope }) {
   const handles = [];
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.req_sec, { unit: 'req/s', scenarios: [scenario(envelope.analysis.latency_ms, 'Nginx 평균 지연, 8세대 C', 'c8g.xlarge', 'c8i.xlarge')] }));
   const topReq = [...rows].filter((r) => r.req_sec != null).sort((a, b) => b.req_sec - a.req_sec)[0];
   const topLat = [...rows].filter((r) => r.latency_ms != null).sort((a, b) => a.latency_ms - b.latency_ms)[0];
   const topEff = rows.filter((r) => r.req_sec != null && r.price).map((r) => ({ ...r, __eff: r.req_sec / r.price }))

@@ -50,9 +50,24 @@ find_pod(){ local sel="$1" p; for t in 1 2 3 4 5; do
   p=$(kubectl get pods -n "$NAMESPACE" -l "$sel" --no-headers -o custom-columns=":metadata.name" 2>/dev/null | head -1)
   [ -n "$p" ] && { echo "$p"; return 0; }; sleep 2; done; return 1; }
 
-# c7i-flex.xlarge는 ap-northeast-2a에 오퍼링이 없음(aws ec2 describe-instance-type-offerings로
-# 확인) — 이 인스턴스만 2b로 오버라이드. 다른 53개는 전부 DEFAULT_AZ 하나로 통일.
-az_for(){ local instance="$1"; [ "$instance" = "c7i-flex.xlarge" ] && echo "ap-northeast-2b" || echo "$DEFAULT_AZ"; }
+# AZ는 EC2 오퍼링 API로 정한다: DEFAULT_AZ에 그 타입이 있으면 DEFAULT_AZ, 없으면 FALLBACK_AZS 순서로
+# 첫 오퍼링 AZ. (이전에는 c7i-flex만 2b로 하드코딩 — 2a 기본일 때 결과는 동일.) 2026-11 web 실행에서
+# 2a의 c6in.2xlarge(클라이언트) On-Demand가 InsufficientInstanceCapacity라 기본 AZ를 2c로 바꿔야 했는데,
+# 2c에는 c7i-flex/m6gd/m7gd/r6gd/r8gd가 없어 하드코딩으로는 대응할 수 없었다.
+FALLBACK_AZS="${FALLBACK_AZS:-ap-northeast-2b ap-northeast-2c ap-northeast-2a}"
+declare -A OFFERED=()
+while read -r it zone; do OFFERED["$it|$zone"]=1; done < <(
+  aws ec2 describe-instance-type-offerings --region ap-northeast-2 --location-type availability-zone \
+    --filters "Name=instance-type,Values=$(IFS=,; echo "${INSTANCES[*]}")" \
+    --query 'InstanceTypeOfferings[].[InstanceType,Location]' --output text)
+[ ${#OFFERED[@]} -gt 0 ] || { log "${RED}오퍼링 조회 실패 — AWS CLI 자격증명 확인${NC}"; exit 1; }
+az_for(){
+  local instance="$1" z
+  [ -n "${OFFERED["$instance|$DEFAULT_AZ"]:-}" ] && { echo "$DEFAULT_AZ"; return; }
+  for z in $FALLBACK_AZS; do [ -n "${OFFERED["$instance|$z"]:-}" ] && { echo "$z"; return; }; done
+  echo "$DEFAULT_AZ"
+}
+for i in "${INSTANCES[@]}"; do z=$(az_for "$i"); [ "$z" != "$DEFAULT_AZ" ] && log "AZ 대체: $i → $z ($DEFAULT_AZ 오퍼링 없음)"; done
 
 # Job 완료 대기. kubectl 자체가 즉시 실패(프로세스 생성 EAGAIN, API 일시 오류 등)하면 '타임아웃'으로
 # 오판하지 않도록 남은 시간 안에서 재시도한다 — 진짜 타임아웃("timed out")만 실패로 본다.

@@ -191,6 +191,15 @@ def session_drift(instances):
 
 
 def build():
+    out = _build()
+    sd = next((q for q in out["sustained_default"]["pairs"] if q["left"] == "c8g.xlarge"), None)
+    if sd:
+        out["headline"]["caveat"] = (f"C2 전용 JVM 플래그 조건입니다. JVM 기본값(Tiered 켜짐)에서는 c8g/c8i 가격 대비 성능 "
+                                     f"{sd['ppd']:.2f}배({sd['verdict']}) — SpringBoot 탭 §10")
+    return out
+
+
+def _build():
     base = RESULTS_DIR / "springboot"
     instances = {}
     for name in canonical_instances():

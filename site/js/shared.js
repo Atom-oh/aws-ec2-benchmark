@@ -98,6 +98,7 @@ export function buildToc(rootEl) {
 
 /** cards: [{label, value, detail?, expandHtml?}] */
 export function summaryCards(hostEl, cards) {
+  if (!hostEl) return { destroy() {} }; // 리포트 골격으로 대체된 탭은 summary-cards 슬롯이 없다
   const listeners = [];
   hostEl.innerHTML = cards.map((c, i) => `
     <div class="summary-card">
