@@ -84,17 +84,18 @@ export async function render(root, { rows, envelope }) {
   const so = stat(old), sn = stat(now);
   const pc = (v) => `${(v * 100).toFixed(1)}%`;
   const roundTxt = (r) => (r.rounds ? Object.entries(r.rounds).map(([k, v]) => `${k.replace('round', '')} ${fmt(v)}`).join(' / ') : '');
+  const off = now.filter((r) => Math.abs(r.change) > AT.band);
+  const ok = now.filter((r) => Math.abs(r.change) <= AT.band);
   fill('drift-lead', [
-    so && p(`<strong>2026-04 세션:</strong> Graviton ${so.n}개를 같은 설정(C2 전용)으로 다시 잰 기록이 있습니다. 두 세션의 차이는 중앙값 ${pc(so.med)}, 최대 ${pc(so.max)}였고 ${so.n}개 중 ${so.within}개가 ±${AT.band * 100}% 안이었습니다. `
-      + `이 문서에서 ±${AT.band * 100}% 안의 차이를 '비슷'으로 판정하는 근거입니다. (이 세션의 Intel/AMD는 JVM 기본값이라 제외)`),
-    sn && p(`<strong>2026-11 재측정:</strong> ${now.map((r) => short(r.name)).join(', ')}를 같은 설정으로 다시 쟀습니다. 라운드마다 서버를 새로 띄워 다른 EC2 호스트에서 측정했습니다. `
-      + `본 데이터 대비 차이는 중앙값 ${pc(sn.med)}, ${sn.n}개 중 ${sn.within}개가 ±${AT.band * 100}% 안이었습니다. `
-      + now.filter((r) => Math.abs(r.change) > AT.band).map((r) => `${short(r.name)}는 ${r.change > 0 ? '+' : ''}${pc(r.change)}(라운드별 ${roundTxt(r)})`).join(', ')
-      + (now.some((r) => Math.abs(r.change) > AT.band) ? ' — 본 데이터의 값이 그 세션·호스트 고유 현상이었을 가능성이 커서, 해당 인스턴스의 순위와 판정은 재측정 값을 기준으로 해석하십시오.' : '')),
-    p('어느 경우든 ±5%를 넘는 차이가 단일 호스트 측정에서 나왔다면 재측정으로 확인해야 합니다.'),
+    p(`벤치마크 값은 같은 인스턴스를 같은 조건으로 다시 재도 조금씩 달라집니다. 그 폭을 알아야 "두 인스턴스의 차이가 진짜인지"를 판단할 수 있어서, 일부 인스턴스를 다시 쟀습니다. `
+      + `<strong>대부분 ±${AT.band * 100}% 안에서 같은 값이 다시 나왔습니다.</strong> 그래서 이 문서는 두 값의 차이가 ±${AT.band * 100}% 이내면 "비슷"으로 판정합니다.`),
+    so && p(`<strong>4월에 다시 잰 Graviton ${so.n}개:</strong> 처음 값과의 차이는 보통 ${pc(so.med)}였고(가장 큰 것은 ${pc(so.max)}), ${so.n}개 중 ${so.within}개가 ±${AT.band * 100}% 안이었습니다.`),
+    sn && p(`<strong>11월에 다시 잰 ${sn.n}개:</strong> 이번에는 인스턴스마다 서로 다른 서버(EC2 호스트) 2~3대에서 쟀습니다. `
+      + (ok.length ? `${ok.map((r) => short(r.name)).join(', ')}는 처음과 거의 같게 나왔습니다. ` : '')
+      + (off.length ? `${off.map((r) => `${short(r.name)}(${r.change > 0 ? '+' : ''}${pc(r.change)})`).join(', ')}는 처음 값이 다시 나오지 않았습니다. 처음 잰 날의 서버가 유독 빠르거나 느렸던 것으로 보고, 이 인스턴스들은 다시 잰 값을 기준으로 판정했습니다.` : '')),
   ].filter(Boolean).join(''));
-  handles.push(ratioBars(slot('drift'), drift.map((r) => ({ label: `${short(r.name)} · ${r.source.startsWith('2026-11') ? '11월' : '4월'}`, value: 1 + r.change })),
-    { band: AT.band, title: '다른 세션 ÷ 본 데이터', neutral: true, min: 0.6 }));
+  handles.push(ratioBars(slot('drift'), drift.map((r) => ({ label: `${short(r.name)} (${r.source.startsWith('2026-11') ? '11월' : '4월'})`, value: 1 + r.change })),
+    { band: AT.band, title: '다시 잰 값 ÷ 처음 잰 값', neutral: true, min: 0.6 }));
 
   // ---------- 2-1. 진단 (parsers/springboot.py diagnostics) ----------
   const DG = envelope.diagnostics || { threads: {}, hosts: [] };
