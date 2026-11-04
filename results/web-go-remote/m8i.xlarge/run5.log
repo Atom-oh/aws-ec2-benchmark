@@ -1,0 +1,67 @@
+===== Web Benchmark: m8i.xlarge run 5 =====
+Server-Version: go go1.27.3 net/http GOMAXPROCS 4
+Client-Node: ip-10-2-33-134.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T04:19:02+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   731.73us  590.80us  20.37ms   90.09%
+    Req/Sec    31.05k     2.13k   54.80k    90.29%
+  Latency Distribution
+     50%  579.00us
+     75%    0.90ms
+     90%    1.32ms
+     99%    2.68ms
+  5571065 requests in 30.10s, 610.99MB read
+Requests/sec: 185088.16
+Transfer/sec:     20.30MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   777.96us  543.43us  10.82ms   84.83%
+    Req/Sec    28.80k     1.50k   51.98k    87.46%
+  Latency Distribution
+     50%  628.00us
+     75%    0.99ms
+     90%    1.44ms
+     99%    2.69ms
+  5162650 requests in 30.10s, 669.59MB read
+Requests/sec: 171520.24
+Transfer/sec:     22.25MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    12.74ms   14.70ms 180.46ms   86.34%
+    Req/Sec     2.38k   278.36     8.92k    78.59%
+  Latency Distribution
+     50%    6.64ms
+     75%   18.87ms
+     90%   31.78ms
+     99%   65.88ms
+  425483 requests in 30.07s, 67.36MB read
+Requests/sec:  14151.54
+Transfer/sec:      2.24MB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.99ms    1.79ms  35.08ms   79.63%
+    Req/Sec    29.78k     1.38k   68.52k    87.51%
+  Latency Distribution
+     50%    2.76ms
+     75%    3.71ms
+     90%    4.78ms
+     99%    9.91ms
+  5315946 requests in 30.07s, 689.48MB read
+Requests/sec: 176782.83
+Transfer/sec:     22.93MB
+
+Benchmark Complete

@@ -1,0 +1,68 @@
+===== Web Benchmark: c5d.xlarge run 3 =====
+Server-Version: node 26.13.0 fastify 5.12.8 workers 4
+Client-Node: ip-10-2-36-231.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T06:01:59+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c5d-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.79ms    1.27ms  56.99ms   93.55%
+    Req/Sec    12.35k     1.04k   31.38k    77.90%
+  Latency Distribution
+     50%    1.53ms
+     75%    1.91ms
+     90%    2.67ms
+     99%    5.45ms
+  2213615 requests in 30.10s, 344.10MB read
+Requests/sec:  73543.59
+Transfer/sec:     11.43MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c5d-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.80ms    0.97ms  32.56ms   88.53%
+    Req/Sec    12.09k     0.97k   27.15k    76.50%
+  Latency Distribution
+     50%    1.50ms
+     75%    1.76ms
+     90%    2.83ms
+     99%    5.17ms
+  2170458 requests in 30.10s, 409.84MB read
+Requests/sec:  72107.94
+Transfer/sec:     13.62MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c5d-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   266.92ms  108.70ms   1.97s    90.75%
+    Req/Sec    78.48     33.96   404.00     73.04%
+  Latency Distribution
+     50%  246.08ms
+     75%  303.20ms
+     90%  348.33ms
+     99%  667.83ms
+  13961 requests in 30.10s, 2.85MB read
+  Socket errors: connect 0, read 0, write 0, timeout 39
+Requests/sec:    463.88
+Transfer/sec:     96.94KB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c5d-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     7.43ms    8.01ms 376.10ms   98.57%
+    Req/Sec    12.09k   573.26    15.14k    78.58%
+  Latency Distribution
+     50%    6.66ms
+     75%    7.68ms
+     90%    8.38ms
+     99%   16.40ms
+  2157595 requests in 30.04s, 407.41MB read
+Requests/sec:  71812.17
+Transfer/sec:     13.56MB
+
+Benchmark Complete
