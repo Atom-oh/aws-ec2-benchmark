@@ -7,7 +7,7 @@
 
 export const ARCH_COLOR = { graviton: '#10b981', intel: '#3b82f6', amd: '#ef4444' };
 export const ARCH_LABEL = { graviton: 'Graviton', intel: 'Intel', amd: 'AMD' };
-const GENS = [5, 6, 7, 8];
+const GENS = [5, 6, 7, 8, 9]; // 9 = Graviton5(c9g, 2026-11 추가)
 const ARCHES = ['intel', 'amd', 'graviton'];
 
 export function archColor(arch, alpha = 0.7) {
@@ -229,9 +229,11 @@ export function metricTabChart(hostEl, rows, metrics) {
   function render(metric) {
     const data = aggregateByGenArch(rows, metric.field);
     const divisor = metric.divisor || 1;
+    // 데이터가 있는 세대만 축에 올린다 — 신규 세대(c9g)가 아직 측정되지 않은 탭에 빈 칸이 생기지 않게
+    const gens = GENS.filter((g) => ARCHES.some((a) => data[g][a].length));
     const datasets = ARCHES.map((arch) => ({
       label: ARCH_LABEL[arch],
-      data: GENS.map((g) => {
+      data: gens.map((g) => {
         if (arch === 'amd' && g !== 5) return null;
         if (arch === 'graviton' && g === 5) return null;
         const a = avg(data[g][arch]);
@@ -243,7 +245,7 @@ export function metricTabChart(hostEl, rows, metrics) {
     }));
     const cfg = {
       type: 'bar',
-      data: { labels: GENS.map((g) => `${g}세대`), datasets },
+      data: { labels: gens.map((g) => `${g}세대`), datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,

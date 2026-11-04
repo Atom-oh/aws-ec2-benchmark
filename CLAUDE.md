@@ -12,7 +12,50 @@ EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54�
 파이프라인), `docs/superpowers/specs/2026-07-09-dashboard-tab-content-design.md`(탭별 콘텐츠
 명세·표준 골격·shared.js 컴포넌트·데이터 스키마) 참고.
 
-## 현재 상태 (2026-06-29)
+## 현재 상태 (2026-11-04)
+
+### 인스턴스 54→55: c9g.xlarge(Graviton5) 추가
+서울 2a/2b/2c 오퍼링, 물리 4코어·3.3GHz·8GiB, $0.19568/hr. 라이브 `benchmark-server` NodePool에
+`kubectl patch`로 추가했고 `config/instances-4vcpu.txt`·`karpenter/nodepool-4vcpu.yaml`·`common.py` PRICE·
+`GRAVITON_GEN_NUM{9:5}`도 동기화함. **기존 벤치마크의 c9g 원시 데이터는 아직 없음**(백필 예정). 새로 측정하는
+벤치마크(web 등)는 정본 목록을 읽으므로 자동 포함.
+
+### 리포트형 분석 레이어 (SpringBoot 탭 파일럿)
+외부 재측정 리포트(`graviton-intel-springboot-benchmark.pdf`, 2xlarge 8종)의 분석 구조를 54개·전 벤치마크로
+일반화하는 중. SpringBoot 탭이 파일럿이고, 나머지 탭은 같은 틀로 순차 전환 예정.
+- `scripts/dashboard/analysis.py`: 회차 값 → 중앙값·변동계수, 기준선(c7i.xlarge) 대비 성능/가격 대비 성능 배수,
+  같은 세대 Graviton/Intel 짝, AMD 짝, flex 짝, 세대 향상 체인, C/M/R, 판정(±5%), 신뢰도 경고.
+  **수치는 여기서만 계산** — 탭 JS는 그리기·문장 조립만, HTML에 숫자 하드코딩 금지.
+  - 판정 밴드 ±5% 근거: SpringBoot Graviton 16개 동일 설정 재측정 드리프트 |Δ| 중앙값 2.6%, 최대 12.1%.
+  - 신뢰도 경고 임계값은 지표별 분포 기준(CV > max(3%, 중앙값×2) 등). 같은 프로세서 짝(flex/표준, C/M/R)이
+    ±15% 넘게 벌어지면 '호스트 차이 의심'으로 표시하고 그 짝의 판정은 '재측정 필요'로 보류.
+- `site/js/report.js`: analysis 블록 렌더러(핵심 결과표, 사양표, 신뢰도표, 회차 점 막대, 비율 막대+밴드,
+  짝 비교표, 덤벨, 패밀리표, 가격표). shared.js의 '추가 금지' 원칙은 유지하고 리포트 렌더러는 이 파일에 둔다.
+- `scripts/dashboard/fetch_hardware.py` → `config/hardware-4vcpu.json`(EC2 DescribeInstanceTypes + Pricing
+  physicalProcessor, 조회일 포함). `instances.json`의 `hw` 필드로 조인. 인스턴스 추가 시 재실행.
+
+### SpringBoot 원시 데이터에서 확인된 사실 (리포트에 반영)
+- wrk 로그 270개 소켓/HTTP 오류 0건. wrk 대상은 `springboot-simple`의 `/`(기존 탭의 "PetClinic에 wrk"는 오기였음).
+- **콜드스타트 JVM 프로파일 혼재**: 2026-01-20 수집 51개는 JVM 기본값(템플릿 `aef8bca`), 2026-07 백필 3개
+  (c8gn/r8gd/m8i-flex)는 C2 전용(`6357488` 이후 템플릿) → 파서가 로그 Timestamp로 판별해 비교에서 제외.
+- `results/springboot-flex/timeseries-all.csv`(10분 지속)는 2026-01 수집 = **JVM 기본값**(`9ecbf03` 시점
+  server.yaml에 `-XX:-TieredCompilation` 없음). 이 조건에서 c8g/c8i 처리량 0.80배·가격 대비 성능 0.94배(Intel 우위)로,
+  C2 전용 본측정(1.08배, Graviton 우위)과 판정이 뒤집힌다 — c100끼리 비교 시 c8g −11%, Intel 8세대 −4~+11%.
+- `results/springboot-optimal`(커밋 `6357488`)은 Intel/AMD=Tiered 기본값, Graviton=C2 전용 → Graviton 쪽은
+  '같은 설정 재측정' 드리프트 측정용으로만 사용.
+- c7i.xlarge(기준선)는 회차가 두 무리(75k×3, 62k×2)로 갈리고, c7i-flex.xlarge는 c7i의 1.38배(같은 프로세서)
+  → 둘 다 재측정 후보.
+
+### ⚠️ 실행기 동시성: 공유 워크스테이션 cgroup pids 한도
+이 워크스테이션의 모든 세션은 cgroup `code-server.service`의 **pids.max=8192(스레드 포함)**를 공유하며 평소에도
+다른 세션이 ~7,200을 쓴다. 55개 인스턴스를 한꺼번에 병렬로 돌리면 fork가 EAGAIN으로 실패해 가짜
+'서버 기동 실패/실패·타임아웃'이 나고 다른 세션까지 영향을 받는다(2026-11-04 web 본 실행에서 7980/8192 도달).
+`generate-cache-remote-benchmark.sh`는 이제 `MAX_PARALLEL`(기본 10) + cgroup 사용률 `PIDS_HIGH_PCT`(기본 92%)
+이상이면 투입을 멈추고, apply/wait/job wait의 즉시 실패는 재시도하며 에러를 로그에 남긴다. **다른 실행
+스크립트(kafka/clickhouse 등)도 인스턴스 전체를 `&`로 동시에 띄우므로 재실행 전 같은 가드를 넣을 것.**
+헤드리스 Chrome 검증도 스레드를 많이 쓰므로 `--single-process`로 띄울 것.
+
+## 이전 상태 (2026-06-29)
 
 ### 인스턴스 목록 51→54 확장
 `ap-northeast-2a/b/c` 서브넷이 모두 열리면서(이전 a/c만) 8세대에서 빠져 있던 3개 인스턴스를 정본 목록에
@@ -1028,7 +1071,7 @@ site/
    벤치마크별 스키마 지식 없이 정규화 점수를 계산하는 유일한 근거(§ Overview 섹션 참고) — 새
    벤치마크를 추가하면 반드시 이 필드를 채울 것.
 
-### shared.js 컴포넌트 (이것이 전부 — 추가 금지 원칙)
+### shared.js 컴포넌트 (이것이 전부 — 추가 금지 원칙, 리포트 렌더러는 `site/js/report.js`)
 `loadData(name)`, `buildToc(root)`, `summaryCards(el, cards)`, `topNBar(el, rows, opts)`,
 `metricTabChart(el, rows, metrics)`, `familyChart(el, rows, metric)`, `genImprovement(el, rows,
 metric)`, `priceSection(el, rows, opts)`, `resultTable(el, rows, columns, opts)`, `fmt`, `badge`,
