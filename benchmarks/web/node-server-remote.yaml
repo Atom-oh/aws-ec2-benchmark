@@ -1,0 +1,77 @@
+# Web framework server: Node.js 26.13 LTS + Fastify 5.12 (node:cluster, 4 workers)
+# 대상 인스턴스(4 vCPU)에 서버 단독 배포 — 클라이언트는 web-benchmark-remote.yaml(benchmark-client 노드풀,
+# c6in.2xlarge, 같은 AZ)에서 wrk 실행. 5개 스택(fastapi/django/node/go/dotnet) 모두 같은 엔드포인트 명세
+# (/plaintext /json /compute /health /version, docker/web-*/ 참고)와 같은 워커 수(=vCPU 4)를 쓴다.
+# 실행: scripts/generate-cache-remote-benchmark.sh web-node benchmarks/web/node-server-remote.yaml \
+#        benchmarks/web/web-benchmark-remote.yaml web-node-server 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-node-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: web-node-server
+    benchmark: web-node
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-node-server
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        app: web-node-server
+        benchmark: web-node
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+        topology.kubernetes.io/zone: "${AZ}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: server
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/web-node:1.0
+          resources: {}
+          env:
+            - name: WEB_WORKERS
+              value: "4"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-node-remote-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: web-node-server
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  selector:
+    app: web-node-server
+    instance-type: "${INSTANCE_TYPE}"
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

@@ -36,7 +36,12 @@ JOB_TIMEOUT=2400  # 원격 토폴로지 대부분 4~6분이나, 5세대 AMD(r5a 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 log(){ echo -e "[$(date '+%H:%M:%S')] [$NAME-remote] $*"; }
 
-mapfile -t INSTANCES < <(grep -vE '^\s*#|^\s*$' "$INSTANCE_FILE" | awk '{print $1}')
+# INSTANCES_OVERRIDE="c8g.xlarge c8i.xlarge" 처럼 공백 구분 목록을 주면 config 대신 그 목록만 실행(스모크 테스트용)
+if [ -n "${INSTANCES_OVERRIDE:-}" ]; then
+  read -ra INSTANCES <<< "$INSTANCES_OVERRIDE"
+else
+  mapfile -t INSTANCES < <(grep -vE '^\s*#|^\s*$' "$INSTANCE_FILE" | awk '{print $1}')
+fi
 log "인스턴스 ${#INSTANCES[@]}개, ${RUNS}회 반복"
 
 mkdir -p "$RESULTS_DIR"
@@ -48,6 +53,41 @@ find_pod(){ local sel="$1" p; for t in 1 2 3 4 5; do
 # c7i-flex.xlarge는 ap-northeast-2a에 오퍼링이 없음(aws ec2 describe-instance-type-offerings로
 # 확인) — 이 인스턴스만 2b로 오버라이드. 다른 53개는 전부 DEFAULT_AZ 하나로 통일.
 az_for(){ local instance="$1"; [ "$instance" = "c7i-flex.xlarge" ] && echo "ap-northeast-2b" || echo "$DEFAULT_AZ"; }
+
+# Job 완료 대기. kubectl 자체가 즉시 실패(프로세스 생성 EAGAIN, API 일시 오류 등)하면 '타임아웃'으로
+# 오판하지 않도록 남은 시간 안에서 재시도한다 — 진짜 타임아웃("timed out")만 실패로 본다.
+wait_job(){
+  local job="$1" out deadline=$((SECONDS + JOB_TIMEOUT))
+  while [ $SECONDS -lt $deadline ]; do
+    out=$(kubectl wait --for=condition=complete "job/$job" -n "$NAMESPACE" --timeout="$((deadline - SECONDS))s" 2>&1) && return 0
+    echo "$out" | grep -q "timed out" && return 1
+    log "${YELLOW}job wait 오류 재시도${NC}: $job — $(echo "$out" | tail -1)"
+    sleep 10
+  done
+  return 1
+}
+
+# 동시 실행 제한. 이 워크스테이션은 여러 세션이 cgroup(code-server.service) pids.max=8192를 공유하는데
+# (스레드 포함), 2026-11 web 본 실행에서 55개 인스턴스를 한꺼번에 띄우자 7980/8192까지 차서 fork가
+# EAGAIN으로 실패 → 가짜 '실패/타임아웃'이 났고 다른 세션까지 영향을 받았다. 그래서
+#   (1) MAX_PARALLEL개(기본 10)까지만 인스턴스를 동시에 돌리고
+#   (2) cgroup pids 사용률이 PIDS_HIGH_PCT(기본 92%) 이상이면 새 인스턴스 투입을 멈춘다.
+MAX_PARALLEL="${MAX_PARALLEL:-10}"
+PIDS_HIGH_PCT="${PIDS_HIGH_PCT:-92}"
+CG_DIR="/sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup 2>/dev/null)"
+pids_tight(){
+  [ -r "$CG_DIR/pids.current" ] && [ -r "$CG_DIR/pids.max" ] || return 1
+  local cur max; cur=$(cat "$CG_DIR/pids.current"); max=$(cat "$CG_DIR/pids.max")
+  [ "$max" = max ] && return 1
+  [ $((cur * 100 / max)) -ge "$PIDS_HIGH_PCT" ]
+}
+throttle(){
+  local warned=false
+  while [ "$(jobs -rp | wc -l)" -ge "$MAX_PARALLEL" ] || pids_tight; do
+    if pids_tight && [ "$warned" = false ]; then log "${YELLOW}cgroup pids ${PIDS_HIGH_PCT}% 이상 — 투입 대기${NC}"; warned=true; fi
+    sleep 5
+  done
+}
 
 run_instance(){
   local instance="$1" safe; safe=$(echo "$instance" | tr '.' '-')
@@ -63,12 +103,28 @@ run_instance(){
     return
   fi
 
-  cat "$SERVER_TEMPLATE" \
-    | sed "s/INSTANCE_SAFE/${safe}/g" | sed "s|\${INSTANCE_TYPE}|${instance}|g" | sed "s|\${AZ}|${az}|g" \
-    | kubectl apply -f - >/dev/null 2>&1
+  # apply/wait 출력은 실패 시에만 로그에 남긴다. 2026-11 web 스모크에서 동시 기동 직후 1초 만에
+  # "서버 기동 실패"가 무작위로 났는데(=apply 실패로 Deployment 부재 → wait 즉시 NotFound) 출력이
+  # /dev/null이라 원인을 알 수 없었음 → 일시 오류는 재시도하고, 끝내 실패하면 마지막 에러를 기록.
+  local out ok=false
+  for t in 1 2 3; do
+    if out=$(cat "$SERVER_TEMPLATE" \
+        | sed "s/INSTANCE_SAFE/${safe}/g" | sed "s|\${INSTANCE_TYPE}|${instance}|g" | sed "s|\${AZ}|${az}|g" \
+        | kubectl apply -f - 2>&1); then ok=true; break; fi
+    log "${YELLOW}apply 재시도 ${t}/3${NC}: $instance — $(echo "$out" | tail -1)"
+    sleep $((t * 5))
+  done
+  local deadline=$((SECONDS + SERVER_READY_TIMEOUT))
+  while [ "$ok" = true ] && [ $SECONDS -lt $deadline ]; do
+    if out=$(kubectl wait --for=condition=available "deployment/${NAME}-remote-${safe}" -n "$NAMESPACE" \
+        --timeout="$((deadline - SECONDS))s" 2>&1); then ok=done; break; fi
+    echo "$out" | grep -q "timed out" && break   # 진짜 타임아웃은 재시도하지 않음
+    log "${YELLOW}wait 오류 재시도${NC}: $instance — $(echo "$out" | tail -1)"
+    sleep 5
+  done
 
-  if ! kubectl wait --for=condition=available "deployment/${NAME}-remote-${safe}" -n "$NAMESPACE" --timeout="${SERVER_READY_TIMEOUT}s" >/dev/null 2>&1; then
-    log "${RED}서버 기동 실패${NC}: $instance"
+  if [ "$ok" != done ]; then
+    log "${RED}서버 기동 실패${NC}: $instance — $(echo "$out" | tail -1)"
     kubectl delete deployment,service -n "$NAMESPACE" "${NAME}-remote-${safe}" --ignore-not-found >/dev/null 2>&1
     return
   fi
@@ -89,7 +145,7 @@ run_instance(){
       | sed "s/RUN_NUM/${RUN}/g" \
       | kubectl apply -f - >/dev/null 2>&1
 
-    if kubectl wait --for=condition=complete "job/$job" -n "$NAMESPACE" --timeout="${JOB_TIMEOUT}s" >/dev/null 2>&1; then
+    if wait_job "$job"; then
       local pod; pod=$(find_pod "job-name=$job")
       if [ -n "$pod" ] && kubectl logs -n "$NAMESPACE" "$pod" 2>/dev/null | tr '\r' '\n' > "$lf" && [ -s "$lf" ]; then
         log "${GREEN}수집${NC}: $instance run$RUN"
@@ -104,11 +160,13 @@ run_instance(){
     kubectl delete job "$job" -n "$NAMESPACE" --wait=false >/dev/null 2>&1
   done
 
-  kubectl delete deployment,service,configmap -n "$NAMESPACE" -l "app=${APP_LABEL},instance-type=${instance}" --ignore-not-found >/dev/null 2>&1
+  # pvc: 서버 템플릿이 PVC를 쓰는 경우(PostgreSQL 등) 같은 app/instance-type 레이블로 함께 정리 — 없으면 no-op
+  kubectl delete deployment,service,configmap,pvc -n "$NAMESPACE" -l "app=${APP_LABEL},instance-type=${instance}" --ignore-not-found >/dev/null 2>&1
   log "[$instance] 완료"
 }
 
-for instance in "${INSTANCES[@]}"; do run_instance "$instance" & done
+log "동시 실행 상한 ${MAX_PARALLEL}, cgroup pids 상한 ${PIDS_HIGH_PCT}%"
+for instance in "${INSTANCES[@]}"; do throttle; run_instance "$instance" & done
 wait
 
 TOTAL_LOGS=$(find "$RESULTS_DIR" -name "run*.log" -size +0 | wc -l)

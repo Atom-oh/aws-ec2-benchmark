@@ -25,6 +25,7 @@ EXPECTED_COVERAGE = {
     "valkey": 54,
     "redis-io4": 54,
     "valkey-io4": 54,
+    "web": 54,
 }
 
 
@@ -54,6 +55,7 @@ def main():
         "sysbench", "iperf3", "nginx", "redis", "elasticsearch",
         "kafka", "clickhouse", "geekbench", "passmark", "stress-ng",
         "springboot", "valkey", "redis-io4", "valkey-io4",
+        # "web": 본 실행(55x5x5) 완료 + 탭 추가 후 기본 대상에 넣을 것 — 그 전에는 부분 데이터라 수동 실행만
     ]
     for name in targets:
         build_benchmark(name)

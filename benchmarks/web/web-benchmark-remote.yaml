@@ -1,0 +1,101 @@
+# Web framework benchmark client (remote) — 5개 스택(fastapi/django/node/go/dotnet) 공용.
+# SERVICE_NAME = web-<stack>-remote-INSTANCE_SAFE, SERVER_APP_LABEL = web-<stack>-server 로
+# scripts/generate-cache-remote-benchmark.sh가 치환한다.
+#
+# - 클라이언트는 benchmark-client 노드풀(c6in.2xlarge, 8 vCPU)에 cpu 7을 요청해 노드 1대를 독점 →
+#   wrk가 병목이 되지 않게 한다(서버는 4 vCPU, 클라이언트는 그 2배).
+# - TechEmpower 방식 엔드포인트: /plaintext, /json, /compute(2000회 SHA-256 체인, 모든 언어 동일 작업량).
+#   파이프라이닝 없음(실제 HTTP/1.1 keep-alive 클라이언트 동작).
+# - 128 커넥션 × 3 엔드포인트 + /json 512 커넥션(고동시성에서 워커 모델 차이 확인).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: JOB_NAME
+  namespace: benchmark
+  labels:
+    benchmark: web-remote-bench
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 14400
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: web-remote-bench
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: SERVER_APP_LABEL
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-server
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/wrk:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until wget -q -O - http://SERVICE_NAME:8080/health 2>/dev/null | grep -q ok; do
+                echo "Waiting for server..."
+                sleep 2
+              done
+              echo "Server ready"
+      containers:
+        - name: benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/wrk:latest
+          resources:
+            requests:
+              cpu: "7"
+              memory: "2Gi"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              URL="http://SERVICE_NAME:8080"
+              echo "===== Web Benchmark: ${INSTANCE_TYPE} run RUN_NUM ====="
+              echo "Server-Version: $(wget -q -O - ${URL}/version)"
+              echo "Client-Node: ${NODE_NAME}"
+              echo "Timestamp: $(date -Iseconds)"
+              echo ""
+
+              echo "=== Warm-up (json, 15s) ==="
+              wrk -t6 -c128 -d15s ${URL}/json > /dev/null 2>&1
+              sleep 2
+
+              for EP in plaintext json compute; do
+                echo "=== wrk Test (endpoint=${EP}, 6 threads, 128 connections, 30s) ==="
+                wrk -t6 -c128 -d30s --latency ${URL}/${EP}
+                echo ""
+                sleep 2
+              done
+
+              echo "=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ==="
+              wrk -t6 -c512 -d30s --latency ${URL}/json
+              echo ""
+
+              echo "Benchmark Complete"
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
