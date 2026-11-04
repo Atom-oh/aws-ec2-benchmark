@@ -1,0 +1,67 @@
+===== Web Benchmark: c7gd.xlarge run 3 =====
+Server-Version: node 26.13.0 fastify 5.12.8 workers 4
+Client-Node: ip-10-2-35-157.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T05:49:16+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c7gd-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.03ms  638.13us  18.13ms   88.26%
+    Req/Sec    21.14k     1.84k   43.25k    72.02%
+  Latency Distribution
+     50%    0.89ms
+     75%    1.12ms
+     90%    1.69ms
+     99%    2.74ms
+  3788002 requests in 30.10s, 588.84MB read
+Requests/sec: 125847.95
+Transfer/sec:     19.56MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c7gd-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.06ms  727.58us  29.10ms   92.30%
+    Req/Sec    20.65k     1.85k   26.13k    68.97%
+  Latency Distribution
+     50%    0.91ms
+     75%    1.18ms
+     90%    1.71ms
+     99%    3.19ms
+  3694185 requests in 30.08s, 697.56MB read
+Requests/sec: 122823.16
+Transfer/sec:     23.19MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c7gd-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   133.17ms   90.53ms   1.81s    96.08%
+    Req/Sec   167.23     35.05   747.00     81.94%
+  Latency Distribution
+     50%  121.32ms
+     75%  132.98ms
+     90%  147.63ms
+     99%  468.42ms
+  29917 requests in 30.05s, 6.11MB read
+Requests/sec:    995.48
+Transfer/sec:    208.04KB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-node-remote-c7gd-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.16ms    3.72ms 231.08ms   97.83%
+    Req/Sec    21.25k     1.20k   37.39k    82.11%
+  Latency Distribution
+     50%    3.77ms
+     75%    4.07ms
+     90%    4.58ms
+     99%    8.91ms
+  3793043 requests in 30.08s, 716.23MB read
+Requests/sec: 126078.37
+Transfer/sec:     23.81MB
+
+Benchmark Complete

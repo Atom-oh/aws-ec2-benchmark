@@ -1,0 +1,67 @@
+===== Web Benchmark: c7gd.xlarge run 2 =====
+Server-Version: dotnet .NET 10.0.14 aspnetcore kestrel Arm64
+Client-Node: ip-10-2-32-191.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T04:52:26+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-dotnet-remote-c7gd-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     0.86ms  280.98us  11.16ms   87.17%
+    Req/Sec    24.47k     1.13k   37.07k    81.31%
+  Latency Distribution
+     50%  827.00us
+     75%    0.95ms
+     90%    1.08ms
+     99%    2.04ms
+  4389127 requests in 30.10s, 552.53MB read
+Requests/sec: 145820.27
+Transfer/sec:     18.36MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-dotnet-remote-c7gd-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     0.87ms  247.41us  10.23ms   83.72%
+    Req/Sec    24.29k     1.05k   38.62k    85.08%
+  Latency Distribution
+     50%  843.00us
+     75%    0.96ms
+     90%    1.08ms
+     99%    1.90ms
+  4357343 requests in 30.10s, 772.92MB read
+Requests/sec: 144763.96
+Transfer/sec:     25.68MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-dotnet-remote-c7gd-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    64.97ms   13.91ms 143.47ms   81.51%
+    Req/Sec   324.05     90.03   600.00     50.83%
+  Latency Distribution
+     50%   63.80ms
+     75%   66.08ms
+     90%   79.27ms
+     99%  113.49ms
+  58036 requests in 30.03s, 10.13MB read
+Requests/sec:   1932.50
+Transfer/sec:    345.36KB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-dotnet-remote-c7gd-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.95ms  780.83us  26.87ms   78.59%
+    Req/Sec    28.95k     1.37k   45.89k    86.90%
+  Latency Distribution
+     50%    2.86ms
+     75%    3.26ms
+     90%    3.75ms
+     99%    5.74ms
+  5167741 requests in 30.04s, 0.90GB read
+Requests/sec: 172024.96
+Transfer/sec:     30.51MB
+
+Benchmark Complete

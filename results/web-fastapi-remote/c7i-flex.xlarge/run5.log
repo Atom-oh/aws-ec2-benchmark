@@ -1,0 +1,67 @@
+===== Web Benchmark: c7i-flex.xlarge run 5 =====
+Server-Version: python 3.14.10 fastapi 0.162.0 uvicorn 0.54.0 uvloop 0.23.0
+Client-Node: ip-10-2-77-192.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T06:49:15+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-fastapi-remote-c7i-flex-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.44ms    2.13ms  45.68ms   80.70%
+    Req/Sec     4.86k     0.88k   15.15k    80.57%
+  Latency Distribution
+     50%    3.80ms
+     75%    5.37ms
+     90%    6.90ms
+     99%   11.35ms
+  871723 requests in 30.10s, 122.21MB read
+Requests/sec:  28961.20
+Transfer/sec:      4.06MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-fastapi-remote-c7i-flex-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.59ms    2.06ms  35.02ms   83.69%
+    Req/Sec     4.68k   811.30    17.35k    81.77%
+  Latency Distribution
+     50%    4.21ms
+     75%    5.53ms
+     90%    6.83ms
+     99%   11.40ms
+  838475 requests in 30.10s, 121.54MB read
+Requests/sec:  27856.63
+Transfer/sec:      4.04MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-fastapi-remote-c7i-flex-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    50.77ms   27.79ms 772.03ms   96.26%
+    Req/Sec   428.10     95.99     1.32k    73.80%
+  Latency Distribution
+     50%   52.25ms
+     75%   54.53ms
+     90%   57.20ms
+     99%  110.93ms
+  76664 requests in 30.09s, 14.48MB read
+Requests/sec:   2547.90
+Transfer/sec:    492.66KB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-fastapi-remote-c7i-flex-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    18.71ms   17.36ms 669.28ms   98.26%
+    Req/Sec     4.78k   660.25     8.31k    74.19%
+  Latency Distribution
+     50%   15.60ms
+     75%   22.44ms
+     90%   25.59ms
+     99%   44.74ms
+  853776 requests in 30.08s, 123.76MB read
+Requests/sec:  28380.26
+Transfer/sec:      4.11MB
+
+Benchmark Complete

@@ -1,0 +1,67 @@
+===== Web Benchmark: m8i-flex.xlarge run 2 =====
+Server-Version: go go1.27.3 net/http GOMAXPROCS 4
+Client-Node: ip-10-2-33-64.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T04:11:28+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-flex-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   710.11us  505.64us  12.27ms   86.63%
+    Req/Sec    31.73k     1.73k   76.89k    88.10%
+  Latency Distribution
+     50%  555.00us
+     75%    0.88ms
+     90%    1.33ms
+     99%    2.53ms
+  5680525 requests in 30.10s, 623.00MB read
+Requests/sec: 188727.23
+Transfer/sec:     20.70MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-flex-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   773.12us  562.97us  11.50ms   86.25%
+    Req/Sec    29.29k     1.13k   38.43k    74.29%
+  Latency Distribution
+     50%  601.00us
+     75%    0.98ms
+     90%    1.46ms
+     99%    2.75ms
+  5260647 requests in 30.10s, 682.30MB read
+Requests/sec: 174773.16
+Transfer/sec:     22.67MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-flex-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    13.76ms   16.36ms 200.95ms   86.41%
+    Req/Sec     2.32k   250.95     4.87k    73.00%
+  Latency Distribution
+     50%    5.97ms
+     75%   21.26ms
+     90%   34.90ms
+     99%   72.47ms
+  415236 requests in 30.07s, 65.74MB read
+Requests/sec:  13810.82
+Transfer/sec:      2.19MB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-go-remote-m8i-flex-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.95ms    2.10ms  42.20ms   83.44%
+    Req/Sec    31.16k     1.37k   47.76k    84.23%
+  Latency Distribution
+     50%    2.54ms
+     75%    3.58ms
+     90%    5.09ms
+     99%   11.31ms
+  5561693 requests in 30.09s, 721.35MB read
+Requests/sec: 184837.09
+Transfer/sec:     23.97MB
+
+Benchmark Complete

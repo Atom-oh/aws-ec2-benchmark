@@ -1,0 +1,67 @@
+===== Web Benchmark: m7gd.xlarge run 5 =====
+Server-Version: node 26.13.0 fastify 5.12.8 workers 4
+Client-Node: ip-10-2-67-87.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T06:08:28+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-m7gd-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.19ms  599.53us  18.60ms   93.09%
+    Req/Sec    18.20k     1.05k   28.13k    76.46%
+  Latency Distribution
+     50%    1.03ms
+     75%    1.42ms
+     90%    1.68ms
+     99%    2.99ms
+  3261114 requests in 30.10s, 506.94MB read
+Requests/sec: 108343.51
+Transfer/sec:     16.84MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-m7gd-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.20ms  564.91us  17.47ms   93.23%
+    Req/Sec    17.93k   823.62    21.86k    73.44%
+  Latency Distribution
+     50%    1.09ms
+     75%    1.37ms
+     90%    1.61ms
+     99%    2.88ms
+  3211154 requests in 30.09s, 606.35MB read
+Requests/sec: 106726.44
+Transfer/sec:     20.15MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-node-remote-m7gd-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   137.45ms   87.25ms   1.77s    95.02%
+    Req/Sec   160.96     36.70   670.00     78.04%
+  Latency Distribution
+     50%  125.38ms
+     75%  138.92ms
+     90%  156.93ms
+     99%  439.84ms
+  28792 requests in 30.04s, 5.88MB read
+Requests/sec:    958.43
+Transfer/sec:    200.30KB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-node-remote-m7gd-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     5.06ms    4.74ms 257.63ms   98.46%
+    Req/Sec    17.50k     0.97k   24.97k    81.16%
+  Latency Distribution
+     50%    4.35ms
+     75%    4.74ms
+     90%    8.00ms
+     99%   10.79ms
+  3124457 requests in 30.08s, 589.98MB read
+Requests/sec: 103868.08
+Transfer/sec:     19.61MB
+
+Benchmark Complete

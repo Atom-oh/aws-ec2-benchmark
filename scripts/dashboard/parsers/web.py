@@ -12,9 +12,29 @@ headline = json_geomean: 5개 스택 /json(128c) req/s의 기하평균. 스택�
 import re
 from collections import defaultdict
 
-from common import RESULTS_DIR, canonical_instances, geomean, mean, parse_wrk_block
+import analysis
+from common import PRICE, RESULTS_DIR, canonical_instances, geomean, mean, parse_wrk_block
 
-STACKS = ["fastapi", "django", "node", "go", "dotnet"]
+ALL_STACKS = ["fastapi", "django", "node", "go", "dotnet"]
+RUNS = 5
+
+
+def complete_stacks():
+    """모든 정본 인스턴스가 RUNS회 완료(`Benchmark Complete`)된 스택만 반환 — 측정 중인 스택이 일부
+    인스턴스만으로 종합 지수·판정에 섞이지 않게 한다. 측정이 끝나면 재빌드만으로 자동 포함된다."""
+    names = canonical_instances()
+    done = []
+    for st in ALL_STACKS:
+        base = RESULTS_DIR / f"web-{st}-remote"
+        ok = all(sum(1 for lp in (base / n).glob("run*.log") if "Benchmark Complete" in lp.read_text(errors="replace")) >= RUNS
+                 for n in names) if base.is_dir() else False
+        if ok:
+            done.append(st)
+    return done
+
+
+STACKS = complete_stacks()
+PENDING = [s for s in ALL_STACKS if s not in STACKS]
 STACK_LABELS = {
     "fastapi": "FastAPI + uvicorn",
     "django": "Django + gunicorn",
@@ -68,6 +88,7 @@ def build_stack(stack, instance):
         rec["p99_json512_ms"] = mean(runs["json512"]["p99_ms"])
     rec["errors"] = sum(sum(v for v in runs[k]["errors"] if v) for k in runs)
     rec["runs"] = len(runs["json"]["rps"])
+    rec["_json_runs"] = runs["json"]["rps"]  # 회차 순서 유지(run1..5) — 종합 지수 회차별 기하평균용
     return rec, version
 
 
@@ -89,20 +110,45 @@ def build():
         rec["compute_geomean"] = geomean([rec.get(s, {}).get("compute") for s in STACKS])
         instances[name] = rec
 
+    # 리포트 분석: 스택별 /json(128c) 회차 값 + 종합 지수(회차 i마다 5개 스택 run i의 기하평균 — 스택별 측정은
+    # 별개 세션이므로 회차 번호끼리 짝짓는 근사이며, 5개 스택이 모두 있는 회차만 사용)
+    rep = {"json_geomean": {}, **{s: {} for s in STACKS}}
+    for name, rec in instances.items():
+        for st in STACKS:
+            if st in rec:
+                rep[st][name] = rec[st]["_json_runs"]
+        per = [rec[st]["_json_runs"] for st in STACKS if st in rec]
+        if len(per) == len(STACKS):
+            n = min(len(r) for r in per)
+            rep["json_geomean"][name] = [geomean([r[i] for r in per]) for i in range(n)]
+        for st in STACKS:
+            rec.get(st, {}).pop("_json_runs", None)
+    summaries, blocks = analysis.report(rep, {
+        "json_geomean": {"label": f"웹 프레임워크 종합 지수 ({len(STACKS)}개 스택 /json 기하평균)", "unit": "req/s", "direction": "max"},
+        **{st: {"label": f"{STACK_LABELS[st]} /json", "unit": "req/s", "direction": "max",
+                "cost_unit": {"per": 1e9, "label": "요청 10억 건당 (USD)"}} for st in STACKS},
+    }, PRICE)
+    for _n, _r in summaries.items():
+        instances[_n]["r"] = _r
+
     coverage = sum(1 for v in instances.values() if v["json_geomean"] is not None)
     return {
         "benchmark": "web",
         "coverage": coverage,
         "headline": {"field": "json_geomean", "direction": "max",
-                     "label": "JSON req/s (5개 스택 기하평균)", "unit": "req/s"},
+                     "label": f"JSON req/s ({len(STACKS)}개 스택 기하평균)", "unit": "req/s"},
         "notes": {
             "method": ("TechEmpower 방식 /plaintext, /json, /compute(SHA-256 2000회 체인) — wrk -t6 -c128 -d30s "
                        "(+ /json -c512), 파이프라이닝 없음, 5회 평균. 서버=대상 인스턴스 단독(워커=4 vCPU), "
                        "클라이언트=c6in.2xlarge 같은 AZ"),
-            "stacks": STACK_LABELS,
+            "stacks": {k: STACK_LABELS[k] for k in STACKS},
+            "pending_stacks": {k: STACK_LABELS[k] for k in PENDING},
             "versions": versions,
+            "az": ("서버·클라이언트 기본 AZ ap-northeast-2c(2a의 클라이언트 c6in.2xlarge가 InsufficientInstanceCapacity). "
+                   "2c에 오퍼링이 없는 c7i-flex/m6gd/m7gd/r6gd/r8gd와, 2c 용량 부족으로 기동 실패한 c8gn은 2b에서 측정"),
             "caveat": ("스택 간 절대값 비교는 프레임워크 오버헤드 비교이고, 인스턴스 비교는 같은 스택 안에서 할 것. "
-                       "headline 기하평균은 5개 스택을 동등 가중"),
+                       f"headline 기하평균은 {len(STACKS)}개 스택을 동등 가중"),
         },
         "instances": instances,
+        "analysis": blocks,
     }
