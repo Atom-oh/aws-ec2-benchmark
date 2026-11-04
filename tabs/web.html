@@ -1,7 +1,7 @@
 <header class="hero">
-    <h1>웹 프레임워크 벤치마크</h1>
-    <p>FastAPI · Django · Node.js(Fastify) · Go · ASP.NET Core | xlarge(4 vCPU) EC2 인스턴스 비교</p>
-    <div class="header-meta">리전: ap-northeast-2 (서울) | TechEmpower 방식 /plaintext · /json · /compute | wrk 원격 부하</div>
+    <h1 data-slot="title">웹 프레임워크 벤치마크</h1>
+    <p data-slot="subtitle"></p>
+    <div class="header-meta">리전: ap-northeast-2 (서울) | xlarge(4 vCPU) | TechEmpower 방식 /plaintext · /json · /compute | wrk 원격 부하</div>
 </header>
 
 <div class="toc"><h2>목차</h2></div>
@@ -10,11 +10,10 @@
     <h2>측정 환경과 방법</h2>
     <table class="report-table">
         <tr><th>항목</th><th>값</th></tr>
-        <tr><td>스택</td><td>FastAPI 0.162 + uvicorn 0.54(uvloop, httptools, 워커 4) · Django 6.1 + gunicorn 26.2(gthread 4×4) · Node.js 26.13 LTS + Fastify 5.12(cluster 4) · Go 1.27.3 net/http · ASP.NET Core 10.0.14 LTS(Kestrel, Server GC)</td></tr>
-        <tr><td>런타임 버전</td><td>Python 3.14.10 · 회차 로그의 <code>Server-Version</code> 줄에 서버가 보고한 버전을 기록</td></tr>
+        <tr><td>서버</td><td data-slot="server"></td></tr>
         <tr><td>엔드포인트</td><td>모든 스택 동일: <code>/plaintext</code>(고정 문자열), <code>/json</code>(<code>{"message":"Hello, World!"}</code>), <code>/compute</code>(SHA-256 2000회 체인 — 언어마다 결과 해시가 같은 동일 작업량)</td></tr>
-        <tr><td>부하</td><td>wrk 6스레드, 워밍업 15s → 엔드포인트 3종 × 커넥션 128 × 30s + <code>/json</code> 커넥션 512 × 30s, 파이프라이닝 없음, 인스턴스·스택마다 5회</td></tr>
-        <tr><td>배치</td><td>서버 = 대상 인스턴스 단독 노드, 클라이언트 = 전용 c6in.2xlarge(CPU 7 요청으로 노드 독점) · 같은 AZ. 스모크에서 클라이언트 CPU 약 2.5코어(8 중), 서버 노드 CPU 76~92%로 서버 쪽 포화를 확인</td></tr>
+        <tr><td>부하</td><td>wrk 6스레드, 워밍업 15s → 엔드포인트 3종 × 커넥션 128 × 30s + <code>/json</code> 커넥션 512 × 30s, 파이프라이닝 없음, 인스턴스마다 5회</td></tr>
+        <tr><td>배치</td><td>서버 = 대상 인스턴스 단독 노드(워커/스레드 = vCPU 4), 클라이언트 = 전용 c6in.2xlarge(CPU 7 요청으로 노드 독점) · 같은 AZ. 스모크에서 클라이언트 CPU 약 2.5코어(8 중), 서버 노드 CPU 76~92%로 서버 쪽 포화를 확인</td></tr>
         <tr><td>이미지</td><td>ECR <code>benchmark/web-{python,node,go,dotnet}:1.0</code> multi-arch(amd64/arm64)</td></tr>
     </table>
     <p class="caption" data-slot="az-note"></p>
@@ -22,16 +21,9 @@
 
 <div data-slot="report"></div>
 
-<section class="section" id="r-bespoke">
-    <h2>스택별 Graviton과 Intel</h2>
-    <p>같은 하드웨어라도 언어 런타임에 따라 Graviton과 Intel의 우열이 달라집니다. 아래는 각 스택의 <code>/json</code>(커넥션 128) 처리량 기준 판정입니다.</p>
-    <div data-slot="stack-matrix"></div>
-    <div data-slot="stack-chart"></div>
-    <p class="caption">8세대 c8g / c8i 가격 대비 성능 (스택별). 회색 띠는 ±5%</p>
-</section>
-
 <section class="section" id="endpoints">
-    <h2>엔드포인트별 처리량</h2>
+    <h2>엔드포인트별 비교</h2>
+    <p data-slot="endpoint-lead"></p>
     <div data-slot="endpoints"></div>
 </section>
 
