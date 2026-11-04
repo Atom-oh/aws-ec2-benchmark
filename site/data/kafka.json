@@ -2644,6 +2644,157 @@
         }
       }
     },
+    "c9g.xlarge": {
+      "instance": "c9g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton",
+      "gen": "9",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": true,
+      "price": null,
+      "version": "3.9.1",
+      "runs_measured": 5,
+      "value": null,
+      "failed_count": 0,
+      "produce_records_per_sec": 300914.78,
+      "produce_mb_per_sec": 293.86,
+      "produce_lat_avg_ms": 0.8,
+      "produce_lat_p50_ms": 1.0,
+      "produce_lat_p95_ms": 1.0,
+      "produce_lat_p99_ms": 2.0,
+      "produce_lat_p999_ms": 6.0,
+      "consume_mb_per_sec": 149.23,
+      "consume_records_per_sec": 152816.41,
+      "max": {
+        "uncompressed": {
+          "produce_records_per_sec": 1258340.0,
+          "produce_mb_per_sec": 1228.84,
+          "produce_lat_avg_ms": 180.64,
+          "produce_lat_p99_ms": 668.0,
+          "log_bytes_on_disk": 20679528570.0,
+          "compression_ratio": 0.99,
+          "consume_mb_per_sec": 509.073,
+          "consume_records_per_sec": 521289.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "lz4": {
+          "produce_records_per_sec": 1182220.0,
+          "produce_mb_per_sec": 1154.52,
+          "produce_lat_avg_ms": 193.67,
+          "produce_lat_p99_ms": 649.0,
+          "log_bytes_on_disk": 15580674531.0,
+          "compression_ratio": 1.314,
+          "consume_mb_per_sec": 647.249,
+          "consume_records_per_sec": 662782.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        },
+        "zstd": {
+          "produce_records_per_sec": 528202.0,
+          "produce_mb_per_sec": 515.82,
+          "produce_lat_avg_ms": 465.2,
+          "produce_lat_p99_ms": 729.0,
+          "log_bytes_on_disk": 10965433202.0,
+          "compression_ratio": 1.868,
+          "consume_mb_per_sec": 775.953,
+          "consume_records_per_sec": 794575.0,
+          "runs_measured": 5,
+          "failed_count": 0
+        }
+      },
+      "scaling_8way": 4.18,
+      "zstd_cost": 0.42,
+      "ramp": {
+        "baseline_mb": 1228.84,
+        "depletion_duration_s": "86",
+        "depletion_end_mb_per_sec": 1432.95,
+        "saturation_reached": "yes",
+        "saturation_mb_per_sec": 1324.29,
+        "saturation_lat_p99_ms": 565.0,
+        "curve": [
+          {
+            "pct": 20,
+            "target_mb": 245.77,
+            "achieved_mb": 245.59,
+            "ratio": 0.9993,
+            "lat_avg_ms": 42.49,
+            "lat_p99_ms": 733.0
+          },
+          {
+            "pct": 40,
+            "target_mb": 491.54,
+            "achieved_mb": 491.21,
+            "ratio": 0.9993,
+            "lat_avg_ms": 71.07,
+            "lat_p99_ms": 730.0
+          },
+          {
+            "pct": 60,
+            "target_mb": 737.3,
+            "achieved_mb": 736.76,
+            "ratio": 0.9993,
+            "lat_avg_ms": 77.29,
+            "lat_p99_ms": 662.0
+          },
+          {
+            "pct": 80,
+            "target_mb": 983.07,
+            "achieved_mb": 982.25,
+            "ratio": 0.9992,
+            "lat_avg_ms": 115.46,
+            "lat_p99_ms": 640.0
+          },
+          {
+            "pct": 100,
+            "target_mb": 1228.84,
+            "achieved_mb": 1227.63,
+            "ratio": 0.999,
+            "lat_avg_ms": 138.23,
+            "lat_p99_ms": 596.0
+          },
+          {
+            "pct": 120,
+            "target_mb": 1474.61,
+            "achieved_mb": 1324.29,
+            "ratio": 0.8981,
+            "lat_avg_ms": 172.88,
+            "lat_p99_ms": 565.0
+          }
+        ]
+      },
+      "r": {
+        "max_produce_mb": {
+          "value": 1228.84,
+          "cv": 0.98,
+          "n": 5,
+          "min": 1198.92,
+          "max": 1230.54,
+          "runs": [
+            1223.18,
+            1228.84,
+            1230.34,
+            1230.54,
+            1198.92
+          ]
+        },
+        "produce_mb": {
+          "value": 293.86,
+          "cv": 2.69,
+          "n": 5,
+          "min": 279.98,
+          "max": 303.7,
+          "runs": [
+            279.98,
+            303.7,
+            293.86,
+            295.71,
+            288.68
+          ]
+        }
+      }
+    },
     "m5.xlarge": {
       "instance": "m5.xlarge",
       "arch": "Intel",
@@ -7954,7 +8105,7 @@
     }
   },
   "benchmark": "kafka",
-  "coverage": 54,
+  "coverage": 55,
   "headline": {
     "field": "produce_mb_per_sec",
     "direction": "max",
@@ -8256,6 +8407,7 @@
           "perf": 1.1383,
           "ppd": 0.858,
           "flags": [
+            "회차 간 변동계수 6.5%",
             "회차 최대/최소 1.20배"
           ]
         },
@@ -8294,6 +8446,23 @@
           ],
           "perf": 1.1253,
           "ppd": 1.0722,
+          "flags": []
+        },
+        "c9g.xlarge": {
+          "value": 1228.84,
+          "cv": 0.98,
+          "n": 5,
+          "min": 1198.92,
+          "max": 1230.54,
+          "runs": [
+            1223.18,
+            1228.84,
+            1230.34,
+            1230.54,
+            1198.92
+          ],
+          "perf": 1.295,
+          "ppd": 1.3368,
           "flags": []
         },
         "m5.xlarge": {
@@ -8447,7 +8616,10 @@
           ],
           "perf": 1.1156,
           "ppd": 0.7718,
-          "flags": []
+          "flags": [
+            "회차 간 변동계수 6.3%",
+            "회차 최대/최소 1.18배"
+          ]
         },
         "m6idn.xlarge": {
           "value": 905.6,
@@ -8822,7 +8994,10 @@
           ],
           "perf": 1.1317,
           "ppd": 0.8861,
-          "flags": []
+          "flags": [
+            "회차 간 변동계수 6.0%",
+            "회차 최대/최소 1.19배"
+          ]
         },
         "r7gd.xlarge": {
           "value": 913.49,
@@ -8940,6 +9115,7 @@
         }
       },
       "rank_perf": [
+        "c9g.xlarge",
         "c6in.xlarge",
         "r6id.xlarge",
         "r7i.xlarge",
@@ -8997,6 +9173,7 @@
       ],
       "rank_ppd": [
         "c7g.xlarge",
+        "c9g.xlarge",
         "c7i-flex.xlarge",
         "c6i.xlarge",
         "c6gn.xlarge",
@@ -9141,6 +9318,16 @@
           "group": "8세대",
           "verdict": "Graviton 우위",
           "perf_verdict": "Intel 우위"
+        },
+        {
+          "left": "c9g.xlarge",
+          "right": "c8i.xlarge",
+          "perf": 1.1508,
+          "price": 0.923,
+          "ppd": 1.2467,
+          "group": "최신(Graviton5 vs Intel 8세대)",
+          "verdict": "Graviton 우위",
+          "perf_verdict": "Graviton 우위"
         }
       ],
       "amd_pairs": [
@@ -9325,7 +9512,8 @@
           "chain": [
             "c6g.xlarge",
             "c7g.xlarge",
-            "c8g.xlarge"
+            "c8g.xlarge",
+            "c9g.xlarge"
           ],
           "steps": [
             {
@@ -9341,6 +9529,13 @@
               "perf": 0.8653,
               "price": 1.1043,
               "ppd": 0.7836
+            },
+            {
+              "from": "c8g.xlarge",
+              "to": "c9g.xlarge",
+              "perf": 1.3641,
+              "price": 1.0871,
+              "ppd": 1.2548
             }
           ]
         },
@@ -9499,8 +9694,8 @@
       ],
       "peer_outliers": [],
       "thresholds": {
-        "cv": 6.54,
-        "spread": 1.19,
+        "cv": 5.82,
+        "spread": 1.177,
         "peer": 0.15
       },
       "memory_sensitive": true,
@@ -9511,12 +9706,14 @@
         "c8g.xlarge",
         "c8gn.xlarge",
         "c8i-flex.xlarge",
+        "m6id.xlarge",
         "m6idn.xlarge",
         "m6in.xlarge",
         "m7g.xlarge",
         "m7gd.xlarge",
         "m8g.xlarge",
         "r6i.xlarge",
+        "r7g.xlarge",
         "r7gd.xlarge",
         "r7i.xlarge",
         "r8g.xlarge",
@@ -9852,6 +10049,23 @@
             "같은 프로세서 c8i-flex.xlarge와 1.40배 차이",
             "베이스라인 고지연(5/5회 70~150ms) 재현 인스턴스 — 원인 미확정(CLAUDE.md Kafka 알려진 이슈)"
           ]
+        },
+        "c9g.xlarge": {
+          "value": 293.86,
+          "cv": 2.69,
+          "n": 5,
+          "min": 279.98,
+          "max": 303.7,
+          "runs": [
+            279.98,
+            303.7,
+            293.86,
+            295.71,
+            288.68
+          ],
+          "perf": 1.352,
+          "ppd": 1.3957,
+          "flags": []
         },
         "m5.xlarge": {
           "value": 261.45,
@@ -10491,6 +10705,7 @@
         }
       },
       "rank_perf": [
+        "c9g.xlarge",
         "m6gd.xlarge",
         "r5b.xlarge",
         "c7i-flex.xlarge",
@@ -10552,6 +10767,7 @@
         "c8g.xlarge",
         "c7i-flex.xlarge",
         "c6i.xlarge",
+        "c9g.xlarge",
         "c6gn.xlarge",
         "c5.xlarge",
         "m6g.xlarge",
@@ -10690,6 +10906,16 @@
           "price": 0.8478,
           "ppd": 1.6646,
           "group": "8세대",
+          "verdict": "재측정 필요",
+          "perf_verdict": "재측정 필요"
+        },
+        {
+          "left": "c9g.xlarge",
+          "right": "c8i.xlarge",
+          "perf": 1.4497,
+          "price": 0.923,
+          "ppd": 1.5706,
+          "group": "최신(Graviton5 vs Intel 8세대)",
           "verdict": "재측정 필요",
           "perf_verdict": "재측정 필요"
         }
@@ -10876,7 +11102,8 @@
           "chain": [
             "c6g.xlarge",
             "c7g.xlarge",
-            "c8g.xlarge"
+            "c8g.xlarge",
+            "c9g.xlarge"
           ],
           "steps": [
             {
@@ -10892,6 +11119,13 @@
               "perf": 1.3836,
               "price": 1.1043,
               "ppd": 1.253
+            },
+            {
+              "from": "c8g.xlarge",
+              "to": "c9g.xlarge",
+              "perf": 1.0365,
+              "price": 1.0871,
+              "ppd": 0.9534
             }
           ]
         },
@@ -11066,7 +11300,7 @@
         }
       ],
       "thresholds": {
-        "cv": 7.44,
+        "cv": 7.34,
         "spread": 1.215,
         "peer": 0.15
       },

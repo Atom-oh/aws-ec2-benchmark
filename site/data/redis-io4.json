@@ -1,6 +1,6 @@
 {
   "benchmark": "redis-io4",
-  "coverage": 54,
+  "coverage": 55,
   "headline": {
     "field": "set_rps",
     "direction": "max",
@@ -945,6 +945,58 @@
             195184.8,
             248245.7,
             244997.4
+          ]
+        }
+      }
+    },
+    "c9g.xlarge": {
+      "set_rps": 249708.16,
+      "get_rps": 249295.5,
+      "set_lat_ms": 0.517,
+      "get_lat_ms": 0.516,
+      "set_p99_ms": 0.6646,
+      "get_p99_ms": 0.663,
+      "set_rps_all": [
+        250742.0,
+        249628.2,
+        247666.7,
+        250634.4,
+        249869.5
+      ],
+      "get_rps_all": [
+        250511.8,
+        248033.2,
+        250506.4,
+        249291.0,
+        248135.1
+      ],
+      "r": {
+        "set_rps": {
+          "value": 249869.5,
+          "cv": 0.44,
+          "n": 5,
+          "min": 247666.7,
+          "max": 250742.0,
+          "runs": [
+            250742.0,
+            249628.2,
+            247666.7,
+            250634.4,
+            249869.5
+          ]
+        },
+        "get_rps": {
+          "value": 249291.0,
+          "cv": 0.44,
+          "n": 5,
+          "min": 248033.2,
+          "max": 250511.8,
+          "runs": [
+            250511.8,
+            248033.2,
+            250506.4,
+            249291.0,
+            248135.1
           ]
         }
       }
@@ -3162,6 +3214,23 @@
             "같은 프로세서 m8i.xlarge와 1.18배 차이"
           ]
         },
+        "c9g.xlarge": {
+          "value": 249869.5,
+          "cv": 0.44,
+          "n": 5,
+          "min": 247666.7,
+          "max": 250742.0,
+          "runs": [
+            250742.0,
+            249628.2,
+            247666.7,
+            250634.4,
+            249869.5
+          ],
+          "perf": 1.446,
+          "ppd": 1.4927,
+          "flags": []
+        },
         "m5.xlarge": {
           "value": 136649.1,
           "cv": 1.26,
@@ -3788,6 +3857,7 @@
         }
       },
       "rank_perf": [
+        "c9g.xlarge",
         "c8gn.xlarge",
         "c7gd.xlarge",
         "c7i-flex.xlarge",
@@ -3844,6 +3914,7 @@
         "m5a.xlarge"
       ],
       "rank_ppd": [
+        "c9g.xlarge",
         "c7g.xlarge",
         "c7i-flex.xlarge",
         "c6g.xlarge",
@@ -3989,6 +4060,16 @@
           "group": "8세대",
           "verdict": "Graviton 우위",
           "perf_verdict": "비슷"
+        },
+        {
+          "left": "c9g.xlarge",
+          "right": "c8i.xlarge",
+          "perf": 1.3032,
+          "price": 0.923,
+          "ppd": 1.4118,
+          "group": "최신(Graviton5 vs Intel 8세대)",
+          "verdict": "Graviton 우위",
+          "perf_verdict": "Graviton 우위"
         }
       ],
       "amd_pairs": [
@@ -4173,7 +4254,8 @@
           "chain": [
             "c6g.xlarge",
             "c7g.xlarge",
-            "c8g.xlarge"
+            "c8g.xlarge",
+            "c9g.xlarge"
           ],
           "steps": [
             {
@@ -4189,6 +4271,13 @@
               "perf": 0.8875,
               "price": 1.1043,
               "ppd": 0.8037
+            },
+            {
+              "from": "c8g.xlarge",
+              "to": "c9g.xlarge",
+              "perf": 1.3568,
+              "price": 1.0871,
+              "ppd": 1.248
             }
           ]
         },
@@ -4363,8 +4452,8 @@
         }
       ],
       "thresholds": {
-        "cv": 9.25,
-        "spread": 1.27,
+        "cv": 9.24,
+        "spread": 1.268,
         "peer": 0.15
       },
       "memory_sensitive": false,
@@ -4700,7 +4789,9 @@
           ],
           "perf": 1.0865,
           "ppd": 1.0919,
-          "flags": []
+          "flags": [
+            "회차 최대/최소 1.27배"
+          ]
         },
         "c8i.xlarge": {
           "value": 195184.8,
@@ -4721,6 +4812,23 @@
             "회차 간 변동계수 13.9%",
             "회차 최대/최소 1.41배"
           ]
+        },
+        "c9g.xlarge": {
+          "value": 249291.0,
+          "cv": 0.44,
+          "n": 5,
+          "min": 248033.2,
+          "max": 250511.8,
+          "runs": [
+            250511.8,
+            248033.2,
+            250506.4,
+            249291.0,
+            248135.1
+          ],
+          "perf": 1.3604,
+          "ppd": 1.4043,
+          "flags": []
         },
         "m5.xlarge": {
           "value": 139598.3,
@@ -5018,6 +5126,7 @@
           "perf": 1.0621,
           "ppd": 0.8686,
           "flags": [
+            "회차 간 변동계수 9.7%",
             "회차 최대/최소 1.31배"
           ]
         },
@@ -5348,6 +5457,7 @@
         }
       },
       "rank_perf": [
+        "c9g.xlarge",
         "c8gn.xlarge",
         "c7gd.xlarge",
         "c7i-flex.xlarge",
@@ -5405,6 +5515,7 @@
       ],
       "rank_ppd": [
         "c7g.xlarge",
+        "c9g.xlarge",
         "c7i-flex.xlarge",
         "c6g.xlarge",
         "c7gd.xlarge",
@@ -5549,6 +5660,16 @@
           "group": "8세대",
           "verdict": "Graviton 우위",
           "perf_verdict": "비슷"
+        },
+        {
+          "left": "c9g.xlarge",
+          "right": "c8i.xlarge",
+          "perf": 1.2772,
+          "price": 0.923,
+          "ppd": 1.3837,
+          "group": "최신(Graviton5 vs Intel 8세대)",
+          "verdict": "Graviton 우위",
+          "perf_verdict": "Graviton 우위"
         }
       ],
       "amd_pairs": [
@@ -5733,7 +5854,8 @@
           "chain": [
             "c6g.xlarge",
             "c7g.xlarge",
-            "c8g.xlarge"
+            "c8g.xlarge",
+            "c9g.xlarge"
           ],
           "steps": [
             {
@@ -5749,6 +5871,13 @@
               "perf": 0.8809,
               "price": 1.1043,
               "ppd": 0.7977
+            },
+            {
+              "from": "c8g.xlarge",
+              "to": "c9g.xlarge",
+              "perf": 1.2673,
+              "price": 1.0871,
+              "ppd": 1.1658
             }
           ]
         },
@@ -5923,8 +6052,8 @@
         }
       ],
       "thresholds": {
-        "cv": 9.72,
-        "spread": 1.276,
+        "cv": 9.62,
+        "spread": 1.262,
         "peer": 0.15
       },
       "memory_sensitive": false,
@@ -5936,6 +6065,7 @@
         "c7i.xlarge",
         "c8g.xlarge",
         "c8gn.xlarge",
+        "c8i-flex.xlarge",
         "c8i.xlarge",
         "m6id.xlarge",
         "m7g.xlarge",

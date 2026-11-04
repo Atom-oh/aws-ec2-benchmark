@@ -7,7 +7,7 @@ import math
 import re
 
 import analysis
-from common import PRICE, RESULTS_DIR
+from common import PRICE, RESULTS_DIR, canonical_instances
 
 from common import LEGACY_DIR
 
@@ -24,6 +24,19 @@ def build():
         }
         for r in rows
     }
+    names7 = ["matrix", "float", "int", "memcpy", "cache", "ctx_switch", "branch"]  # 로그의 스트레서 출력 순서
+    row0 = re.compile(r"stress-ng: info:\s+\[\d+\]\s+([a-z]+)\s+\d+\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+")
+    for name in canonical_instances():
+        if name in instances or not (RESULTS_DIR / "stress-ng" / name).is_dir():
+            continue
+        per = []
+        for lp in sorted((RESULTS_DIR / "stress-ng" / name).glob("run*.log")):
+            vals = [float(v) for _, v in row0.findall(lp.read_text(errors="replace"))]
+            if len(vals) == 7:
+                per.append(vals)
+        if per:
+            instances[name] = {k: round(sum(r[i] for r in per) / len(per)) for i, k in enumerate(names7)}
+            instances[name]["total"] = None
     rep = {"geomean": {}}
     row = re.compile(r"stress-ng: info:\s+\[\d+\]\s+([a-z]+)\s+\d+\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+")
     for name in instances:

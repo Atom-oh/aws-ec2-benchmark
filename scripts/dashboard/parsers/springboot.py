@@ -76,6 +76,12 @@ def parse_coldstart_log(path):
 
 
 def coldstart_profile(inst_dir):
+    # 백필 스크립트(scripts/backfill-springboot.sh)가 남긴 명시적 마커가 날짜 규칙보다 우선
+    marker = inst_dir / "COLDSTART_PROFILE"
+    if marker.exists():
+        dates = sorted(m.group(1) for lp in inst_dir.glob("coldstart*.log")
+                       if (m := TIMESTAMP_PATTERN.search(lp.read_text(errors="replace"))))
+        return marker.read_text().strip() or None, (dates[-1] if dates else None)
     dates = set()
     for lp in inst_dir.glob("coldstart*.log"):
         m = TIMESTAMP_PATTERN.search(lp.read_text(errors="replace"))

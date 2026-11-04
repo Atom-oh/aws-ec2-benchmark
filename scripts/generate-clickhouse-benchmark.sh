@@ -9,6 +9,9 @@
 #   ./generate-clickhouse-benchmark.sh            # 전체 (ConfigMap + 51 인스턴스 × 5세트)
 #   ./generate-clickhouse-benchmark.sh --force    # 기존 로그 무시하고 재실행
 set -uo pipefail
+# 공유 kubeconfig라 다른 세션이 current-context를 바꿀 수 있음(2026-11-04 실제로 fsi-demo-cluster로 바뀌어
+# 스냅샷 조회가 실패) — kafka 스크립트와 같이 클러스터를 강제한다.
+kubectl(){ command kubectl --context mall-apne2-mgmt "$@"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
