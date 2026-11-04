@@ -1,0 +1,67 @@
+===== Web Benchmark: m6id.xlarge run 2 =====
+Server-Version: python 3.14.10 django 6.1.3 gunicorn 26.2.0
+Client-Node: ip-10-2-33-48.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T07:50:25+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-django-remote-m6id-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    13.79ms    9.70ms 106.33ms   66.14%
+    Req/Sec     1.60k   447.07     2.76k    52.44%
+  Latency Distribution
+     50%   10.16ms
+     75%   22.20ms
+     90%   26.93ms
+     99%   44.62ms
+  287502 requests in 30.08s, 47.98MB read
+Requests/sec:   9558.10
+Transfer/sec:      1.60MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-django-remote-m6id-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    14.07ms    6.96ms 118.68ms   87.07%
+    Req/Sec     1.55k   117.59     2.77k    76.53%
+  Latency Distribution
+     50%   13.56ms
+     75%   15.71ms
+     90%   19.07ms
+     99%   43.57ms
+  277991 requests in 30.09s, 52.23MB read
+Requests/sec:   9238.52
+Transfer/sec:      1.74MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-django-remote-m6id-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    90.79ms   59.07ms 303.97ms   65.24%
+    Req/Sec   240.93     56.35   720.00     70.63%
+  Latency Distribution
+     50%   70.81ms
+     75%  114.57ms
+     90%  186.74ms
+     99%  226.62ms
+  43164 requests in 30.05s, 9.35MB read
+Requests/sec:   1436.42
+Transfer/sec:    318.48KB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-django-remote-m6id-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    55.81ms   12.03ms 195.26ms   72.29%
+    Req/Sec     1.53k    90.68     1.70k    84.37%
+  Latency Distribution
+     50%   54.78ms
+     75%   62.12ms
+     90%   68.78ms
+     99%   95.57ms
+  272750 requests in 30.08s, 51.24MB read
+Requests/sec:   9068.74
+Transfer/sec:      1.70MB
+
+Benchmark Complete

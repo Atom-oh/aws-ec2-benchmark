@@ -1,0 +1,67 @@
+===== Web Benchmark: c5.xlarge run 4 =====
+Server-Version: python 3.14.10 django 6.1.3 gunicorn 26.2.0
+Client-Node: ip-10-2-46-8.ap-northeast-2.compute.internal
+Timestamp: 2026-11-04T07:44:02+00:00
+
+=== Warm-up (json, 15s) ===
+=== wrk Test (endpoint=plaintext, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-django-remote-c5-xlarge:8080/plaintext
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    17.53ms   12.56ms 153.70ms   75.91%
+    Req/Sec     1.27k   415.21     2.16k    58.67%
+  Latency Distribution
+     50%   10.34ms
+     75%   27.38ms
+     90%   35.16ms
+     99%   55.57ms
+  227400 requests in 30.05s, 37.95MB read
+Requests/sec:   7566.34
+Transfer/sec:      1.26MB
+
+=== wrk Test (endpoint=json, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-django-remote-c5-xlarge:8080/json
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    17.82ms   10.13ms 140.53ms   74.70%
+    Req/Sec     1.22k   281.55     1.81k    53.00%
+  Latency Distribution
+     50%   20.60ms
+     75%   23.18ms
+     90%   26.19ms
+     99%   53.38ms
+  218608 requests in 30.06s, 41.07MB read
+Requests/sec:   7271.92
+Transfer/sec:      1.37MB
+
+=== wrk Test (endpoint=compute, 6 threads, 128 connections, 30s) ===
+Running 30s test @ http://web-django-remote-c5-xlarge:8080/compute
+  6 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   114.47ms   82.24ms 331.23ms   45.65%
+    Req/Sec   184.60     60.62   430.00     62.56%
+  Latency Distribution
+     50%  126.14ms
+     75%  198.12ms
+     90%  216.12ms
+     99%  251.59ms
+  33116 requests in 30.09s, 7.17MB read
+Requests/sec:   1100.71
+Transfer/sec:    244.05KB
+
+=== wrk Test (endpoint=json, 6 threads, 512 connections, 30s) ===
+Running 30s test @ http://web-django-remote-c5-xlarge:8080/json
+  6 threads and 512 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    70.72ms   25.56ms 230.42ms   66.53%
+    Req/Sec     1.21k    85.93     1.40k    72.19%
+  Latency Distribution
+     50%   83.04ms
+     75%   91.59ms
+     90%   97.05ms
+     99%  129.00ms
+  215473 requests in 30.07s, 40.48MB read
+Requests/sec:   7166.02
+Transfer/sec:      1.35MB
+
+Benchmark Complete
