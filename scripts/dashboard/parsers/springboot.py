@@ -6,6 +6,7 @@ started 라인의 "in X.XXX seconds" 값을 사용한다.
 """
 import csv
 import re
+import statistics
 
 import analysis
 from common import BASE_DIR, PRICE, RESULTS_DIR, canonical_instances, gen_family, mean
@@ -191,17 +192,94 @@ def session_drift(instances):
         o = analysis.summarize(opt)
         arch = gen_family(name)["arch"]
         out.append({"name": name, "arch": arch, "current": cur["value"], "other": o["value"],
-                    "change": round(o["value"] / cur["value"] - 1, 4),
+                    "change": round(o["value"] / cur["value"] - 1, 4), "source": "2026-04 세션 (springboot-optimal)",
+                    "same_config": arch == "graviton",
                     "other_profile": "C2 전용 (동일 설정)" if arch == "graviton" else "Tiered 기본값"})
-    return sorted(out, key=lambda r: (r["arch"] != "graviton", r["name"]))
+    # 2026-11 재측정(results/springboot-clock/round*): 서버 설정이 본 측정과 같은 C2 전용이라 Intel도 동일 설정 비교 가능.
+    # 라운드마다 서버를 새로 띄워 다른 EC2 호스트에서 측정 → rounds = 라운드(호스트)별 회차 중앙값.
+    clock = RESULTS_DIR / "springboot-clock"
+    for name, rec in instances.items():
+        cur = rec.get("peak")
+        rounds = {}
+        for rd in sorted(clock.glob("round*")):
+            peaks, _, _ = peak_runs(rd / name)
+            if peaks:
+                rounds[rd.name] = analysis.summarize(peaks)["value"]
+        if not cur or not rounds:
+            continue
+        allp = [v for rd in sorted(clock.glob("round*")) for v in peak_runs(rd / name)[0]]
+        o = analysis.summarize(allp)
+        out.append({"name": name, "arch": gen_family(name)["arch"], "current": cur["value"], "other": o["value"],
+                    "change": round(o["value"] / cur["value"] - 1, 4), "source": "2026-11 재측정",
+                    "same_config": True, "other_profile": "C2 전용 (동일 설정)", "rounds": rounds})
+    return sorted(out, key=lambda r: (r["source"], r["arch"] != "graviton", r["name"]))
+
+
+def remeasure_same_session():
+    """2026-11 같은 세션 재측정(springboot-clock 라운드 + springboot-threads의 -t2 회차, C2 전용, 호스트 여러 대)으로
+    8세대·Graviton5 짝을 다시 계산한다. 4월 본 데이터의 c8g가 재측정보다 13% 높게 나와(세션·이미지 차이 의심)
+    단일 세션 값만으로는 c8g/c8i 판정이 흔들리므로, 같은 세션끼리 비교한 값을 리포트의 기준 판정으로 쓴다."""
+    stats, hosts = {}, {}
+    for inst_dir in list((RESULTS_DIR / "springboot-clock").glob("round*/*")) + list((RESULTS_DIR / "springboot-threads").glob("*")):
+        if not inst_dir.is_dir():
+            continue
+        for lp in sorted(inst_dir.glob("wrk*.log")):
+            t = lp.read_text(errors="replace")
+            th = re.search(r"^WRK_THREADS:\s*(\d+)", t, re.M)
+            if th and th.group(1) != "2":
+                continue  # 같은 조건(-t2)만
+            peaks, _, _ = peak_runs_file(lp)
+            node = re.search(r"^SERVER_NODE:\s*(\S+)", t, re.M)
+            if peaks:
+                stats.setdefault(inst_dir.name, []).extend(peaks)
+                hosts.setdefault(inst_dir.name, set()).add(node.group(1) if node else lp.parent.as_posix())
+    summ = {n: analysis.summarize(v) for n, v in stats.items()}
+    pairs = [q for q in (analysis.pair(summ, PRICE, a, b) for a, b in
+             (("c8g.xlarge", "c8i.xlarge"), ("c9g.xlarge", "c8i.xlarge"), ("c9g.xlarge", "c8g.xlarge"))) if q]
+    for q in pairs:
+        if q["right"] == "c8g.xlarge":
+            q["verdict"] = q["perf_verdict"] = None  # 같은 아키텍처 비교 — 판정 대신 향상률만
+    return {"stats": summ, "hosts": {n: len(h) for n, h in hosts.items()}, "pairs": pairs}
+
+
+def peak_runs_file(lp):
+    parsed = parse_wrk_log(lp)
+    levels = [parsed[k] for k in ("rps50", "rps100", "rps200") if parsed.get(k)]
+    return ([max(levels)] if levels else []), None, None
+
+
+def diagnostics():
+    """클라이언트 스레드 실험(-t2 vs -t6, 같은 호스트)과 호스트별 부하 중 클럭(node-sampler) 요약."""
+    import clock_analysis
+    rows = clock_analysis.analyze()
+    thr = {}
+    for r in rows:
+        if r["round"] == "springboot-threads":
+            thr.setdefault(r["instance"], {}).setdefault(str(r["threads"]), []).append(r["peak_rps"])
+    threads = {n: {k: round(statistics.median(v)) for k, v in d.items()} for n, d in thr.items()}
+    hosts = {}
+    for r in rows:
+        if r["threads"] == 2 and r["server_instance_id"]:
+            h = hosts.setdefault((r["instance"], r["server_instance_id"]), {"rps": [], "mhz": [], "zone": r["zone"]})
+            h["rps"].append(r["peak_rps"])
+            if r["server_mhz"]:
+                h["mhz"].append(r["server_mhz"])
+    host_rows = [{"instance": i, "host": hid, "zone": h["zone"], "rps": round(statistics.median(h["rps"])),
+                  "mhz": round(statistics.median(h["mhz"])) if h["mhz"] else None, "runs": len(h["rps"])}
+                 for (i, hid), h in sorted(hosts.items())]
+    return {"threads": threads, "hosts": host_rows}
 
 
 def build():
     out = _build()
+    out["remeasure"] = remeasure_same_session()
+    out["diagnostics"] = diagnostics()
     sd = next((q for q in out["sustained_default"]["pairs"] if q["left"] == "c8g.xlarge"), None)
-    if sd:
-        out["headline"]["caveat"] = (f"C2 전용 JVM 플래그 조건입니다. JVM 기본값(Tiered 켜짐)에서는 c8g/c8i 가격 대비 성능 "
-                                     f"{sd['ppd']:.2f}배({sd['verdict']}) — SpringBoot 탭 §10")
+    rm8 = next((q for q in out["remeasure"]["pairs"] if q["left"] == "c8g.xlarge" and q["right"] == "c8i.xlarge"), None)
+    if sd and rm8:
+        out["headline"]["caveat"] = (f"이 행은 4월 단일 세션 값입니다. 같은 세션 재측정에서는 c8g/c8i 가격 대비 성능 {rm8['ppd']:.2f}배"
+                                     f"({rm8['verdict']}, 처리량은 c8i가 {1 / rm8['perf']:.2f}배), JVM 기본값에서는 {sd['ppd']:.2f}배"
+                                     f"({sd['verdict']})로 8세대는 Intel이 앞섭니다 — SpringBoot 탭 §2·§11")
     return out
 
 

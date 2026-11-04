@@ -35,21 +35,27 @@ export async function render(root, { rows, envelope }) {
   const up_i = step(AT, 'c7i.xlarge', 'c8i.xlarge');
   const coldTop = AC.rank_perf[0];
   const c7iflex = AT.peer_outliers.find((o) => o.left === 'c7i-flex.xlarge');
+  // 11월 같은 세션 재측정(C2 전용, 호스트 여러 대) — 8세대·Graviton5 판정의 기준값. 4월 단일 세션 값(g8)은 재현되지 않음.
+  const RM = envelope.remeasure || { pairs: [], hosts: {}, stats: {} };
+  const rm8 = RM.pairs.find((q) => q.left === 'c8g.xlarge' && q.right === 'c8i.xlarge') || g8;
+  const rm9 = RM.pairs.find((q) => q.left === 'c9g.xlarge' && q.right === 'c8i.xlarge') || g9;
+  const rmUp = RM.pairs.find((q) => q.left === 'c9g.xlarge' && q.right === 'c8g.xlarge');
+  const rmN = (n) => (RM.stats[n] ? `${RM.hosts[n]}개 호스트 × ${RM.stats[n].n}회` : '');
 
   // ---------- 핵심 결과 ----------
   fill('lead', [
     p(`xlarge(4 vCPU) ${Object.keys(T).length}개 인스턴스에서 Spring Boot 최대 처리량과 PetClinic 기동 시간을 측정했습니다. `
       + `가격 대비 성능은 서울 리전 On-Demand 가격으로 계산했고, ${AT.baseline}를 1.00배로 표시했습니다.`),
-    p(`8세대끼리 비교하면 Graviton4 기반 c8g.xlarge는 처리량이 c8i.xlarge의 ${x(g8.perf)}이지만 시간당 가격이 ${x(g8.price)}라서, `
-      + `가격 대비 성능은 <strong>${x(g8.ppd)} (${g8.verdict})</strong>입니다. 7세대에서는 c7g가 c7i의 ${x(g7.ppd)}(${g7.verdict})였으므로, `
-      + `Graviton은 세대 교체로 Intel과의 격차를 크게 좁혔습니다.${g9 ? ` Graviton5 c9g.xlarge는 c8i 대비 ${x(g9.ppd)}(${g9.verdict})입니다.` : ''}`),
-    p(`다만 이 우위는 C2 전용 JVM 플래그(<code>-XX:-TieredCompilation</code>) 조건입니다. 운영에서 흔한 JVM 기본값으로는 c8g/c8i 가격 대비 성능이 `
-      + `${x(envelope.sustained_default.pairs[0].ppd)}(${envelope.sustained_default.pairs[0].verdict})로 뒤집힙니다(§10). 판정과 권고는 §11에 정리했습니다.`),
+    p(`<strong>8세대에서는 Intel(c8i)이 앞섭니다.</strong> 같은 세션에서 호스트를 바꿔 가며 다시 잰 값(${rmN('c8g.xlarge')})으로 c8g.xlarge의 처리량은 c8i.xlarge의 ${x(rm8.perf)}, `
+      + `가격 대비 성능은 ${x(rm8.ppd)}(${rm8.verdict})입니다. 처리량은 c8i가 높고, 시간당 가격이 ${x(rm8.price)}인 c8g의 가격 이점으로도 따라잡지 못합니다. `
+      + `JVM 기본값(Tiered 켜짐)에서는 ${x(envelope.sustained_default.pairs[0].ppd)}로 Intel 우위가 더 뚜렷합니다(§10). 4월 본 데이터만 1.0배를 넘었는데(${x(g8.ppd)}), 재측정에서 재현되지 않았습니다(§2).`),
+    p(`<strong>Graviton5(c9g)는 다릅니다.</strong> 같은 세션에서 c9g의 처리량은 c8i의 ${x(rm9.perf)}, 가격 대비 성능 <strong>${x(rm9.ppd)} (${rm9.verdict})</strong>로 측정한 모든 인스턴스 중 가장 높습니다${rmUp ? `(c8g 대비 처리량 ${x(rmUp.perf)})` : ''}. 7세대에서는 c7g가 c7i의 ${x(g7.ppd)}(${g7.verdict})였습니다. 판정과 권고는 §11에 정리했습니다.`),
   ].join(''));
   handles.push(keyFindings(slot('key-findings'), [
     { item: '최대 처리량 1위', result: topPerf, note: `${AT.baseline} 대비 ${x(T[topPerf].perf)}${c7iflex ? ` (c7i-flex ${x(T['c7i-flex.xlarge'].perf)}는 같은 프로세서와 어긋나는 이상치라 제외, §2)` : ''}` },
     { item: '가격 대비 성능 1위', result: topPpd, note: `${AT.baseline} 대비 ${x(T[topPpd].ppd)}` },
-    { item: 'Graviton4 vs Intel 8세대 (C2 전용)', result: `c8g / c8i 가격 대비 성능 ${x(g8.ppd)}`, note: `처리량 ${x(g8.perf)}, 가격 ${x(g8.price)} — ${g8.verdict}` },
+    { item: 'Graviton4 vs Intel 8세대 (같은 세션 재측정)', result: `c8g / c8i 가격 대비 성능 ${x(rm8.ppd)}`, note: `처리량 ${x(rm8.perf)}(c8i가 빠름), 가격 ${x(rm8.price)} — ${rm8.verdict}. 4월 단일 세션 값 ${x(g8.ppd)}는 재현 안 됨` },
+    { item: 'Graviton5 vs Intel 8세대 (같은 세션 재측정)', result: `c9g / c8i 가격 대비 성능 ${x(rm9.ppd)}`, note: `처리량 ${x(rm9.perf)} — ${rm9.verdict}` },
     { item: 'JVM 기본값일 때', result: `c8g / c8i 가격 대비 성능 ${x(envelope.sustained_default.pairs[0].ppd)}`, note: `처리량 ${x(envelope.sustained_default.pairs[0].perf)} — ${envelope.sustained_default.pairs[0].verdict} (§10)` },
     { item: 'Graviton3 → Graviton4', result: pct(up_g.perf - 1), note: 'c7g → c8g 최대 처리량' },
     { item: 'Sapphire Rapids → Granite Rapids', result: pct(up_i.perf - 1), note: 'c7i → c8i 최대 처리량 (c7i는 호스트 편차 있음, §2)' },
@@ -65,15 +71,49 @@ export async function render(root, { rows, envelope }) {
     extra: [`경고 임계값: 회차 간 변동계수 ${AT.thresholds.cv}% · 회차 최대/최소 ${AT.thresholds.spread}배 · 같은 프로세서 짝(flex/표준, 같은 세대 C/M/R) 차이 ±${AT.thresholds.peer * 100}%. `
       + `${AT.baseline}(기준선)도 회차가 두 무리(${T[AT.baseline].runs.map((v) => fmt(v)).join(', ')})로 갈립니다. 중앙값은 높은 쪽 무리에 속하지만, 기준선 대비 배수는 이 편차만큼 불확실합니다.`],
   }));
-  const drift = envelope.session_drift.filter((r) => r.arch === 'graviton');
-  const absd = drift.map((r) => Math.abs(r.change)).sort((a, b) => a - b);
-  const within = absd.filter((v) => v <= AT.band).length;
-  const mid = absd.length % 2 ? absd[(absd.length - 1) / 2] : (absd[absd.length / 2 - 1] + absd[absd.length / 2]) / 2;
-  fill('drift-lead', p(`Graviton ${drift.length}개는 다른 세션에서도 같은 설정(C2 전용)으로 측정된 기록이 있습니다. 두 세션의 차이는 `
-    + `중앙값 ${(mid * 100).toFixed(1)}%, 최대 ${(absd[absd.length - 1] * 100).toFixed(1)}%였고 ${drift.length}개 중 ${within}개가 ±${AT.band * 100}% 안이었습니다. `
-    + `이 문서에서 ±${AT.band * 100}% 안의 차이를 '비슷'으로 판정하는 근거이며, 그 이상의 차이도 단일 호스트 측정이라면 재측정으로 확인해야 합니다. `
-    + `Intel/AMD는 다른 세션이 JVM 기본값(Tiered 켜짐)이라 프로파일 효과와 세션 편차를 분리할 수 없어 제외했습니다.`));
-  handles.push(ratioBars(slot('drift'), drift.map((r) => ({ label: short(r.name), value: 1 + r.change })), { band: AT.band, title: '다른 세션 ÷ 현재 세션', neutral: true, min: 0.8 }));
+  // 같은 설정(C2 전용) 재측정만 사용: 2026-04 세션의 Graviton + 2026-11 재측정(모든 아키텍처, 라운드=호스트별)
+  const drift = envelope.session_drift.filter((r) => r.same_config);
+  const old = drift.filter((r) => !r.source.startsWith('2026-11'));
+  const now = drift.filter((r) => r.source.startsWith('2026-11'));
+  const stat = (rs) => {
+    const a = rs.map((r) => Math.abs(r.change)).sort((x, y) => x - y);
+    if (!a.length) return null;
+    const m = a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2;
+    return { n: a.length, med: m, max: a[a.length - 1], within: a.filter((v) => v <= AT.band).length };
+  };
+  const so = stat(old), sn = stat(now);
+  const pc = (v) => `${(v * 100).toFixed(1)}%`;
+  const roundTxt = (r) => (r.rounds ? Object.entries(r.rounds).map(([k, v]) => `${k.replace('round', '')} ${fmt(v)}`).join(' / ') : '');
+  fill('drift-lead', [
+    so && p(`<strong>2026-04 세션:</strong> Graviton ${so.n}개를 같은 설정(C2 전용)으로 다시 잰 기록이 있습니다. 두 세션의 차이는 중앙값 ${pc(so.med)}, 최대 ${pc(so.max)}였고 ${so.n}개 중 ${so.within}개가 ±${AT.band * 100}% 안이었습니다. `
+      + `이 문서에서 ±${AT.band * 100}% 안의 차이를 '비슷'으로 판정하는 근거입니다. (이 세션의 Intel/AMD는 JVM 기본값이라 제외)`),
+    sn && p(`<strong>2026-11 재측정:</strong> ${now.map((r) => short(r.name)).join(', ')}를 같은 설정으로 다시 쟀습니다. 라운드마다 서버를 새로 띄워 다른 EC2 호스트에서 측정했습니다. `
+      + `본 데이터 대비 차이는 중앙값 ${pc(sn.med)}, ${sn.n}개 중 ${sn.within}개가 ±${AT.band * 100}% 안이었습니다. `
+      + now.filter((r) => Math.abs(r.change) > AT.band).map((r) => `${short(r.name)}는 ${r.change > 0 ? '+' : ''}${pc(r.change)}(라운드별 ${roundTxt(r)})`).join(', ')
+      + (now.some((r) => Math.abs(r.change) > AT.band) ? ' — 본 데이터의 값이 그 세션·호스트 고유 현상이었을 가능성이 커서, 해당 인스턴스의 순위와 판정은 재측정 값을 기준으로 해석하십시오.' : '')),
+    p('어느 경우든 ±5%를 넘는 차이가 단일 호스트 측정에서 나왔다면 재측정으로 확인해야 합니다.'),
+  ].filter(Boolean).join(''));
+  handles.push(ratioBars(slot('drift'), drift.map((r) => ({ label: `${short(r.name)} · ${r.source.startsWith('2026-11') ? '11월' : '4월'}`, value: 1 + r.change })),
+    { band: AT.band, title: '다른 세션 ÷ 본 데이터', neutral: true, min: 0.6 }));
+
+  // ---------- 2-1. 진단 (parsers/springboot.py diagnostics) ----------
+  const DG = envelope.diagnostics || { threads: {}, hosts: [] };
+  const thr = Object.entries(DG.threads).filter(([, v]) => v['2'] && v['6']);
+  const byInst = {};
+  DG.hosts.forEach((h) => { (byInst[h.instance] = byInst[h.instance] || []).push(h); });
+  const spread = Object.entries(byInst).filter(([, hs]) => hs.length > 1)
+    .map(([n, hs]) => ({ n, lo: Math.min(...hs.map((h) => h.rps)), hi: Math.max(...hs.map((h) => h.rps)) }));
+  const worst = spread.sort((a, b) => b.hi / b.lo - a.hi / a.lo)[0];
+  fill('diag-lead', [
+    thr.length && p(`<strong>클라이언트는 병목이 아닙니다.</strong> 같은 서버 호스트에서 wrk 스레드를 2개와 6개로 번갈아 쟀을 때 처리량 변화는 `
+      + thr.map(([n, v]) => `${short(n)} ${pct(v['6'] / v['2'] - 1)}`).join(', ') + '였습니다. 클라이언트 스레드를 3배로 늘려도 처리량이 거의 그대로이므로, 측정값은 서버 쪽 상한입니다. '
+      + 'c9g는 서버 CPU가 70% 안팎인데도 처리량이 오르지 않았는데, 가벼운 요청에서 Tomcat의 단일 I/O 스레드(NIO Poller)가 상한이 되는 현상(외부 재측정 리포트 §9)과 같은 양상으로 보입니다. 스레드별 CPU는 측정하지 않아 추정입니다.'),
+    worst && p(`<strong>호스트 차이가 클럭보다 큽니다.</strong> 같은 타입을 다른 호스트에서 재면 ${short(worst.n)}처럼 최대 ${pct(worst.hi / worst.lo - 1)} 차이가 났고, 이때 부하 중 클럭은 거의 같았습니다(표 4-1). `
+      + '부하 중 클럭은 Intel 비교의 보조 지표로 기록하지만, 이 데이터에서 호스트 간 처리량 차이의 주원인은 아니었습니다. 단일 호스트에서 ±5%를 넘는 차이가 나오면 다른 호스트로 재측정해야 하는 이유입니다.'),
+  ].filter(Boolean).join(''));
+  slot('diag').innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>인스턴스</th><th>EC2 호스트</th><th>AZ</th><th>회차</th><th>처리량 (중앙값)</th><th>부하 중 클럭</th></tr></thead><tbody>${
+    DG.hosts.map((h) => `<tr><td>${short(h.instance)}</td><td><code>${h.host}</code></td><td>${h.zone.replace('ap-northeast-', '')}</td><td>${h.runs}</td><td>${fmt(h.rps)}</td><td>${h.mhz ? `${fmt(h.mhz)} MHz` : '—'}</td></tr>`).join('')
+  }</tbody></table></div>`;
 
   // ---------- 3. 처리량 ----------
   fill('throughput-lead', p(`최대 처리량 지수는 회차마다 커넥션 50/100/200 단계 중 가장 높은 처리량을 고른 뒤, 5회의 중앙값을 취한 값입니다. `
@@ -148,26 +188,28 @@ export async function render(root, { rows, envelope }) {
 
   // ---------- 11. 종합 판정 ----------
   const scen = [
-    { name: '최대 처리량, 8세대 C (C2 전용)', ...g8 },
+    { name: '최대 처리량, 8세대 C — 11월 같은 세션 재측정', ...rm8 },
+    { name: '최대 처리량, Graviton5 vs Intel 8세대 — 11월 재측정', ...rm9 },
+    { name: '최대 처리량, 8세대 C — 4월 본 데이터(재현 안 됨)', ...g8 },
     { name: '지속 부하, 8세대 C (JVM 기본값)', ...sd8 },
     { name: '최대 처리량, 8세대 M', ...findPair(AT, 'm8g.xlarge', 'm8i.xlarge') },
     { name: '최대 처리량, 8세대 R', ...findPair(AT, 'r8g.xlarge', 'r8i.xlarge') },
-    ...(g9 ? [{ name: '최대 처리량, Graviton5 vs Intel 8세대', ...g9 }] : []),
     { name: '최대 처리량, 7세대 C', ...g7 },
     { name: '최대 처리량, 6세대 C', ...findPair(AT, 'c6g.xlarge', 'c6i.xlarge') },
     { name: '기동 속도, 8세대 C (가격 무관)', ...cg8, ppd: cg8.perf, verdict: cg8.perf_verdict, price: null },
   ];
   fill('verdict-lead', p(`이번 측정의 목적은 Spring Boot 워크로드에서 어떤 인스턴스의 가격 대비 성능이 좋은지 판단하는 것입니다. xlarge·서울 On-Demand 기준으로 `
-    + `C2 전용 플래그 조건에서 8세대 Graviton4는 Intel과 같거나 앞섰고(C ${x(g8.ppd)}), JVM 기본값에서는 Intel이 앞섰습니다(${x(sd8.ppd)}). 7세대 이하는 두 조건 모두 Intel 우위이고, 처리량 자체는 모든 세대에서 Intel이 높습니다. `
-    + `즉 8세대에서 Graviton을 고를지는 JVM 플래그를 함께 바꿀 수 있는지에 달려 있습니다.`));
+    + `8세대 Graviton4(c8g)는 Intel(c8i)보다 처리량이 낮고 가격 대비 성능도 같은 세션 재측정 ${x(rm8.ppd)}, JVM 기본값 ${x(sd8.ppd)}로 Intel과 비슷하거나 뒤집니다. 7세대 이하도 Intel 우위입니다. `
+    + `반면 Graviton5(c9g)는 처리량과 가격 대비 성능 모두 1위(c8i 대비 ${x(rm9.ppd)})입니다. 즉 Spring Boot에서는 <strong>8세대 기준 Intel, 최신 세대 기준 Graviton5</strong>가 현재 데이터와 맞는 결론입니다.`));
   handles.push(ratioBars(slot('verdict-chart'), scen.map((s) => ({ label: s.name, value: s.ppd })), { band: AT.band }));
   const vt = slot('verdict-table');
   vt.innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>시나리오</th><th>비교</th><th>성능</th><th>가격</th><th>가격 대비 성능</th><th>판정</th></tr></thead><tbody>${scen.map((s) => `<tr><td>${s.name}</td><td>${short(s.left)} / ${short(s.right)}</td><td>${x(s.perf)}</td><td>${s.price == null ? '—' : x(s.price)}</td><td><strong>${x(s.ppd)}</strong></td><td><span class="verdict ${s.verdict === '비슷' ? 'verdict-even' : s.verdict.startsWith('Graviton') ? 'verdict-left' : 'verdict-right'}">${s.verdict}</span></td></tr>`).join('')}</tbody></table></div>`;
   fill('band-note', bandNote(AT));
   const fam8 = AT.families.find((f) => f[0].name === 'c8g.xlarge');
   const recs = [
-    `JVM 기본값 그대로 운영하는 xlarge Spring Boot API는 <strong>c8i</strong>(또는 같은 처리량에 약 5% 저렴한 c8i-flex)를 기본으로 권고합니다. JVM 기본값에서 c8g/c8i 가격 대비 성능은 ${x(sd8.ppd)}입니다.`,
-    `<code>-XX:-TieredCompilation</code>(C2 전용)을 적용할 수 있다면 <strong>c8g</strong>가 가격 대비 성능 1위(${AT.baseline} 대비 ${x(T['c8g.xlarge'].ppd)}, c8i 대비 ${x(g8.ppd)})입니다. 이 플래그는 기동 시간을 늘리므로 기동 속도가 중요한 서비스(오토스케일링 등)에서는 기동 시간을 함께 측정하십시오.`,
+    `서울 리전에서 Graviton5를 쓸 수 있다면 <strong>c9g</strong>를 기본으로 권고합니다. 같은 세션 기준 c8i 대비 처리량 ${x(rm9.perf)}, 가격 대비 성능 ${x(rm9.ppd)}이고 PetClinic 기동도 가장 빠릅니다.`,
+    `8세대 안에서 고른다면 <strong>c8i</strong>(또는 같은 처리량에 약 5% 저렴한 c8i-flex)를 권고합니다. c8g / c8i 가격 대비 성능은 같은 세션 재측정 ${x(rm8.ppd)}, JVM 기본값 ${x(sd8.ppd)}이고 처리량은 c8i가 높습니다.`,
+    'C2 전용 플래그(<code>-XX:-TieredCompilation</code>)는 Graviton의 처리량을 조금 올리지만(§10) 8세대 판정을 뒤집을 만큼은 아니고, 기동 시간을 늘립니다. 플래그를 바꾸기 전에 실제 서비스로 처리량과 기동 시간을 함께 측정하십시오.',
     `Graviton2/3(c6g, c7g)에서 운영 중이라면 교체 효과가 큽니다. c7g → c8g만으로 가격 대비 성능이 ${pct(up_g.ppd - 1)} 좋아집니다.`,
     `메모리가 많이 필요하지 않다면 C 패밀리가 유리합니다. 같은 Graviton4에서 m8g는 ${x(fam8[1].ppd)}, r8g는 ${x(fam8[2].ppd)}입니다(c8g = 1.00배).`,
     '8세대 Intel이 필요하면 flex를 먼저 검토하십시오. 처리량은 같고 가격이 약 5% 낮습니다. 다만 장시간 지속 부하 특성(부록 A)을 확인하십시오.',
