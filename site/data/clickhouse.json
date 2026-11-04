@@ -1442,6 +1442,86 @@
         }
       }
     },
+    "c9g.xlarge": {
+      "instance": "c9g.xlarge",
+      "arch": "Graviton",
+      "label": "Graviton",
+      "gen": "9",
+      "family": "C",
+      "mem_mb": 8192,
+      "fits_in_ram": false,
+      "price": null,
+      "version": "24.8.14.39",
+      "hot_total_ms": 82779,
+      "hot_total_s": 82.78,
+      "speed": 12.08,
+      "value": null,
+      "queries_measured": 43,
+      "per_query_ms": {
+        "q00": 21,
+        "q01": 32,
+        "q02": 59,
+        "q03": 84,
+        "q04": 453,
+        "q05": 763,
+        "q06": 34,
+        "q07": 32,
+        "q08": 504,
+        "q09": 604,
+        "q10": 175,
+        "q11": 219,
+        "q12": 709,
+        "q13": 979,
+        "q14": 916,
+        "q15": 552,
+        "q16": 3908,
+        "q17": 2895,
+        "q18": 8190,
+        "q19": 40,
+        "q20": 1147,
+        "q21": 1180,
+        "q22": 1770,
+        "q23": 10606,
+        "q24": 307,
+        "q25": 258,
+        "q26": 311,
+        "q27": 969,
+        "q28": 14926,
+        "q29": 57,
+        "q30": 580,
+        "q31": 726,
+        "q32": 7725,
+        "q33": 10555,
+        "q34": 9780,
+        "q35": 416,
+        "q36": 55,
+        "q37": 37,
+        "q38": 35,
+        "q39": 90,
+        "q40": 28,
+        "q41": 26,
+        "q42": 26
+      },
+      "insert_rps": 251768,
+      "join_ms": 1345,
+      "failed_count": 0,
+      "r": {
+        "hot_total_s": {
+          "value": 82.884,
+          "cv": 0.72,
+          "n": 5,
+          "min": 81.946,
+          "max": 83.674,
+          "runs": [
+            83.353,
+            82.884,
+            82.612,
+            83.674,
+            81.946
+          ]
+        }
+      }
+    },
     "m5.xlarge": {
       "instance": "m5.xlarge",
       "arch": "Intel",
@@ -4502,7 +4582,7 @@
     "join": "SELECT h.RegionID, r.cnt AS region_total, COUNT(*) AS matched\nFROM hits AS h\nINNER JOIN (SELECT RegionID, COUNT(*) AS cnt FROM hits GROUP BY RegionID) AS r\n  ON h.RegionID = r.RegionID\nWHERE h.SearchPhrase <> ''\nGROUP BY h.RegionID, r.cnt\nORDER BY matched DESC\nLIMIT 20\nSETTINGS join_algorithm = 'grace_hash', max_bytes_before_external_group_by = SPILL_BYTES, max_memory_usage = MAX_MEM_BYTES;"
   },
   "benchmark": "clickhouse",
-  "coverage": 54,
+  "coverage": 55,
   "headline": {
     "field": "hot_total_s",
     "direction": "min",
@@ -4834,6 +4914,23 @@
           ],
           "perf": 1.0407,
           "ppd": 0.9917,
+          "flags": []
+        },
+        "c9g.xlarge": {
+          "value": 82.884,
+          "cv": 0.72,
+          "n": 5,
+          "min": 81.946,
+          "max": 83.674,
+          "runs": [
+            83.353,
+            82.884,
+            82.612,
+            83.674,
+            81.946
+          ],
+          "perf": 1.6037,
+          "ppd": 1.6555,
           "flags": []
         },
         "m5.xlarge": {
@@ -5463,6 +5560,7 @@
         "r8g.xlarge",
         "m8g.xlarge",
         "r7g.xlarge",
+        "c9g.xlarge",
         "r7gd.xlarge",
         "r8i.xlarge",
         "r8i-flex.xlarge",
@@ -5515,6 +5613,7 @@
         "m5ad.xlarge"
       ],
       "rank_ppd": [
+        "c9g.xlarge",
         "m8g.xlarge",
         "c8g.xlarge",
         "m7g.xlarge",
@@ -5658,6 +5757,16 @@
           "price": 0.8478,
           "ppd": 1.5559,
           "group": "8세대",
+          "verdict": "Graviton 우위",
+          "perf_verdict": "Graviton 우위"
+        },
+        {
+          "left": "c9g.xlarge",
+          "right": "c8i.xlarge",
+          "perf": 1.5409,
+          "price": 0.923,
+          "ppd": 1.6694,
+          "group": "최신(Graviton5 vs Intel 8세대)",
           "verdict": "Graviton 우위",
           "perf_verdict": "Graviton 우위"
         }
@@ -5844,7 +5953,8 @@
           "chain": [
             "c6g.xlarge",
             "c7g.xlarge",
-            "c8g.xlarge"
+            "c8g.xlarge",
+            "c9g.xlarge"
           ],
           "steps": [
             {
@@ -5860,6 +5970,13 @@
               "perf": 1.2129,
               "price": 1.1043,
               "ppd": 1.0984
+            },
+            {
+              "from": "c8g.xlarge",
+              "to": "c9g.xlarge",
+              "perf": 1.213,
+              "price": 1.0871,
+              "ppd": 1.1158
             }
           ]
         },

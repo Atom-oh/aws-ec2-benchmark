@@ -60,6 +60,23 @@ EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54�
 - c7i.xlarge(기준선)는 회차가 두 무리(75k×3, 62k×2)로 갈리고, c7i-flex.xlarge는 c7i의 1.38배(같은 프로세서)
   → 둘 다 재측정 후보.
 
+### c9g.xlarge 백필 + 노드 샘플러 (2026-11-04)
+- 백필 실행기: `scripts/backfill-job.sh <sysbench-cpu|sysbench-memory|stress-ng|passmark|iperf3|nginx|es-coldstart> <inst>`,
+  `scripts/backfill-springboot.sh <inst>`(콜드스타트는 비교군과 같은 JVM 기본값으로 실행 + `COLDSTART_PROFILE` 마커),
+  캐시 4종은 `INSTANCES_OVERRIDE=<inst> generate-cache-remote-benchmark.sh ...`, ClickHouse/Kafka 3종은 기존 스크립트(완료분 skip).
+  Geekbench는 로컬 점수가 0(Browser 업로드 전용)이라 백필 대상 아님.
+- ClickHouse/Kafka는 `results/<x>/data.json`을 읽으므로 원시 로그 추가 후 `scripts/generate-{clickhouse,kafka}-report.py`를
+  먼저 돌려야 대시보드에 반영된다. passmark/stress-ng 파서는 레거시 JSON에 없는 인스턴스를 원시 로그로 보충한다.
+- **부하 중 클럭/CPU 샘플러**: `benchmarks/system/node-sampler.yaml`(DaemonSet, 1초 간격 cpu MHz·노드 CPU%) +
+  `scripts/collect-node-sampler.sh`(→ `results/node-sampler/<type>/<node>.log`, 인스턴스 ID·AZ 헤더). **nodeAffinity로
+  측정 대상 타입에만 붙인다** — 다른 세션의 장시간 측정 노드(sb-flex48/sb-traffic48)에 붙지 않게 할 것.
+  Graviton은 /proc/cpuinfo에 MHz가 없어 NA(고정 클럭).
+- ⚠️ **실행 중인 bash 스크립트를 수정하지 말 것**: bash는 스크립트를 실행하며 읽어 들이므로 도중에 파일을 고치면
+  실행 위치가 어긋나 문법 오류로 죽는다(2026-11-04 backfill-job.sh 5개 동시 실행 중 수정 → 정리 단계에서 전부 exit 2).
+- ⚠️ **kube context 고정 필수**: 2026-11-04에 다른 세션이 current-context를 `fsi-demo-cluster`로 바꿔
+  context 미고정이던 generate-clickhouse-benchmark.sh가 엉뚱한 클러스터를 조회해 중단됨 → 고정 추가.
+  새 실행 스크립트는 반드시 `kubectl(){ command kubectl --context mall-apne2-mgmt "$@"; }`로 시작할 것.
+
 ### ⚠️ 실행기 동시성: 공유 워크스테이션 cgroup pids 한도
 이 워크스테이션의 모든 세션은 cgroup `code-server.service`의 **pids.max=8192(스레드 포함)**를 공유하며 평소에도
 다른 세션이 ~7,200을 쓴다. 55개 인스턴스를 한꺼번에 병렬로 돌리면 fork가 EAGAIN으로 실패해 가짜

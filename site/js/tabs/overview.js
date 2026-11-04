@@ -435,7 +435,7 @@ function insights(root, rowsData) {
   }
   const cpu = catRows.find((c) => c.cat === 'CPU 연산');
   if (cpu) items.push(`<strong>CPU 연산 벤치마크는 측정 방식에 따라 정반대로 나옵니다.</strong> ${cpu.rs.map(detail).filter(Boolean).join(', ')}. 멀티코어 점수는 Graviton의 물리 코어 4개(Intel/AMD는 2코어 × 하이퍼스레딩)가 크게 작용하고, x86 확장 명령어에 의존하는 항목은 Intel에 유리합니다.`);
-  if (g5.length) items.push(`<strong>Graviton5(c9g)</strong>는 측정된 ${g5.length}개 워크로드에서 c8i 대비 가격 대비 성능 ${xTimes(Math.min(...g5.map((x) => x.q.ppd)))}~${xTimes(Math.max(...g5.map((x) => x.q.ppd)))}입니다. 아직 다른 벤치마크에는 c9g 데이터가 없어 범위가 좁습니다.`);
+  if (g5.length) items.push(`<strong>Graviton5(c9g)</strong>는 측정된 ${g5.length}개 워크로드에서 c8i 대비 가격 대비 성능 ${xTimes(Math.min(...g5.map((x) => x.q.ppd)))}~${xTimes(Math.max(...g5.map((x) => x.q.ppd)))}입니다. c9g는 2026-11에 측정했고 다른 인스턴스는 그 이전 세션 측정이라, 같은 설정 재측정에서 확인된 세션 간 편차(대부분 ±5% 안팎)가 섞여 있습니다.`);
   host.innerHTML = `<ul class="recs">${items.map((t) => `<li>${t}</li>`).join('')}</ul>
     <div class="table-scroll"><table class="report-table"><thead><tr><th>워크로드 유형</th><th>8세대 판정 (c8g / c8i)</th><th>행별 가격 대비 성능</th><th>가격 대비 성능 1위 (최빈)</th><th>성능 1위 (최빈)</th></tr></thead><tbody>${
       catRows.map((c) => `<tr><td><strong>${c.cat}</strong></td><td><span class="verdict ${verdictCls(c.summary.endsWith('또는 비슷') ? c.summary.replace(' 또는 비슷', '') : c.summary === '워크로드에 따라 갈림' ? '비슷' : c.summary)}">${c.summary}</span> <span class="caption">G ${c.g} · 비슷 ${c.e} · I ${c.i}</span></td><td>${c.rs.map(detail).filter(Boolean).join('<br>')}</td><td>${c.topPpd ? `${shortName(c.topPpd[0])}${c.topPpd[1] > 1 ? ` (${c.topPpd[1]}/${c.rs.length})` : ''}` : '—'}</td><td>${c.topPerf ? `${shortName(c.topPerf[0])}${c.topPerf[1] > 1 ? ` (${c.topPerf[1]}/${c.rs.length})` : ''}` : '—'}</td></tr>`).join('')

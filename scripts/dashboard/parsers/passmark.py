@@ -7,7 +7,7 @@ import json
 import re
 
 import analysis
-from common import PRICE, RESULTS_DIR
+from common import PRICE, RESULTS_DIR, canonical_instances
 
 from common import LEGACY_DIR
 
@@ -23,6 +23,21 @@ def build():
             "int": r.get("int"), "float": r.get("float"),
             "encryption": r.get("encryption"), "compression": r.get("compression"),
         }
+    # 레거시 JSON(51개)에 없는 신규 인스턴스(c8gn/r8gd/m8i-flex 이후, c9g 등)는 원시 로그로 엔트리를 만든다
+    for name in canonical_instances():
+        if name in instances or not (RESULTS_DIR / "passmark" / name).is_dir():
+            continue
+        cm, sg = [], []
+        for lp in sorted((RESULTS_DIR / "passmark" / name).glob("run*.log")):
+            t = lp.read_text(errors="replace")
+            a, b = re.search(r"SUMM_CPU:\s*([\d.]+)", t), re.search(r"CPU_SINGLETHREAD:\s*([\d.]+)", t)
+            if a and float(a.group(1)) > 0:
+                cm.append(float(a.group(1)))
+            if b and float(b.group(1)) > 0:
+                sg.append(float(b.group(1)))
+        if cm:
+            instances[name] = {"cpu_mark": round(sum(cm) / len(cm), 1), "single": round(sum(sg) / len(sg), 1) if sg else None,
+                               "int": None, "float": None, "encryption": None, "compression": None}
     rep = {"cpu_mark": {}, "single": {}}
     for name in instances:
         for lp in sorted((RESULTS_DIR / "passmark" / name).glob("run*.log")):
