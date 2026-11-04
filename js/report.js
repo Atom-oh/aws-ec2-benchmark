@@ -227,6 +227,10 @@ export function scenario(A, name, left, right) {
 }
 
 export function standardReport(hostEl, rows, A, cfg = {}) {
+  if (!A) { // 분석 블록이 아직 없음(측정 진행 중 등) — 탭의 나머지 섹션은 계속 그린다
+    hostEl.innerHTML = '<section class="section report-lead"><p class="description">리포트 분석 데이터를 수집하는 중입니다. 모든 측정이 끝나면 핵심 결과와 판정이 표시됩니다.</p></section>';
+    return { destroy() { hostEl.innerHTML = ''; } };
+  }
   const handles = [];
   const unit = cfg.unit ?? A.metric.unit;
   const digits = cfg.digits ?? 0;

@@ -14,6 +14,7 @@ const TABS = [
   { id: 'valkey', name: 'Valkey' },
   { id: 'nginx', name: 'Nginx' },
   { id: 'springboot', name: 'SpringBoot' },
+  { id: 'web', name: '웹 프레임워크' },
   { id: 'elasticsearch', name: 'Elasticsearch' },
   { id: 'clickhouse', name: 'ClickHouse' },
   { id: 'kafka', name: 'Kafka' },
