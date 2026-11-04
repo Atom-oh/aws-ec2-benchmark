@@ -89,6 +89,8 @@ def build_stack(stack, instance):
     rec["errors"] = sum(sum(v for v in runs[k]["errors"] if v) for k in runs)
     rec["runs"] = len(runs["json"]["rps"])
     rec["_json_runs"] = runs["json"]["rps"]  # 회차 순서 유지(run1..5) — 종합 지수 회차별 기하평균용
+    rec["_compute_runs"] = runs["compute"]["rps"] if "compute" in runs else []
+    rec["_plain_runs"] = runs["plaintext"]["rps"] if "plaintext" in runs else []
     return rec, version
 
 
@@ -112,11 +114,14 @@ def build():
 
     # 리포트 분석: 스택별 /json(128c) 회차 값 + 종합 지수(회차 i마다 5개 스택 run i의 기하평균 — 스택별 측정은
     # 별개 세션이므로 회차 번호끼리 짝짓는 근사이며, 5개 스택이 모두 있는 회차만 사용)
-    rep = {"json_geomean": {}, **{s: {} for s in STACKS}}
+    rep = {"json_geomean": {}, **{s: {} for s in STACKS},
+           **{f"{s}_compute": {} for s in STACKS}, **{f"{s}_plaintext": {} for s in STACKS}}
     for name, rec in instances.items():
         for st in STACKS:
             if st in rec:
                 rep[st][name] = rec[st]["_json_runs"]
+                rep[f"{st}_compute"][name] = rec[st].pop("_compute_runs")
+                rep[f"{st}_plaintext"][name] = rec[st].pop("_plain_runs")
         per = [rec[st]["_json_runs"] for st in STACKS if st in rec]
         if len(per) == len(STACKS):
             n = min(len(r) for r in per)
@@ -127,6 +132,8 @@ def build():
         "json_geomean": {"label": f"웹 프레임워크 종합 지수 ({len(STACKS)}개 스택 /json 기하평균)", "unit": "req/s", "direction": "max"},
         **{st: {"label": f"{STACK_LABELS[st]} /json", "unit": "req/s", "direction": "max",
                 "cost_unit": {"per": 1e9, "label": "요청 10억 건당 (USD)"}} for st in STACKS},
+        **{f"{st}_compute": {"label": f"{STACK_LABELS[st]} /compute", "unit": "req/s", "direction": "max"} for st in STACKS},
+        **{f"{st}_plaintext": {"label": f"{STACK_LABELS[st]} /plaintext", "unit": "req/s", "direction": "max"} for st in STACKS},
     }, PRICE)
     for _n, _r in summaries.items():
         instances[_n]["r"] = _r
@@ -136,7 +143,9 @@ def build():
         "benchmark": "web",
         "coverage": coverage,
         "headline": {"field": "json_geomean", "direction": "max",
-                     "label": f"JSON req/s ({len(STACKS)}개 스택 기하평균)", "unit": "req/s"},
+                     "label": f"JSON req/s ({len(STACKS)}개 스택 기하평균)", "unit": "req/s",
+                     # 종합 탭 판정표는 이 벤치마크를 한 행이 아니라 스택별 행으로 그린다(스택마다 독립 워크로드)
+                     "matrix_rows": [{"key": st, "name": f"웹 · {STACK_LABELS[st]}"} for st in STACKS]},
         "notes": {
             "method": ("TechEmpower 방식 /plaintext, /json, /compute(SHA-256 2000회 체인) — wrk -t6 -c128 -d30s "
                        "(+ /json -c512), 파이프라이닝 없음, 5회 평균. 서버=대상 인스턴스 단독(워커=4 vCPU), "

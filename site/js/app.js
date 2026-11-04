@@ -13,12 +13,38 @@ const TABS = [
   { id: 'redis', name: 'Redis' },
   { id: 'valkey', name: 'Valkey' },
   { id: 'nginx', name: 'Nginx' },
-  { id: 'springboot', name: 'SpringBoot' },
   { id: 'web', name: '웹 프레임워크' },
   { id: 'elasticsearch', name: 'Elasticsearch' },
   { id: 'clickhouse', name: 'ClickHouse' },
   { id: 'kafka', name: 'Kafka' },
 ];
+
+// 웹 프레임워크 하위 탭: #web/<sub>. springboot는 자체 파셜/모듈(파일럿 리포트)을, 나머지는 web 파셜/모듈을
+// 스택 파라미터와 함께 쓴다. 상단 내비는 'web' 하나만 활성화된다. 옛 링크 #springboot 는 #web/springboot 로 이동.
+const WEB_SUBTABS = [
+  { id: 'springboot', name: 'Spring Boot', note: 'Java' },
+  { id: 'fastapi', name: 'FastAPI', note: 'Python ASGI' },
+  { id: 'django', name: 'Django', note: 'Python WSGI' },
+  { id: 'node', name: 'Node.js', note: 'Fastify' },
+  { id: 'go', name: 'Go', note: 'net/http' },
+  { id: 'dotnet', name: 'ASP.NET Core', note: '.NET' },
+];
+
+/** hash -> {route, tabId(상단 내비), view(파셜/모듈 이름), sub} */
+function parseRoute(hash) {
+  let [tab, sub] = (hash || 'overview').split('/');
+  if (tab === 'springboot') { tab = 'web'; sub = 'springboot'; }
+  if (tab === 'web') {
+    if (!WEB_SUBTABS.some((t) => t.id === sub)) sub = WEB_SUBTABS[0].id;
+    return { route: `web/${sub}`, tabId: 'web', view: sub === 'springboot' ? 'springboot' : 'web', sub };
+  }
+  if (!TABS.some((t) => t.id === tab)) tab = 'overview';
+  return { route: tab, tabId: tab, view: tab, sub: null };
+}
+
+function subnavHtml(sub) {
+  return `<nav class="subnav" aria-label="웹 프레임워크 선택">${WEB_SUBTABS.map((t) => `<a href="#web/${t.id}" class="${t.id === sub ? 'active' : ''}"${t.id === sub ? ' aria-current="page"' : ''}>${t.name}<span>${t.note}</span></a>`).join('')}</nav>`;
+}
 
 const partialCache = new Map(); // tabId -> html string
 const moduleCache = new Map(); // tabId -> {render}
@@ -70,8 +96,10 @@ async function getModule(tabId) {
   return moduleCache.get(tabId);
 }
 
-async function activateTab(tabId) {
-  if (!TABS.some((t) => t.id === tabId)) tabId = 'overview';
+async function activateTab(hash) {
+  const { route, tabId: navId, view, sub } = parseRoute(hash);
+  if (hash && `#${route}` !== location.hash) history.replaceState(null, '', `#${route}`); // #springboot, #web → 정규 경로
+  const tabId = route;
   if (tabId === currentTabId) return;
   const version = ++navigationVersion;
 
@@ -84,15 +112,16 @@ async function activateTab(tabId) {
   mountedHandles.delete(currentTabId);
 
   main.innerHTML = '<div class="container"><div class="loading-state" role="status"><span class="loading-bar"></span>벤치마크 데이터를 불러오는 중...</div></div>';
-  setActiveNav(tabId);
+  setActiveNav(navId);
   currentTabId = tabId;
 
   try {
-    const [html, mod, data] = await Promise.all([getPartial(tabId), getModule(tabId), loadDataFor(tabId)]);
+    const [html, mod, data] = await Promise.all([getPartial(view), getModule(view), loadDataFor(view)]);
     if (version !== navigationVersion) return;
     const root = document.createElement('div');
     root.className = 'container';
-    root.innerHTML = html;
+    root.innerHTML = (navId === 'web' ? subnavHtml(sub) : '') + html;
+    if (data && sub) data.sub = sub;
     main.replaceChildren(root);
     const handle = await mod.render(root, data);
     if (version !== navigationVersion) {
@@ -119,7 +148,7 @@ async function activateTab(tabId) {
     console.error(`탭 ${tabId} 렌더 실패`, err);
     currentTabId = null;
     main.innerHTML = '<div class="container"><div class="loading-state" role="alert"><p>벤치마크를 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.</p><button class="tab-btn">다시 시도</button></div></div>';
-    main.querySelector('button').addEventListener('click', () => activateTab(tabId));
+    main.querySelector('button').addEventListener('click', () => { currentTabId = null; activateTab(tabId); });
   } finally {
     if (version === navigationVersion) main.setAttribute('aria-busy', 'false');
   }

@@ -222,6 +222,7 @@ const PAIR = (A, a, b) => [...A.pairs, ...A.flex_pairs, ...A.amd_pairs].find((q)
 
 /** 다른 analysis 블록의 짝을 종합 판정 시나리오 행으로. */
 export function scenario(A, name, left, right) {
+  if (!A) return null; // 분석 블록이 아직 없음(측정 진행 중)
   const q = PAIR(A, left, right);
   return q ? { name, ...q } : null;
 }
