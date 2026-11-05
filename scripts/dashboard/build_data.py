@@ -26,6 +26,7 @@ EXPECTED_COVERAGE = {
     "redis-io4": 54,
     "valkey-io4": 54,
     "web": 54,
+    "springboot-memory": 24,  # C·M·R 6~9세대 기본형+flex(d/n 제외)
 }
 
 
@@ -34,7 +35,7 @@ CATEGORY = {
     "sysbench": "CPU 연산", "geekbench": "CPU 연산", "passmark": "CPU 연산", "stress-ng": "CPU 연산",
     "iperf3": "네트워크", "nginx": "웹 서버·프록시",
     "redis": "인메모리 캐시", "valkey": "인메모리 캐시", "redis-io4": "인메모리 캐시", "valkey-io4": "인메모리 캐시",
-    "springboot": "웹 프레임워크(런타임)", "web": "웹 프레임워크(런타임)",
+    "springboot": "웹 프레임워크(런타임)", "web": "웹 프레임워크(런타임)", "springboot-memory": "웹 프레임워크(메모리 압박)",
     "elasticsearch": "검색·분석", "clickhouse": "검색·분석", "kafka": "스트리밍",
 }
 
@@ -72,6 +73,7 @@ def main():
         "kafka", "clickhouse", "geekbench", "passmark", "stress-ng",
         "springboot", "valkey", "redis-io4", "valkey-io4",
         "web",  # 측정 중인 스택은 parsers/web.py가 자동 제외(pending_stacks)
+        "springboot-memory",
     ]
     for name in targets:
         build_benchmark(name)

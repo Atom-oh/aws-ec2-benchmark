@@ -17,6 +17,7 @@ const BENCHMARKS = [
   'kafka',
   'clickhouse',
   'web',
+  'springboot-memory',
 ];
 
 const BENCHMARK_LABELS = {
@@ -33,6 +34,7 @@ const BENCHMARK_LABELS = {
   kafka: 'Kafka',
   clickhouse: 'ClickHouse',
   web: '웹 프레임워크',
+  'springboot-memory': '웹 · Spring Boot 메모리',
 };
 
 function normalize(value, best, direction) {
@@ -373,11 +375,14 @@ function matrixRows(results) {
   return results.flatMap(({ envelope }) => {
     const h = envelope.headline || {};
     const specs = h.matrix_rows || (h.analysis_key ? [{ key: h.analysis_key, name: BENCHMARK_LABELS[envelope.benchmark] || envelope.benchmark }] : []);
-    return specs.map(({ key, name }) => {
+    return specs.map(({ key, name, family }) => {
+      const f = family || 'c';
       const A = envelope.analysis?.[key];
       if (!A) return null;
-      const cells = MATRIX_COLS.map(([l, r]) => A.pairs.find((q) => q.left === l && q.right === r) || null);
-      return { name, label: A.metric.label, A, cells, caveat: h.caveat, category: h.category || '기타' };
+      // family: 행이 비교할 패밀리(기본 c). 메모리 압박 벤치마크처럼 C가 기준으로 부적합하면 m/r을 지정한다.
+      const cols = MATRIX_COLS.map(([l, r, t]) => [l.replace(/^c/, f), r.replace(/^c/, f), t]);
+      const cells = cols.map(([l, r]) => A.pairs.find((q) => q.left === l && q.right === r) || null);
+      return { name, label: A.metric.label + (f !== 'c' ? ` · ${f.toUpperCase()} 패밀리 비교` : ''), A, cells, caveat: h.caveat, category: h.category || '기타' };
     }).filter(Boolean);
   });
 }

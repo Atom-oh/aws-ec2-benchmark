@@ -1,0 +1,103 @@
+===== SpringBoot Memory Benchmark: c7i-flex.xlarge run 1 =====
+Server-Version: java 21.0.13 Amazon.com Inc. springboot 4.1.2 gc [G1 Young Generation, G1 Concurrent GC, G1 Old Generation] entries 667904 entry_kb 4 work_kb 1024 hold_ms 1000 heap_max_mb 5220 virtual_threads true cpus 4
+Client-Node: ip-10-2-77-6.ap-northeast-2.compute.internal
+Timestamp: 2026-11-05T01:56:53+00:00
+=== Warm-up (64 connections, 30s) ===
+=== Stage connections=256 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-flex-xlarge:8080/process
+  6 threads and 256 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.00s     7.24ms   1.23s    90.52%
+    Req/Sec    99.33     95.66   373.00     84.08%
+  Latency Distribution
+     50%    1.00s 
+     75%    1.00s 
+     90%    1.01s 
+     99%    1.03s 
+  14896 requests in 1.00m, 2.06MB read
+Requests/sec:    247.89
+Transfer/sec:     35.10KB
+END_C256
+STATS_C256: {"window_s":60.2,"proc_cpu_pct":8.1,"gc_pauses":33,"gc_pause_total_ms":811,"gc_pause_max_ms":32,"gc_pause_over50ms":0,"gc_pause_over100ms":0,"gc_pause_over200ms":0,"heap_used_mb":4471,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":3647,"inflight_now":252,"inflight_peak":252,"processed":14960}
+
+=== Stage connections=1024 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-flex-xlarge:8080/process
+  6 threads and 1024 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.03s    70.32ms   1.61s    88.68%
+    Req/Sec   181.89    173.35     1.21k    86.33%
+  Latency Distribution
+     50%    1.00s 
+     75%    1.02s 
+     90%    1.14s 
+     99%    1.29s 
+  58590 requests in 1.00m, 8.14MB read
+Requests/sec:    975.03
+Transfer/sec:    138.78KB
+END_C1024
+STATS_C1024: {"window_s":60.2,"proc_cpu_pct":45.1,"gc_pauses":322,"gc_pause_total_ms":17781,"gc_pause_max_ms":247,"gc_pause_over50ms":61,"gc_pause_over100ms":58,"gc_pause_over200ms":20,"heap_used_mb":4501,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":3807,"inflight_now":991,"inflight_peak":1020,"processed":58619}
+
+=== Stage connections=2048 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-flex-xlarge:8080/process
+  6 threads and 2048 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.72s   394.97ms   6.81s    80.08%
+    Req/Sec   220.87    222.88     2.02k    88.92%
+  Latency Distribution
+     50%    1.69s 
+     75%    1.92s 
+     90%    2.15s 
+     99%    3.08s 
+  70433 requests in 1.00m, 9.80MB read
+Requests/sec:   1172.65
+Transfer/sec:    167.10KB
+END_C2048
+STATS_C2048: {"window_s":60.6,"proc_cpu_pct":92.8,"gc_pauses":623,"gc_pause_total_ms":52561,"gc_pause_max_ms":252,"gc_pause_over50ms":214,"gc_pause_over100ms":210,"gc_pause_over200ms":208,"heap_used_mb":4810,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":4754,"inflight_now":1510,"inflight_peak":2044,"processed":70961}
+
+=== Stage connections=3072 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-flex-xlarge:8080/process
+  6 threads and 3072 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     5.12s     1.81s    9.48s    69.14%
+    Req/Sec    73.59     87.37   490.00     86.59%
+  Latency Distribution
+     50%    5.03s 
+     75%    6.46s 
+     90%    7.24s 
+     99%    8.60s 
+  5253 requests in 1.00m, 749.46KB read
+  Socket errors: connect 0, read 6, write 0, timeout 2855
+  Non-2xx or 3xx responses: 16
+Requests/sec:     87.40
+Transfer/sec:     12.47KB
+END_C3072
+wget: download timed out
+STATS_C3072: {"error":"stats unavailable"}
+
+wget: download timed out
+=== Stage connections=4096 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-flex-xlarge:8080/process
+  6 threads and 4096 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     0.00us    0.00us   0.00us    -nan%
+    Req/Sec     0.00      0.00     0.00      -nan%
+  Latency Distribution
+     50%    0.00us
+     75%    0.00us
+     90%    0.00us
+     99%    0.00us
+  0 requests in 1.00m, 0.00B read
+Requests/sec:      0.00
+Transfer/sec:       0.00B
+END_C4096
+wget: download timed out
+STATS_C4096: {"error":"stats unavailable"}
+
+wget: can't connect to remote host (172.20.88.229): Operation timed out
+=== Stage connections=6144 (process, 6 threads, 60s) ===
+unable to connect to sbmem12-remote-c7i-flex-xlarge:8080 Operation timed out
+END_C6144
+wget: download timed out
+STATS_C6144: {"error":"stats unavailable"}
+
+Benchmark Complete

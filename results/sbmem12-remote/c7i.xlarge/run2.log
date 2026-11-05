@@ -1,0 +1,113 @@
+===== SpringBoot Memory Benchmark: c7i.xlarge run 2 =====
+Server-Version: java 21.0.13 Amazon.com Inc. springboot 4.1.2 gc [G1 Young Generation, G1 Concurrent GC, G1 Old Generation] entries 667904 entry_kb 4 work_kb 1024 hold_ms 1000 heap_max_mb 5220 virtual_threads true cpus 4
+Client-Node: ip-10-2-35-4.ap-northeast-2.compute.internal
+Timestamp: 2026-11-05T02:48:20+00:00
+=== Warm-up (64 connections, 30s) ===
+=== Stage connections=256 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-xlarge:8080/process
+  6 threads and 256 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.00s     6.95ms   1.05s    90.66%
+    Req/Sec    95.67     96.16   400.00     86.72%
+  Latency Distribution
+     50%    1.00s 
+     75%    1.00s 
+     90%    1.01s 
+     99%    1.03s 
+  14868 requests in 1.00m, 2.06MB read
+Requests/sec:    247.51
+Transfer/sec:     35.05KB
+END_C256
+STATS_C256: {"window_s":60.1,"proc_cpu_pct":8.2,"gc_pauses":35,"gc_pause_total_ms":899,"gc_pause_max_ms":30,"gc_pause_over50ms":0,"gc_pause_over100ms":0,"gc_pause_over200ms":0,"heap_used_mb":3888,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":3660,"inflight_now":252,"inflight_peak":252,"processed":14932}
+
+=== Stage connections=1024 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-xlarge:8080/process
+  6 threads and 1024 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.03s    60.31ms   1.51s    90.60%
+    Req/Sec   195.69    204.40     1.53k    86.38%
+  Latency Distribution
+     50%    1.00s 
+     75%    1.02s 
+     90%    1.08s 
+     99%    1.25s 
+  58888 requests in 1.00m, 8.19MB read
+Requests/sec:    979.85
+Transfer/sec:    139.47KB
+END_C1024
+STATS_C1024: {"window_s":60.3,"proc_cpu_pct":46.2,"gc_pauses":334,"gc_pause_total_ms":18896,"gc_pause_max_ms":240,"gc_pause_over50ms":60,"gc_pause_over100ms":58,"gc_pause_over200ms":47,"heap_used_mb":3952,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":3940,"inflight_now":990,"inflight_peak":1020,"processed":58918}
+
+=== Stage connections=2048 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-xlarge:8080/process
+  6 threads and 2048 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.75s   312.97ms   5.82s    72.16%
+    Req/Sec   223.10    215.80     2.42k    87.42%
+  Latency Distribution
+     50%    1.67s 
+     75%    1.89s 
+     90%    2.16s 
+     99%    2.68s 
+  68814 requests in 1.00m, 9.58MB read
+Requests/sec:   1144.99
+Transfer/sec:    163.18KB
+END_C2048
+STATS_C2048: {"window_s":60.3,"proc_cpu_pct":93.1,"gc_pauses":578,"gc_pause_total_ms":52005,"gc_pause_max_ms":324,"gc_pause_over50ms":191,"gc_pause_over100ms":187,"gc_pause_over200ms":187,"heap_used_mb":5160,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":4912,"inflight_now":1649,"inflight_peak":2045,"processed":69211}
+
+=== Stage connections=3072 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-xlarge:8080/process
+  6 threads and 3072 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.62s   649.10ms   5.92s    92.11%
+    Req/Sec   232.39    330.50     1.90k    86.57%
+  Latency Distribution
+     50%    1.47s 
+     75%    1.65s 
+     90%    2.06s 
+     99%    5.36s 
+  15790 requests in 1.00m, 2.20MB read
+  Socket errors: connect 0, read 9295, write 309473, timeout 0
+Requests/sec:    262.79
+Transfer/sec:     37.43KB
+END_C3072
+STATS_C3072: {"window_s":20.5,"proc_cpu_pct":76.2,"gc_pauses":137,"gc_pause_total_ms":9414,"gc_pause_max_ms":287,"gc_pause_over50ms":30,"gc_pause_over100ms":30,"gc_pause_over200ms":30,"heap_used_mb":4946,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":4520,"inflight_now":1213,"inflight_peak":1723,"processed":15342}
+
+=== Stage connections=4096 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-xlarge:8080/process
+  6 threads and 4096 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     5.13s     1.69s    9.99s    75.09%
+    Req/Sec   119.74    147.39     0.90k    86.77%
+  Latency Distribution
+     50%    4.94s 
+     75%    6.29s 
+     90%    7.06s 
+     99%    9.71s 
+  18093 requests in 1.00m, 2.52MB read
+  Socket errors: connect 0, read 5218, write 138590, timeout 2972
+Requests/sec:    301.05
+Transfer/sec:     42.90KB
+END_C4096
+wget: can't connect to remote host (172.20.157.80): Connection refused
+STATS_C4096: {"error":"stats unavailable"}
+
+=== Stage connections=6144 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c7i-xlarge:8080/process
+  6 threads and 6144 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.88s   983.12ms   6.46s    87.62%
+    Req/Sec    29.67     62.84   383.00     91.67%
+  Latency Distribution
+     50%    1.40s 
+     75%    1.91s 
+     90%    3.21s 
+     99%    5.02s 
+  420 requests in 1.00m, 59.37KB read
+  Socket errors: connect 0, read 7253, write 95057, timeout 0
+Requests/sec:      6.99
+Transfer/sec:      0.99KB
+END_C6144
+wget: can't connect to remote host (172.20.157.80): Connection refused
+STATS_C6144: {"error":"stats unavailable"}
+
+Benchmark Complete
