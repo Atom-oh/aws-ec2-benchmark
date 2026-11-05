@@ -30,7 +30,7 @@ DEFAULT_AZ="${6:-ap-northeast-2a}"
 RESULTS_DIR="$BASE_DIR/results/${NAME}-remote"
 INSTANCE_FILE="$BASE_DIR/config/instances-4vcpu.txt"
 NAMESPACE="benchmark"
-SERVER_READY_TIMEOUT=180
+SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-180}"  # env로 조정 가능(메모리 prefill 등 기동이 긴 서버)
 JOB_TIMEOUT=2400  # 원격 토폴로지 대부분 4~6분이나, 5세대 AMD(r5a 등)는 40K ops/s대라 20M req에 500s+ 소요 — 넉넉히 30분
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -175,6 +175,12 @@ run_instance(){
     kubectl delete job "$job" -n "$NAMESPACE" --wait=false >/dev/null 2>&1
   done
 
+  # 서버 로그와 컨테이너 상태(재시작 횟수·직전 종료 사유: OOMKilled 등)를 남긴 뒤 정리 — 서버가 죽은 원인을 사후 확인
+  local spod; spod=$(find_pod "app=${APP_LABEL},instance-type=${instance}") && {
+    { kubectl get pod -n "$NAMESPACE" "$spod" -o jsonpath='SERVER_POD: {.metadata.name} node={.spec.nodeName} restarts={.status.containerStatuses[0].restartCount} last_terminated={.status.containerStatuses[0].lastState.terminated.reason} exit={.status.containerStatuses[0].lastState.terminated.exitCode}{"\n"}' 2>/dev/null
+      echo "--- current container log (tail 200) ---"; kubectl logs -n "$NAMESPACE" "$spod" --tail=200 2>/dev/null
+      echo "--- previous container log (tail 200) ---"; kubectl logs -n "$NAMESPACE" "$spod" --previous --tail=200 2>/dev/null
+    } > "$RESULTS_DIR/$instance/server.log"; }
   # pvc: 서버 템플릿이 PVC를 쓰는 경우(PostgreSQL 등) 같은 app/instance-type 레이블로 함께 정리 — 없으면 no-op
   kubectl delete deployment,service,configmap,pvc -n "$NAMESPACE" -l "app=${APP_LABEL},instance-type=${instance}" --ignore-not-found >/dev/null 2>&1
   log "[$instance] 완료"

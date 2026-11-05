@@ -1,0 +1,44 @@
+<header class="hero">
+    <h1>Spring Boot 메모리 압박 벤치마크</h1>
+    <p>힙이 꽉 차고 GC가 계속 도는 상황에서 어떤 인스턴스가 더 싸게 버티는가 | C·M·R 6~9세대 기본형·flex 24개</p>
+    <div class="header-meta">G1GC · 힙 12GB / 24GB · 처리 중 요청이 쌓이며 힙이 차는 운영형 부하 · 서울 리전 On-Demand</div>
+</header>
+
+<section class="section report-lead">
+    <div data-slot="lead"></div>
+</section>
+
+<div class="toc"><h2>목차</h2></div>
+
+<section class="section" id="method">
+    <h2>무엇을 재현했나</h2>
+    <p>운영에서 메모리 때문에 GC가 도는 전형적인 상황은 이렇습니다. 평소에도 힙의 상당 부분은 캐시·세션 같은 상주 데이터가 차지하고, 트래픽이 몰리거나 하위 시스템(DB·외부 API)이 느려지면 <strong>처리 중인 요청이 끝나지 않고 쌓입니다</strong>. 요청마다 큰 본문을 받아 객체로 펼쳐 들고 있으므로 쌓인 요청 수만큼 힙이 차고, 결국 GC가 계속 돌며 지연이 폭증하거나 OOM이 납니다.</p>
+    <table class="report-table">
+        <tr><th>항목</th><th>값</th></tr>
+        <tr><td>상주 데이터</td><td>힙의 50%를 캐시(엔트리 4KB)로 채움 — 힙 12GB 단계 6GB, 24GB 단계 12GB. 요청마다 1항목씩 교체(세션·캐시 갱신)</td></tr>
+        <tr><td>요청</td><td>POST <code>/process</code>: 64KB 본문을 1MB 작업 객체로 펼친 뒤 1초 대기(느린 하위 시스템) 후 응답</td></tr>
+        <tr><td>부하</td><td>동시 커넥션 256 → 1,024 → 2,048 → 3,072 → 4,096 → 6,144, 단계마다 60초. 가상 스레드라 커넥션 수 = 처리 중 요청 수 ≈ 쌓인 작업 객체(1MB씩)</td></tr>
+        <tr><td>JVM</td><td>Corretto 21.0.13, Spring Boot 4.1.2, <code>-XX:+UseG1GC -XX:MaxGCPauseMillis=100</code>, 힙 고정(-Xms=-Xmx), <code>AlwaysPreTouch</code>, <code>ExitOnOutOfMemoryError</code>(OOM 시 재시작). 나머지는 JVM 기본값</td></tr>
+        <tr><td>메모리가 부족한 인스턴스</td><td>탈락시키지 않고 힙을 RAM − 2.5GB로 줄여 측정(C 패밀리는 힙 약 5.2GB, 상주 데이터 약 2.6GB) — 표에 "축소"로 표시</td></tr>
+        <tr><td>판정</td><td>단계 통과 = p99 2초 이하 + 오류 0(사용자 체감 기준). <strong>버틴 커넥션</strong> = 연속으로 통과한 가장 높은 단계(5회 중앙값). GC 정지 비율은 원인 설명용 참고값</td></tr>
+        <tr><td>배치</td><td>서버 = 대상 인스턴스 단독 노드(같은 AZ), 클라이언트 = 전용 c6in.2xlarge(wrk)</td></tr>
+    </table>
+</section>
+
+<section class="section" id="results">
+    <h2>인스턴스별 결과</h2>
+    <div data-slot="results-lead"></div>
+    <div data-slot="results"></div>
+    <p class="caption"><strong>표 1.</strong> 버틴 동시 커넥션과 비용. "1,000커넥션당 비용" = 시간당 가격 ÷ (버틴 커넥션 ÷ 1,000), 두 힙 단계 중 더 많이 버틴 쪽 기준. GC 비율은 힙 12GB에서 각 인스턴스가 버틴 단계의 60초 중 GC 정지가 차지한 시간(%).</p>
+</section>
+
+<section class="section" id="curve">
+    <h2>커넥션이 늘 때 지연은 어떻게 무너지나</h2>
+    <div data-slot="curve-lead"></div>
+    <div data-slot="curve12"></div>
+    <p class="caption"><strong>그림 1.</strong> 힙 12GB — 커넥션별 p99(초, 5회 중앙값). 점선 = 판정 기준 2초. 단계에서 OOM·오류가 나면 점이 없습니다.</p>
+    <div data-slot="curve24"></div>
+    <p class="caption"><strong>그림 2.</strong> 힙 24GB(R 패밀리) — 커넥션별 p99(초).</p>
+</section>
+
+<div data-slot="report"></div>

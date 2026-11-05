@@ -23,6 +23,7 @@ const TABS = [
 // 스택 파라미터와 함께 쓴다. 상단 내비는 'web' 하나만 활성화된다. 옛 링크 #springboot 는 #web/springboot 로 이동.
 const WEB_SUBTABS = [
   { id: 'springboot', name: 'Spring Boot', note: 'Java' },
+  { id: 'springboot-memory', name: 'Spring Boot 메모리', note: 'G1GC 압박' },
   { id: 'fastapi', name: 'FastAPI', note: 'Python ASGI' },
   { id: 'django', name: 'Django', note: 'Python WSGI' },
   { id: 'node', name: 'Node.js', note: 'Fastify' },
@@ -36,7 +37,9 @@ function parseRoute(hash) {
   if (tab === 'springboot') { tab = 'web'; sub = 'springboot'; }
   if (tab === 'web') {
     if (!WEB_SUBTABS.some((t) => t.id === sub)) sub = WEB_SUBTABS[0].id;
-    return { route: `web/${sub}`, tabId: 'web', view: sub === 'springboot' ? 'springboot' : 'web', sub };
+    // 전용 파셜/모듈이 있는 하위 탭(springboot 파일럿, springboot-memory)은 자기 뷰를, 나머지 스택은 공용 web 뷰를 쓴다
+    const own = ['springboot', 'springboot-memory'];
+    return { route: `web/${sub}`, tabId: 'web', view: own.includes(sub) ? sub : 'web', sub };
   }
   if (!TABS.some((t) => t.id === tab)) tab = 'overview';
   return { route: tab, tabId: tab, view: tab, sub: null };

@@ -1,0 +1,90 @@
+===== SpringBoot Memory Benchmark: c8g.xlarge run 5 =====
+Server-Version: java 21.0.13 Amazon.com Inc. springboot 4.1.2 gc [G1 Young Generation, G1 Concurrent GC, G1 Old Generation] entries 665600 entry_kb 4 work_kb 1024 hold_ms 1000 heap_max_mb 5204 virtual_threads true cpus 4
+Client-Node: ip-10-2-40-83.ap-northeast-2.compute.internal
+Timestamp: 2026-11-05T03:16:09+00:00
+=== Warm-up (64 connections, 30s) ===
+=== Stage connections=256 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c8g-xlarge:8080/process
+  6 threads and 256 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.00s     2.48ms   1.02s    91.82%
+    Req/Sec   101.84    142.79   414.00     80.41%
+  Latency Distribution
+     50%    1.00s 
+     75%    1.00s 
+     90%    1.00s 
+     99%    1.01s 
+  14956 requests in 1.00m, 2.07MB read
+Requests/sec:    248.92
+Transfer/sec:     35.25KB
+END_C256
+STATS_C256: {"window_s":60.2,"proc_cpu_pct":5.1,"gc_pauses":30,"gc_pause_total_ms":265,"gc_pause_max_ms":12,"gc_pause_over50ms":0,"gc_pause_over100ms":0,"gc_pause_over200ms":0,"heap_used_mb":3946,"heap_max_mb":5204,"entries":665600,"old_after_gc_mb":3690,"inflight_now":198,"inflight_peak":252,"processed":15074}
+
+=== Stage connections=1024 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c8g-xlarge:8080/process
+  6 threads and 1024 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.02s    32.08ms   1.30s    88.23%
+    Req/Sec   191.19    186.34     1.52k    84.31%
+  Latency Distribution
+     50%    1.00s 
+     75%    1.01s 
+     90%    1.07s 
+     99%    1.12s 
+  59762 requests in 1.00m, 8.30MB read
+Requests/sec:    995.07
+Transfer/sec:    141.57KB
+END_C1024
+STATS_C1024: {"window_s":60.2,"proc_cpu_pct":23.1,"gc_pauses":325,"gc_pause_total_ms":7122,"gc_pause_max_ms":103,"gc_pause_over50ms":54,"gc_pause_over100ms":2,"gc_pause_over200ms":0,"heap_used_mb":4552,"heap_max_mb":5204,"entries":665600,"old_after_gc_mb":3806,"inflight_now":1019,"inflight_peak":1020,"processed":59763}
+
+=== Stage connections=2048 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c8g-xlarge:8080/process
+  6 threads and 2048 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.30s   138.94ms   2.63s    72.97%
+    Req/Sec   302.58    264.94     2.10k    79.08%
+  Latency Distribution
+     50%    1.29s 
+     75%    1.36s 
+     90%    1.48s 
+     99%    1.72s 
+  93361 requests in 1.00m, 13.00MB read
+Requests/sec:   1553.42
+Transfer/sec:    221.46KB
+END_C2048
+STATS_C2048: {"window_s":60.4,"proc_cpu_pct":91.9,"gc_pauses":1046,"gc_pause_total_ms":52809,"gc_pause_max_ms":135,"gc_pause_over50ms":451,"gc_pause_over100ms":428,"gc_pause_over200ms":0,"heap_used_mb":4929,"heap_max_mb":5204,"entries":665600,"old_after_gc_mb":4769,"inflight_now":1761,"inflight_peak":2046,"processed":93642}
+
+=== Stage connections=3072 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c8g-xlarge:8080/process
+  6 threads and 3072 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     0.00us    0.00us   0.00us    -nan%
+    Req/Sec     0.00      0.00     0.00      -nan%
+  Latency Distribution
+     50%    0.00us
+     75%    0.00us
+     90%    0.00us
+     99%    0.00us
+  0 requests in 1.00m, 0.00B read
+  Socket errors: connect 0, read 4056, write 146220, timeout 0
+Requests/sec:      0.00
+Transfer/sec:       0.00B
+END_C3072
+wget: can't connect to remote host (172.20.81.52): Connection refused
+STATS_C3072: {"error":"stats unavailable"}
+
+wget: can't connect to remote host (172.20.81.52): Connection refused
+=== Stage connections=4096 (process, 6 threads, 60s) ===
+unable to connect to sbmem12-remote-c8g-xlarge:8080 Connection refused
+END_C4096
+wget: can't connect to remote host (172.20.81.52): Connection refused
+STATS_C4096: {"error":"stats unavailable"}
+
+wget: can't connect to remote host (172.20.81.52): Connection refused
+=== Stage connections=6144 (process, 6 threads, 60s) ===
+unable to connect to sbmem12-remote-c8g-xlarge:8080 Connection refused
+END_C6144
+wget: can't connect to remote host (172.20.81.52): Connection refused
+STATS_C6144: {"error":"stats unavailable"}
+
+Benchmark Complete

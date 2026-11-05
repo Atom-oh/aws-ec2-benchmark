@@ -1,0 +1,102 @@
+===== SpringBoot Memory Benchmark: c6i.xlarge run 3 =====
+Server-Version: java 21.0.13 Amazon.com Inc. springboot 4.1.2 gc [G1 Young Generation, G1 Concurrent GC, G1 Old Generation] entries 667904 entry_kb 4 work_kb 1024 hold_ms 1000 heap_max_mb 5220 virtual_threads true cpus 4
+Client-Node: ip-10-2-46-229.ap-northeast-2.compute.internal
+Timestamp: 2026-11-05T02:54:15+00:00
+=== Warm-up (64 connections, 30s) ===
+=== Stage connections=256 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c6i-xlarge:8080/process
+  6 threads and 256 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.00s     6.35ms   1.06s    89.09%
+    Req/Sec   107.02    117.86   414.00     78.91%
+  Latency Distribution
+     50%    1.00s 
+     75%    1.00s 
+     90%    1.01s 
+     99%    1.03s 
+  14901 requests in 1.00m, 2.06MB read
+Requests/sec:    248.01
+Transfer/sec:     35.12KB
+END_C256
+STATS_C256: {"window_s":60.3,"proc_cpu_pct":7.7,"gc_pauses":29,"gc_pause_total_ms":667,"gc_pause_max_ms":28,"gc_pause_over50ms":0,"gc_pause_over100ms":0,"gc_pause_over200ms":0,"heap_used_mb":4279,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":3715,"inflight_now":234,"inflight_peak":252,"processed":14983}
+
+=== Stage connections=1024 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c6i-xlarge:8080/process
+  6 threads and 1024 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.05s    86.35ms   1.50s    82.50%
+    Req/Sec   187.06    189.75     0.98k    84.42%
+  Latency Distribution
+     50%    1.01s 
+     75%    1.04s 
+     90%    1.21s 
+     99%    1.35s 
+  57623 requests in 1.00m, 8.00MB read
+Requests/sec:    959.31
+Transfer/sec:    136.38KB
+END_C1024
+STATS_C1024: {"window_s":60.3,"proc_cpu_pct":43.2,"gc_pauses":316,"gc_pause_total_ms":16244,"gc_pause_max_ms":242,"gc_pause_over50ms":53,"gc_pause_over100ms":52,"gc_pause_over200ms":25,"heap_used_mb":4390,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":3802,"inflight_now":907,"inflight_peak":1020,"processed":57734}
+
+=== Stage connections=2048 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c6i-xlarge:8080/process
+  6 threads and 2048 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.67s   296.50ms   5.82s    75.19%
+    Req/Sec   235.42    230.12     2.06k    87.18%
+  Latency Distribution
+     50%    1.61s 
+     75%    1.81s 
+     90%    2.03s 
+     99%    2.40s 
+  71924 requests in 1.00m, 10.01MB read
+Requests/sec:   1197.45
+Transfer/sec:    170.65KB
+END_C2048
+STATS_C2048: {"window_s":60.4,"proc_cpu_pct":94.4,"gc_pauses":631,"gc_pause_total_ms":51645,"gc_pause_max_ms":280,"gc_pause_over50ms":206,"gc_pause_over100ms":205,"gc_pause_over200ms":205,"heap_used_mb":4907,"heap_max_mb":5220,"entries":667904,"old_after_gc_mb":4907,"inflight_now":1807,"inflight_peak":2046,"processed":72117}
+
+=== Stage connections=3072 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c6i-xlarge:8080/process
+  6 threads and 3072 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     0.00us    0.00us   0.00us    -nan%
+    Req/Sec     0.00      0.00     0.00      -nan%
+  Latency Distribution
+     50%    0.00us
+     75%    0.00us
+     90%    0.00us
+     99%    0.00us
+  0 requests in 1.00m, 0.00B read
+  Socket errors: connect 0, read 4204, write 49435, timeout 0
+Requests/sec:      0.00
+Transfer/sec:       0.00B
+END_C3072
+wget: can't connect to remote host (172.20.168.36): Connection refused
+STATS_C3072: {"error":"stats unavailable"}
+
+=== Stage connections=4096 (process, 6 threads, 60s) ===
+Running 1m test @ http://sbmem12-remote-c6i-xlarge:8080/process
+  6 threads and 4096 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.01s     2.77ms   3.01s    66.67%
+    Req/Sec     2.00      0.00     2.00    100.00%
+  Latency Distribution
+     50%    3.01s 
+     75%    3.01s 
+     90%    3.01s 
+     99%    3.01s 
+  9 requests in 1.00m, 1.26KB read
+  Socket errors: connect 0, read 5239, write 74311, timeout 0
+Requests/sec:      0.15
+Transfer/sec:      21.44B
+END_C4096
+wget: can't connect to remote host (172.20.168.36): Connection refused
+STATS_C4096: {"error":"stats unavailable"}
+
+wget: can't connect to remote host (172.20.168.36): Connection refused
+=== Stage connections=6144 (process, 6 threads, 60s) ===
+unable to connect to sbmem12-remote-c6i-xlarge:8080 Connection refused
+END_C6144
+wget: can't connect to remote host (172.20.168.36): Connection refused
+STATS_C6144: {"error":"stats unavailable"}
+
+Benchmark Complete

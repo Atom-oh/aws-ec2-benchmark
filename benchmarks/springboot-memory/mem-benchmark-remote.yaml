@@ -1,0 +1,103 @@
+# Spring Boot 메모리 부하 클라이언트(wrk) — 12GB/24GB 서버 공용. SERVICE_NAME/SERVER_APP_LABEL/JOB_NAME/RUN_NUM은
+# scripts/generate-cache-remote-benchmark.sh가 치환한다.
+#
+# 재현하려는 운영 상황: 평소 힙 절반은 상주 데이터(캐시)가 차지하고, 트래픽이 몰리거나 하위 시스템이 느려지면
+# 처리 중 요청이 쌓인다. 요청마다 큰 본문(64KB)을 받아 1MB 작업 객체로 펼친 채 1초간 들고 있으므로
+# 동시 커넥션 수 ≈ 처리 중 요청 수 ≈ 힙에 쌓인 작업 객체(1MB씩). 커넥션을 단계적으로 늘려 힙이 차고
+# GC가 압박받는 지점을 찾는다(서버는 가상 스레드라 Tomcat 스레드 풀 제한이 없음).
+#
+# 단계(회차마다): 워밍업 → 커넥션 256 / 1024 / 2048 / 3072 / 4096 / 6144 각 60s. /process는 요청마다 상주 캐시 1항목도 교체한다
+# (요청이 세션/캐시를 갱신하는 운영 패턴 — 별도 백그라운드 트래픽은 CPU를 포화시켜 제거). 단계마다 서버 /stats(STATS_C<n>).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: JOB_NAME
+  namespace: benchmark
+  labels:
+    benchmark: sbmem-remote-bench
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 14400
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: sbmem-remote-bench
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-type: benchmark-client
+      tolerations:
+        - key: "benchmark-client"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: SERVER_APP_LABEL
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-server
+          image: public.ecr.aws/docker/library/alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until wget -q -O - http://SERVICE_NAME:8080/health 2>/dev/null | grep -q ok; do echo "waiting (prefill)"; sleep 3; done
+      containers:
+        - name: benchmark
+          image: 180294183052.dkr.ecr.ap-northeast-2.amazonaws.com/benchmark/wrk:latest
+          resources:
+            requests:
+              cpu: "7"
+              memory: "2Gi"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              ulimit -n 65536 2>/dev/null
+              URL="http://SERVICE_NAME:8080"
+              VER=$(wget -q -O - ${URL}/version)
+              N=$(echo "$VER" | sed -n 's/.* entries \([0-9]*\) .*/\1/p')
+              echo "===== SpringBoot Memory Benchmark: ${TARGET_INSTANCE} run RUN_NUM ====="
+              echo "Server-Version: ${VER}"
+              echo "Client-Node: ${CLIENT_NODE}"
+              echo "Timestamp: $(date -Iseconds)"
+              cat > /tmp/post.lua <<'LUA'
+              wrk.method = "POST"
+              wrk.headers["Content-Type"] = "application/octet-stream"
+              wrk.body = string.rep("0123456789abcdef", 4096)
+              LUA
+
+              echo "=== Warm-up (64 connections, 30s) ==="
+              wrk -t4 -c64 -d30s -s /tmp/post.lua ${URL}/process > /dev/null 2>&1
+              for C in 256 1024 2048 3072 4096 6144; do
+                wget -q -O - "${URL}/stats?reset=1" > /dev/null
+                echo "=== Stage connections=${C} (process, 6 threads, 60s) ==="
+                wrk -t6 -c${C} -d60s --timeout 10s --latency -s /tmp/post.lua ${URL}/process
+                echo "END_C${C}"
+                echo "STATS_C${C}: $(wget -q -T 20 -O - "${URL}/stats?reset=1" || echo '{"error":"stats unavailable"}')"
+                echo ""
+                sleep 5
+              done
+              echo "Benchmark Complete"
+          env:
+            - name: TARGET_INSTANCE
+              value: "${INSTANCE_TYPE}"
+            - name: CLIENT_NODE
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
