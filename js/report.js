@@ -240,12 +240,14 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
   const odd = new Set(A.peer_outliers.map((o) => o.left));
   const topPerf = A.rank_perf.find((n) => !odd.has(n));
   const topPpd = A.rank_ppd.find((n) => !odd.has(n));
-  const g8 = PAIR(A, 'c8g.xlarge', 'c8i.xlarge');
-  const g7 = PAIR(A, 'c7g.xlarge', 'c7i.xlarge');
-  const g9 = PAIR(A, 'c9g.xlarge', 'c8i.xlarge');
-  const upG = STEP(A, 'c7g.xlarge', 'c8g.xlarge');
-  const upG5 = STEP(A, 'c8g.xlarge', 'c9g.xlarge');
-  const upI = STEP(A, 'c7i.xlarge', 'c8i.xlarge');
+  // cfg.pairFamily: 대표 짝 비교 패밀리(기본 c). 메모리 압박처럼 C가 기준으로 부적합한 벤치마크는 m/r을 지정
+  const pf = cfg.pairFamily || 'c';
+  const g8 = PAIR(A, `${pf}8g.xlarge`, `${pf}8i.xlarge`);
+  const g7 = PAIR(A, `${pf}7g.xlarge`, `${pf}7i.xlarge`);
+  const g9 = pf === 'c' ? PAIR(A, 'c9g.xlarge', 'c8i.xlarge') : null;
+  const upG = STEP(A, `${pf}7g.xlarge`, `${pf}8g.xlarge`);
+  const upG5 = pf === 'c' ? STEP(A, 'c8g.xlarge', 'c9g.xlarge') : null;
+  const upI = STEP(A, `${pf}7i.xlarge`, `${pf}8i.xlarge`);
   const n = (k) => `${cfg.numberPrefix || ''}${k}`;
   const sec = (id, title, inner) => `<section class="section" id="${id}"><h2>${title}</h2>${inner}</section>`;
   const slots = {};
@@ -257,16 +259,16 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
 
   const lead = [
     `${Object.keys(T).length}개 인스턴스를 <strong>${A.metric.label}</strong>(${unit}, ${dirWord}) 기준으로, 회차 중앙값을 써서 비교했습니다. 기준선은 ${A.baseline} = 1.00배, 가격은 서울 리전 Linux On-Demand입니다.`,
-    g8 ? `8세대끼리는 c8g/c8i가 성능 ${x(g8.perf)}, 가격 ${x(g8.price)}로 가격 대비 성능 <strong>${x(g8.ppd)} (${g8.verdict})</strong>${g7 ? `이고, 7세대 c7g/c7i는 ${x(g7.ppd)}(${g7.verdict})` : ''}입니다.${g9 ? ` Graviton5 c9g는 c8i 대비 ${x(g9.ppd)}(${g9.verdict})입니다.` : ''}` : '',
+    g8 ? `8세대끼리는 ${pf}8g/${pf}8i가 성능 ${x(g8.perf)}, 가격 ${x(g8.price)}로 가격 대비 성능 <strong>${x(g8.ppd)} (${g8.verdict})</strong>${g7 ? `이고, 7세대 c7g/c7i는 ${x(g7.ppd)}(${g7.verdict})` : ''}입니다.${g9 ? ` Graviton5 c9g는 c8i 대비 ${x(g9.ppd)}(${g9.verdict})입니다.` : ''}` : '',
   ];
   const kf = [
     topPerf && { item: `${A.metric.label} 1위`, result: topPerf, note: `${fmtv(T[topPerf].value)} · ${A.baseline} 대비 ${x(T[topPerf].perf)}` },
     topPpd && { item: '가격 대비 성능 1위', result: topPpd, note: `${A.baseline} 대비 ${x(T[topPpd].ppd)}` },
-    g8 && { item: 'Graviton4 vs Intel 8세대', result: `c8g / c8i ${x(g8.ppd)}`, note: `성능 ${x(g8.perf)}, 가격 ${x(g8.price)} — ${g8.verdict}` },
+    g8 && { item: 'Graviton4 vs Intel 8세대', result: `${pf}8g / ${pf}8i ${x(g8.ppd)}`, note: `성능 ${x(g8.perf)}, 가격 ${x(g8.price)} — ${g8.verdict}` },
     g9 && { item: 'Graviton5 vs Intel 8세대', result: `c9g / c8i ${x(g9.ppd)}`, note: `성능 ${x(g9.perf)}, 가격 ${x(g9.price)} — ${g9.verdict}` },
-    upG && { item: 'Graviton3 → Graviton4', result: pct(upG.perf - 1), note: `c7g → c8g, 가격 대비 성능 ${pct(upG.ppd - 1)}` },
+    upG && { item: 'Graviton3 → Graviton4', result: pct(upG.perf - 1), note: `${pf}7g → ${pf}8g, 가격 대비 성능 ${pct(upG.ppd - 1)}` },
     upG5 && { item: 'Graviton4 → Graviton5', result: pct(upG5.perf - 1), note: `c8g → c9g, 가격 대비 성능 ${pct(upG5.ppd - 1)}` },
-    upI && { item: 'Sapphire Rapids → Granite Rapids', result: pct(upI.perf - 1), note: `c7i → c8i, 가격 대비 성능 ${pct(upI.ppd - 1)}` },
+    upI && { item: 'Sapphire Rapids → Granite Rapids', result: pct(upI.perf - 1), note: `${pf}7i → ${pf}8i, 가격 대비 성능 ${pct(upI.ppd - 1)}` },
     { item: '신뢰도 경고', result: `${A.flagged.length}개`, note: A.peer_outliers.length ? `같은 프로세서 이상치: ${A.peer_outliers.map((o) => `${short(o.left)}/${short(o.right)} ${x(o.perf)}`).join(', ')}` : '같은 프로세서 이상치 없음' },
   ].filter(Boolean);
 
