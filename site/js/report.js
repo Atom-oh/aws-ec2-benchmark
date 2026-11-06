@@ -191,7 +191,7 @@ export function priceTable(hostEl, rows, A, { digits = 0, limit = 15 } = {}) {
   const m = rowMap(rows);
   const T = A.table;
   const cu = A.cost_unit;
-  const head = ['인스턴스', '프로세서', 'USD/시간', A.metric.label, '성능 (c7i 대비)', '가격 대비 성능 (c7i 대비)'];
+  const head = ['인스턴스', '프로세서', 'USD/시간', A.metric.label, `성능 (${short(A.baseline)} 대비)`, `가격 대비 성능 (${short(A.baseline)} 대비)`];
   if (cu) head.push(cu.label);
   const body = A.rank_ppd.slice(0, limit).map((n) => {
     const r = [`<strong>${n}</strong>`, m[n]?.hw?.processor || '', `$${m[n].price.toFixed(4)}`,
@@ -259,7 +259,7 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
 
   const lead = [
     `${Object.keys(T).length}개 인스턴스를 <strong>${A.metric.label}</strong>(${unit}, ${dirWord}) 기준으로, 회차 중앙값을 써서 비교했습니다. 기준선은 ${A.baseline} = 1.00배, 가격은 서울 리전 Linux On-Demand입니다.`,
-    g8 ? `8세대끼리는 ${pf}8g/${pf}8i가 성능 ${x(g8.perf)}, 가격 ${x(g8.price)}로 가격 대비 성능 <strong>${x(g8.ppd)} (${g8.verdict})</strong>${g7 ? `이고, 7세대 c7g/c7i는 ${x(g7.ppd)}(${g7.verdict})` : ''}입니다.${g9 ? ` Graviton5 c9g는 c8i 대비 ${x(g9.ppd)}(${g9.verdict})입니다.` : ''}` : '',
+    g8 ? `8세대끼리는 ${pf}8g/${pf}8i가 성능 ${x(g8.perf)}, 가격 ${x(g8.price)}로 가격 대비 성능 <strong>${x(g8.ppd)} (${g8.verdict})</strong>${g7 ? `이고, 7세대 ${pf}7g/${pf}7i는 ${x(g7.ppd)}(${g7.verdict})` : ''}입니다.${g9 ? ` Graviton5 c9g는 c8i 대비 ${x(g9.ppd)}(${g9.verdict})입니다.` : ''}` : '',
   ];
   const kf = [
     topPerf && { item: `${A.metric.label} 1위`, result: topPerf, note: `${fmtv(T[topPerf].value)} · ${A.baseline} 대비 ${x(T[topPerf].perf)}` },

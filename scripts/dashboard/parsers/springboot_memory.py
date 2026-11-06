@@ -16,7 +16,7 @@ import statistics
 import analysis
 from common import PRICE, RESULTS_DIR, canonical_instances, parse_wrk_block
 
-CPU_LIMIT_PCT = 70     # 첫 실패 단계의 서버 CPU가 이 이상이면 'CPU 한계'(메모리는 남음), 미만이면 '메모리 한계'(GC 정지 누적·OOM)
+CPU_LIMIT_PCT = 70     # 첫 실패 단계(오류 없음)의 서버 CPU가 이 이상이면 'CPU 한계'(메모리는 남음), 미만이면 'GC 정지 누적'(CPU 여유)
 SLO_DEFAULT_MS = 11000  # 대기(HOLD_MS 10초) + 처리 여유 1초 — 로그의 SLO_P99_MS가 우선
 PCTS = [25, 50, 60, 70, 80, 90, 100, 110]
 NAME = "sbmem"
@@ -88,9 +88,16 @@ def build():
                                  "cpu_pct": med("cpu_pct"), "errors": sum((v.get("errors") or 0) for v in vals),
                                  "slo_pass": sum(1 for v in vals if v["slo_ok"]), "runs": len(vals)}
         nxt = next((p for p in PCTS if p > statistics.median([p for _, p in caps])), None)
-        fail_cpu = stage_med.get(str(nxt), {}).get("cpu_pct") if nxt else None
-        # 실패 단계에서 /stats가 없으면 OOM 재시작 = 메모리가 먼저 참
-        limit = None if nxt is None else ("cpu" if (fail_cpu or 0) >= CPU_LIMIT_PCT else "memory")
+        fst = stage_med.get(str(nxt), {}) if nxt else {}
+        # 첫 실패 단계의 원인: 오류(소켓 오류·OOM 재시작 — 그 단계의 /stats는 재시작한 서버라 CPU 무의미) → 'oom',
+        # 오류 없이 p99만 초과 + CPU >= 기준 → 'cpu'(메모리는 남음), 오류 없이 p99 초과 + CPU 여유 → 'gc'(GC 정지 누적)
+        if not fst:
+            limit, fail_cpu = None, None
+        elif fst.get("errors"):
+            limit, fail_cpu = "oom", None
+        else:
+            fail_cpu = fst.get("cpu_pct")
+            limit = "cpu" if (fail_cpu or 0) >= CPU_LIMIT_PCT else "gc"
         insts[name] = {"limit": limit, "fail_cpu_pct": fail_cpu, "heap_mb": runs[0]["heap_mb"], "hold_ms": runs[0]["hold_ms"], "slo_ms": runs[0]["slo_ms"], "live_mb": runs[0]["live_mb"], "k": runs[0]["k"],
                        "capacity": int(statistics.median([c for c, _ in caps])), "capacity_runs": [c for c, _ in caps],
                        "util_pct": int(statistics.median([p for _, p in caps])), "util_runs": [p for _, p in caps],
@@ -100,7 +107,9 @@ def build():
     key = f"{NAME}_capacity"
     rep = {key: {n: v["capacity_runs"] for n, v in insts.items() if any(v["capacity_runs"])}}
     rep = {k: v for k, v in rep.items() if v}
-    specs = {key: {"label": "버틴 동시 커넥션 (힙 = RAM 60%)", "unit": "커넥션", "direction": "max", "memory_sensitive": True}}
+    specs = {key: {"label": "버틴 동시 커넥션 (힙 = RAM 60%)", "unit": "커넥션", "direction": "max", "memory_sensitive": True,
+                   # 메모리 압박 탭은 범용(M) 인스턴스를 기준선으로(사용자 요청 2026-11-06) — 다른 탭은 c7i.xlarge 유지
+                   "baseline": "m7i.xlarge"}}
     summaries, blocks = analysis.report(rep, specs, PRICE) if rep else ({}, {})
     instances = {n: {"sbmem": v} for n, v in insts.items()}
     for n, r in summaries.items():
