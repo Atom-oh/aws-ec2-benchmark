@@ -19,6 +19,13 @@ def main():
     page.set_viewport_size({'width':width,'height':1000})
     page.goto(f'http://127.0.0.1:{server.server_port}/#web/springboot-traffic48')
     page.wait_for_function('Object.keys(Chart.instances).length === 5')
+    page.wait_for_selector('[data-stability="early-late"] tbody tr')
+    assert page.locator('[data-stability="early-late"] tbody tr').count()==8
+    assert page.locator('[data-stability="cycles"] tbody tr').count()==6
+    assert page.locator('[data-stability="sustained"] tbody tr').count()==6
+    assert '46.079' in page.locator('[data-stability="early-late"]').inner_text()
+    assert '4,096' in page.locator('[data-stability="health"]').inner_text()
+    assert '1.025' in page.locator('[data-stability="low"]').inner_text()
     assert page.locator('[data-slot="comparison"] tbody tr').count()==6
     assert '65,780' in page.locator('[data-slot="comparison"]').inner_text()
     page.locator('[data-select="group"]').select_option('day2_low')
@@ -27,7 +34,10 @@ def main():
     page.locator('[data-select="mode"]').select_option('idle_qualified')
     assert '25 / 12.6h' in page.locator('[data-slot="comparison"]').inner_text()
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
-    page.screenshot(path=str(root/f'reports/traffic48-final/browser-{width}.png'),full_page=True)
+    # Hide only sticky site chrome while exporting the long section image.
+    page.locator('#traffic48-flex-stability').screenshot(
+        path=str(root/f'reports/traffic48-final/flex-stability-browser-{width}.png'),
+        style='.navbar, .skip-link { visibility: hidden !important; }')
     page.evaluate("location.hash='#web/springboot-memory'")
     page.wait_for_selector('#results')
     page.evaluate("location.hash='#web/springboot-traffic48'")
