@@ -3,7 +3,6 @@
 import { buildToc, fmt, badge, archColor } from '../shared.js';
 import { standardReport, scenario, x, short } from '../report.js';
 
-const CURVE = ['c8g.xlarge', 'c8i.xlarge', 'm6g.xlarge', 'm8g.xlarge', 'm8i.xlarge', 'r6g.xlarge', 'r8g.xlarge', 'r8i.xlarge'];
 
 export async function render(root, { rows, envelope }) {
   const handles = [];
@@ -59,113 +58,73 @@ export async function render(root, { rows, envelope }) {
   }).join('');
   slot('results').innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>인스턴스</th><th>아키텍처</th><th>RAM</th><th>힙</th><th>이론 최대</th><th>버틴 커넥션</th><th>힙 활용률</th><th>$/시간</th><th>1,000커넥션당 $/시간</th><th>가격 대비 성능 (${BASE ? short(BASE) : ''} = 1.00배)</th><th>GC 비율 (버틴 단계)</th><th>먼저 찬 자원 (다음 단계에서 실패한 원인)</th><th>회차별</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 
-  // ---------- 그림 1: 부하 단계별 지표 (선택: 추가 지연 p50/p90/p95/p99, 서버 CPU, GC 정지, 처리량) ----------
-  const lat = (k) => (s) => (s && s[k] ? Math.max(s[k] - HOLD * 1000, 5) : null);  // 대기 시간을 뺀 추가 지연(ms)
-  const anyStage = (k) => names.some((n) => Object.values(T[n].stages).some((s) => s[k] != null));
-  const METRICS = [
-    { id: 'p99', label: 'p99 추가 지연', get: lat('p99_ms'), axis: `p99 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true, line: (SLO - HOLD) * 1000, lineLabel: '판정선 +1,000ms' },
-    anyStage('p95_ms') && { id: 'p95', label: 'p95 추가 지연', get: lat('p95_ms'), axis: `p95 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true },
-    { id: 'p90', label: 'p90 추가 지연', get: lat('p90_ms'), axis: `p90 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true },
-    { id: 'p50', label: 'p50 추가 지연', get: lat('p50_ms'), axis: `p50 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true },
-    { id: 'cpu', label: '서버 CPU', get: (s) => (s && !s.errors ? s.cpu_pct : null), axis: '서버 프로세스 CPU (%, vCPU 4개 = 100%)', max: 100, line: envelope.cpu_limit_pct || 70, lineLabel: 'CPU 한계 기준' },
-    { id: 'gc', label: 'GC 정지 비율', get: (s) => (s && !s.errors ? s.gc_pct : null), axis: '90초 중 GC 정지 시간 (%)', max: 100 },
-    { id: 'rps', label: '처리량', get: (s) => (s && !s.errors ? s.rps : null), axis: '요청/초 (= 커넥션 ÷ 대기 10초가 이상적)' },
-  ].filter(Boolean);
-  const el = slot('curve');
-  el.innerHTML = `<div class="subnav" data-metrics>${METRICS.map((m, i) => `<button type="button" class="subnav-link${i ? '' : ' active'}" data-m="${m.id}">${m.label}</button>`).join('')}</div>`
-    + '<div class="chart-box" style="height:380px"><canvas></canvas></div>';
-  const insts = CURVE.filter((n) => T[n] && meta[n]);
+  // ---------- 그림 1~4: 처리량·지연 × CPU·커넥션 (패밀리·분위수 선택) ----------
+  // 같은 패밀리(C/M/R)는 RAM·힙이 같아 같은 커넥션에서 직접 비교 가능. OOM 단계는 서버가 재시작 중이라 제외.
   const okText = (st) => (st.slo_pass === st.runs ? '통과' : st.slo_pass ? `${st.slo_pass}/${st.runs}회 통과` : st.errors ? '실패(OOM)' : '실패');
-  const build = (m) => {
-    const ds = insts.map((n) => ({
-      label: short(n), inst: n, showLine: true, pointRadius: 3, pointHoverRadius: 6,
-      data: PCTS.map((p) => T[n].stages[String(p)]).filter((st) => st && !st.errors && m.get(st) != null).map((st) => ({ x: st.conn, y: m.get(st), st })),  // OOM 단계 제외 → 선이 끝나는 곳 = 메모리 한계
-      borderColor: archColor(meta[n].arch, 0.9), backgroundColor: archColor(meta[n].arch, 0.9),
-      borderDash: meta[n].family === 'C' ? [4, 4] : meta[n].family === 'R' ? [] : [8, 3], tension: 0.15,
+  const PCTL = [['p50_ms', 'p50'], ['p75_ms', 'p75'], ['p90_ms', 'p90'], ['p95_ms', 'p95'], ['p99_ms', 'p99']]
+    .filter(([k]) => names.some((n) => Object.values(T[n].stages).some((st) => st[k] != null)));
+  const famList = ['C', 'M', 'R'].filter((f) => names.some((n) => meta[n].family === f));
+  const quad = slot('quad');
+  quad.innerHTML = `<div class="ts-controls"><label>패밀리 <select data-q="fam">${famList.map((f) => `<option value="${f}"${f === 'M' ? ' selected' : ''}>${f} (${names.filter((n) => meta[n].family === f).length}개, RAM ${meta[names.find((n) => meta[n].family === f)].mem_mb / 1024} GiB)</option>`).join('')}</select></label>`
+    + `<label>지연 분위수 <select data-q="pct">${PCTL.map(([k, l]) => `<option value="${k}"${k === 'p99_ms' ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>`
+    + '<div class="quad-grid">'
+    + [['rps-cpu', '그림 1. 처리량 / 서버 CPU'], ['rps-conn', '그림 2. 처리량 / 동시 커넥션'], ['lat-cpu', '그림 3. 지연 / 서버 CPU'], ['lat-conn', '그림 4. 지연 / 동시 커넥션']]
+      .map(([k, t]) => `<div><h3 class="quad-title">${t}</h3><div class="chart-box" style="height:300px"><canvas data-c="${k}"></canvas></div></div>`).join('') + '</div>';
+  const q = (k) => quad.querySelector(`[data-q="${k}"]`);
+  const shade = (n) => (meta[n].gen >= 8 ? 0.95 : meta[n].gen >= 7 ? 0.65 : 0.4);
+  const lineStyle = (n) => ({ borderColor: archColor(meta[n].arch, shade(n)), backgroundColor: archColor(meta[n].arch, shade(n)), borderDash: /flex/.test(n) ? [6, 4] : [] });
+  const exLat = (st, k) => (st[k] ? Math.max(st[k] - HOLD * 1000, 5) : null);   // 대기 10초를 뺀 추가 지연(ms)
+  const AX = {
+    'rps-cpu': { x: (st) => st.cpu_pct, y: (st) => st.rps, xt: '서버 CPU (%)', yt: '처리량 (요청/초)', xmax: 100 },
+    'rps-conn': { x: (st) => st.conn, y: (st) => st.rps, xt: '동시 커넥션', yt: '처리량 (요청/초)', ideal: true },
+    'lat-cpu': { x: (st) => st.cpu_pct, y: (st, k) => exLat(st, k), xt: '서버 CPU (%)', yt: '추가 지연 (ms, 로그 축)', log: true, xmax: 100, slo: true },
+    'lat-conn': { x: (st) => st.conn, y: (st, k) => exLat(st, k), xt: '동시 커넥션', yt: '추가 지연 (ms, 로그 축)', log: true, slo: true },
+  };
+  const quadCharts = {};
+  const quadData = (key) => {
+    const ax = AX[key], fam = q('fam').value, pk = q('pct').value;
+    const list = names.filter((n) => meta[n].family === fam)
+      .sort((a, b) => (meta[a].arch === meta[b].arch ? meta[a].gen - meta[b].gen : meta[a].arch < meta[b].arch ? -1 : 1));
+    const ds = list.map((n) => ({
+      label: short(n), inst: n, showLine: true, tension: 0.15, pointRadius: 3, pointHoverRadius: 6, ...lineStyle(n),
+      data: PCTS.map((p) => T[n].stages[String(p)]).filter((st) => st && !st.errors && ax.x(st) != null && ax.y(st, pk) != null)
+        .map((st) => ({ x: ax.x(st), y: ax.y(st, pk), st })),
     }));
-    const xmax = Math.max(...ds.flatMap((d) => d.data.map((q) => q.x)));
-    if (m.line != null) ds.push({ label: m.lineLabel, data: [{ x: 0, y: m.line }, { x: xmax, y: m.line }], showLine: true, borderColor: '#94a3b8', borderDash: [2, 4], pointRadius: 0 });
-    if (m.id === 'rps') ds.push({ label: '이상적 처리량 (커넥션 ÷ 10초)', data: [{ x: 0, y: 0 }, { x: xmax, y: xmax / HOLD }], showLine: true, borderColor: '#94a3b8', borderDash: [2, 4], pointRadius: 0 });
+    const xs = ds.flatMap((d) => d.data.map((v) => v.x)), xm = ax.xmax || Math.max(...xs, 1);
+    if (ax.ideal) ds.push({ label: '이상적 (커넥션 ÷ 10초)', data: [{ x: 0, y: 0 }, { x: xm, y: xm / HOLD }], showLine: true, pointRadius: 0, borderColor: '#94a3b8', borderDash: [2, 4] });
+    if (ax.slo) ds.push({ label: '판정선 +1,000ms', data: [{ x: 0, y: (SLO - HOLD) * 1000 }, { x: xm, y: (SLO - HOLD) * 1000 }], showLine: true, pointRadius: 0, borderColor: '#94a3b8', borderDash: [2, 4] });
     return ds;
   };
-  let cur = METRICS[0];
-  const yScale = (m) => (m.log ? { type: 'logarithmic', min: 5, title: { display: true, text: m.axis } }
-    : { type: 'linear', min: 0, ...(m.max ? { max: m.max } : {}), title: { display: true, text: m.axis } });
-  const chart = new Chart(el.querySelector('canvas'), {
-    type: 'scatter', data: { datasets: build(cur) },
-    options: { responsive: true, maintainAspectRatio: false, animation: false,
-      scales: { y: yScale(cur), x: { min: 0, title: { display: true, text: '동시 커넥션 (= 처리 중 요청 수)' } } },
-      // 마우스에서 가장 가까운 점(점 위에 정확히 올리지 않아도 됨)
-      interaction: { mode: 'nearest', intersect: false },
-      plugins: {
-        legend: { position: 'bottom' },
-        tooltip: {
-          callbacks: {
-            title: (items) => (items[0].raw.st ? `${items[0].dataset.label} · 동시 커넥션 ${fmt(items[0].raw.st.conn)}` : items[0].dataset.label),
+  for (const key of Object.keys(AX)) {
+    const ax = AX[key];
+    quadCharts[key] = new Chart(quad.querySelector(`[data-c="${key}"]`), {
+      type: 'scatter', data: { datasets: quadData(key) },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'nearest', intersect: false },
+        scales: { x: { min: 0, ...(ax.xmax ? { max: ax.xmax } : {}), title: { display: true, text: ax.xt } },
+          y: ax.log ? { type: 'logarithmic', min: 5, title: { display: true, text: ax.yt } } : { min: 0, title: { display: true, text: ax.yt } } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 18 } },
+          tooltip: { callbacks: {
+            title: (it) => (it[0]?.raw?.st ? `${it[0].dataset.label} · ${fmt(it[0].raw.st.conn)}커넥션` : ''),
             label: (it) => {
-              const n = it.dataset.inst;
-              if (!n) return `${it.dataset.label}`;
-              const st = it.raw.st || {};
+              const st = it.raw.st; if (!st) return it.dataset.label;
               const ex = (k) => (st[k] ? `+${fmt(st[k] - HOLD * 1000)}` : '—');
-              return `${fmt(st.rps, 0)}요청/초 · 추가 지연 p50 ${ex('p50_ms')} / p90 ${ex('p90_ms')}${st.p95_ms ? ` / p95 ${ex('p95_ms')}` : ''} / p99 ${ex('p99_ms')}ms · CPU ${fmt(st.cpu_pct, 0)}% · GC ${fmt(st.gc_pct, 0)}% · ${okText(st)}`;
+              return [`${fmt(st.rps, 0)}요청/초 · 서버 CPU ${fmt(st.cpu_pct, 0)}% · GC 정지 ${fmt(st.gc_pct, 0)}% · ${okText(st)}`,
+                `추가 지연 p50 ${ex('p50_ms')} · p75 ${ex('p75_ms')} · p90 ${ex('p90_ms')} · p99 ${ex('p99_ms')} ms`];
             },
-          },
-        },
-      } },
-  });
-  const onClick = (e) => {
-    const b = e.target.closest('[data-m]'); if (!b) return;
-    cur = METRICS.find((m) => m.id === b.dataset.m);
-    el.querySelectorAll('[data-m]').forEach((x) => x.classList.toggle('active', x === b));
-    chart.data.datasets = build(cur); chart.options.scales.y = yScale(cur); chart.update();
-  };
-  el.addEventListener('click', onClick);
-  handles.push({ destroy() { el.removeEventListener('click', onClick); chart.destroy(); } });
-
-  // ---------- 그림 2·3: 동시 커넥션(절대값) → 처리량·추가 지연, 서버 CPU → 추가 지연 ----------
-  const xy = (n, fx, fy) => PCTS.map((p) => T[n].stages[String(p)]).filter((st) => st && !st.errors && fx(st) != null && fy(st) != null)
-    .map((st) => ({ x: fx(st), y: fy(st), st }));
-  const p99x = (st) => (st.p99_ms ? Math.max(st.p99_ms - HOLD * 1000, 5) : null);
-  const scatter = (host, fx, fy, xTitle, yTitle, { ylog = false, xmax, ymin, refY, refLabel } = {}) => {
-    if (!host) return;
-    host.innerHTML = '<div class="chart-box" style="height:360px"><canvas></canvas></div>';
-    const ds = insts.map((n) => ({
-      label: short(n), inst: n, showLine: true, tension: 0.15, pointRadius: 3, pointHoverRadius: 6,
-      data: xy(n, fx, fy), borderColor: archColor(meta[n].arch, 0.9), backgroundColor: archColor(meta[n].arch, 0.9),
-      borderDash: meta[n].family === 'C' ? [4, 4] : meta[n].family === 'R' ? [] : [8, 3],
-    }));
-    if (refY != null) {
-      const xs = ds.flatMap((d) => d.data.map((q) => q.x));
-      ds.push({ label: refLabel, data: [{ x: 0, y: refY }, { x: xmax || Math.max(...xs), y: refY }], showLine: true, pointRadius: 0, borderColor: '#94a3b8', borderDash: [2, 4] });
-    }
-    const ch = new Chart(host.querySelector('canvas'), {
-      type: 'scatter', data: { datasets: ds },
-      options: { responsive: true, maintainAspectRatio: false, animation: false,
-        scales: { x: { min: 0, ...(xmax ? { max: xmax } : {}), title: { display: true, text: xTitle } },
-          y: ylog ? { type: 'logarithmic', min: ymin || 5, title: { display: true, text: yTitle } } : { min: 0, title: { display: true, text: yTitle } } },
-        interaction: { mode: 'nearest', intersect: false },
-        plugins: { legend: { position: 'bottom' },
-          tooltip: { callbacks: { label: (it) => {
-            const st = it.raw.st; if (!st) return it.dataset.label;
-            const ex = (k) => (st[k] ? `+${fmt(st[k] - HOLD * 1000)}` : '—');
-            return `${it.dataset.label}: ${fmt(st.conn)}커넥션 · ${fmt(st.rps, 0)}요청/초 · CPU ${fmt(st.cpu_pct, 0)}% · GC ${fmt(st.gc_pct, 0)}% · 추가 지연 p50 ${ex('p50_ms')} / p90 ${ex('p90_ms')} / p99 ${ex('p99_ms')}ms · ${okText(st)}`;
-          } } } } },
+          } } } },
     });
-    handles.push({ destroy() { ch.destroy(); } });
-  };
-  scatter(slot('cpu-lat'), (st) => st.cpu_pct, p99x, '서버 CPU (%)', `p99 추가 지연 (ms, 로그 축)`, { ylog: true, xmax: 100, refY: (SLO - HOLD) * 1000, refLabel: '판정선 +1,000ms' });
-  const pick2 = (a, b) => {
-    return [a, b].filter((n) => T[n]).map((n) => { const q = xy(n, (st) => st.cpu_pct, p99x); const last = q[q.length - 1]; return last ? `${short(n)}는 CPU ${fmt(last.x, 0)}%에서 +${fmt(last.y)}ms` : ''; }).filter(Boolean).join(', ');
-  };
-  {
-    const all = names.flatMap((n) => Object.values(T[n].stages).filter((st) => !st.errors && st.cpu_pct != null).map((st) => ({ n, st })));
-    const passMax = all.filter((q) => q.st.slo_pass === q.st.runs).reduce((m, q) => (q.st.cpu_pct > (m?.st.cpu_pct ?? -1) ? q : m), null);
-    const failMin = all.filter((q) => !q.st.slo_pass).reduce((m, q) => (q.st.cpu_pct < (m?.st.cpu_pct ?? 1e9) ? q : m), null);
-    if (slot('scale-lead')) slot('scale-lead').innerHTML = `<p>같은 CPU 사용률에서도 추가 지연은 인스턴스마다 다릅니다. GC를 빨리 끝내는 인스턴스는 같은 CPU에서 지연이 덜 늘어납니다. `
-      + (passMax ? `기준을 지킨 단계 중 CPU가 가장 높았던 것은 ${short(passMax.n)} ${fmt(passMax.st.cpu_pct, 0)}%(+${fmt(passMax.st.p99_ms - HOLD * 1000)}ms)` : '')
-      + (failMin ? `, 오류 없이 지연만으로 실패한 단계 중 CPU가 가장 낮았던 것은 ${short(failMin.n)} ${fmt(failMin.st.cpu_pct, 0)}%(+${fmt(failMin.st.p99_ms - HOLD * 1000)}ms)입니다. ` : '. ')
-      + `마지막으로 오류 없이 측정된 단계 기준으로 ${pick2('r8g.xlarge', 'r8i.xlarge')}, ${pick2('m8g.xlarge', 'm8i.xlarge')}입니다. OOM이 난 단계는 서버 값이 재시작한 서버의 것이라 그리지 않았습니다.</p>`;
   }
+  const onQ = () => { for (const k of Object.keys(AX)) { quadCharts[k].data.datasets = quadData(k); quadCharts[k].update(); } };
+  ['fam', 'pct'].forEach((k) => q(k).addEventListener('change', onQ));
+  handles.push({ destroy() { ['fam', 'pct'].forEach((k) => q(k).removeEventListener('change', onQ)); Object.values(quadCharts).forEach((c) => c.destroy()); } });
+  // 같은 처리량을 낼 때 CPU가 얼마나 다른지: 같은 패밀리는 RAM·힙이 같아 같은 단계 = 거의 같은 커넥션·처리량.
+  // 패밀리 사이 비교는 하지 않는다(힙이 작을수록 같은 요청에도 GC가 더 자주 돌아 CPU가 늘어 프로세서 차이와 섞임).
+  const REF = '70';
+  const cpuAt = (n) => { const st = T[n].stages[REF]; return st && !st.errors && st.cpu_pct != null ? st.cpu_pct : null; };
+  const famPair = (g, i) => (T[g] && T[i] && cpuAt(g) != null && cpuAt(i) != null ? `${short(g)} ${fmt(cpuAt(g), 0)}% vs ${short(i)} ${fmt(cpuAt(i), 0)}%` : '');
+  slot('quad-lead').innerHTML = `<p>요청마다 ${HOLD}초를 일부러 기다리므로(느린 하위 시스템) 처리량은 이상적으로 커넥션 ÷ ${HOLD}이고, 지연은 ${HOLD}초를 뺀 <strong>추가 지연</strong>(GC 정지·처리 시간)으로 그렸습니다. `
+    + '같은 패밀리는 RAM·힙이 같아 같은 커넥션에서 바로 비교할 수 있습니다. 위 선택으로 패밀리와 지연 분위수를 바꿀 수 있고, 점에 마우스를 올리면 그 단계의 처리량·CPU·GC·분위수가 모두 나옵니다.</p>'
+    + `<p><strong>처리량은 같은 커넥션에서 거의 같고(그림 2), 차이는 그 처리량을 내는 데 드는 CPU와 지연에서 납니다(그림 1·3).</strong> 같은 부하(이론 최대의 ${REF}% 단계)에서 서버 CPU는 ${[['c8g.xlarge', 'c8i.xlarge'], ['m8g.xlarge', 'm8i.xlarge'], ['r8g.xlarge', 'r8i.xlarge'], ['r6g.xlarge', 'r6i.xlarge']].map(([g, i]) => famPair(g, i)).filter(Boolean).join(', ')}. 선이 끝나는 지점은 OOM(메모리 한계) 직전 단계입니다.</p>`;
 
   // ---------- 표 2: 인스턴스별 커넥션 단계 상세 ----------
   const det = slot('stages');
@@ -177,10 +136,10 @@ export async function render(root, { rows, envelope }) {
       const ex = (v) => (v ? `+${fmt(v - HOLD * 1000)}` : '—');
       const rowsH = PCTS.filter((p) => T[n].stages[String(p)]).map((p) => {
         const st = T[n].stages[String(p)];
-        return `<tr><td>${p}%</td><td>${fmt(st.conn)}</td><td>${fmt(st.rps, 0)}</td><td>${ex(st.p50_ms)}</td><td>${ex(st.p90_ms)}</td>${hasP95 ? `<td>${ex(st.p95_ms)}</td>` : ''}<td><strong>${ex(st.p99_ms)}</strong></td>`
+        return `<tr><td>${p}%</td><td>${fmt(st.conn)}</td><td>${fmt(st.rps, 0)}</td><td>${ex(st.p50_ms)}</td><td>${ex(st.p75_ms)}</td><td>${ex(st.p90_ms)}</td>${hasP95 ? `<td>${ex(st.p95_ms)}</td>` : ''}<td><strong>${ex(st.p99_ms)}</strong></td>`
           + `<td>${fmt(st.cpu_pct, 0)}%</td><td>${fmt(st.gc_pct, 0)}%</td><td>${st.gc_max_ms != null ? fmt(st.gc_max_ms) : '—'}</td><td>${st.old_after_gc_mb != null ? `${fmt(st.old_after_gc_mb / 1024, 1)}GB` : '—'}</td><td>${okText(st)}</td></tr>`;
       }).join('');
-      det.querySelector('[data-stage-table]').innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>부하 (이론 최대 대비)</th><th>커넥션</th><th>요청/초</th><th>p50 추가</th><th>p90 추가</th>${hasP95 ? '<th>p95 추가</th>' : ''}<th>p99 추가 (ms)</th><th>서버 CPU</th><th>GC 정지 비율</th><th>최대 GC 정지 (ms)</th><th>GC 후 old 영역</th><th>결과 (5회)</th></tr></thead><tbody>${rowsH}</tbody></table></div>`
+      det.querySelector('[data-stage-table]').innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>부하 (이론 최대 대비)</th><th>커넥션</th><th>요청/초</th><th>p50 추가</th><th>p75 추가</th><th>p90 추가</th>${hasP95 ? '<th>p95 추가</th>' : ''}<th>p99 추가 (ms)</th><th>서버 CPU</th><th>GC 정지 비율</th><th>최대 GC 정지 (ms)</th><th>GC 후 old 영역</th><th>결과 (5회)</th></tr></thead><tbody>${rowsH}</tbody></table></div>`
         + `<p class="caption">${short(n)} · 힙 ${fmt(T[n].heap_mb / 1024, 1)}GB (상주 ${fmt(T[n].live_mb / 1024, 1)}GB) · 이론 최대 ${fmt(T[n].k)}커넥션. 지연은 대기 ${HOLD}초를 뺀 값(ms), 모든 값은 5회 중앙값. OOM이 난 단계의 CPU·GC는 재시작한 서버의 값이라 참고하지 마세요.</p>`;
     };
     const sel = det.querySelector('[data-pick]');
@@ -188,7 +147,32 @@ export async function render(root, { rows, envelope }) {
     sel.addEventListener('change', onPick); draw(sel.value);
     handles.push({ destroy() { sel.removeEventListener('change', onPick); } });
   }
-  slot('curve-lead').innerHTML = `<p>가로축은 실제 동시 커넥션 수(= 처리 중 요청 수)입니다. 요청마다 ${HOLD}초를 일부러 기다리므로(느린 하위 시스템) 처리량은 이상적으로 커넥션 ÷ ${HOLD}(요청/초)이고, p99는 누구나 ${HOLD}초 + α입니다. 그래서 지연은 ${HOLD}초를 뺀 <strong>추가 지연</strong>(GC 정지·처리 시간)으로 그렸습니다 — 같은 커넥션에서 이 값이 작을수록 GC를 빨리 끝내는 인스턴스입니다. 처리 중 요청이 쌓여 힙이 차면 추가 지연이 급격히 늘고, 살아 있는 데이터가 힙을 넘으면 OOM으로 서버가 재시작합니다(선이 끝나는 곳). C(점선)·M(긴 점선)·R(실선)은 힙 크기가 달라 선이 끝나는 커넥션 수가 다릅니다.</p>`;
+
+  // ---------- 가성비 순위 (표준 리포트의 순위 그림 대체 — 단계 양자화로 '버틴 커넥션' 순위는 패밀리 구분 외 정보가 없음) ----------
+  const maxRps = (n) => T[n].stages[String(T[n].util_pct)]?.rps || null;             // 버틴 단계의 처리량
+  const perM = (n) => (maxRps(n) ? (meta[n].price / 3600 / maxRps(n)) * 1e6 : null); // 100만 요청당 USD
+  const valueRank = (host) => {
+    host.innerHTML = '<div class="chart-row"><div class="chart-box" data-v="cost"></div><div class="chart-box" data-v="cpu"></div></div>';
+    const mk = (el, list, val, title, f) => {
+      el.style.height = `${list.length * 22 + 80}px`;
+      el.innerHTML = '<canvas></canvas>';
+      return new Chart(el.querySelector('canvas'), {
+        type: 'bar',
+        data: { labels: list.map(short), datasets: [{ data: list.map(val), backgroundColor: list.map((n) => archColor(meta[n].arch, shade(n))), borderRadius: 2 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false,
+          scales: { x: { min: 0, title: { display: true, text: title } }, y: { ticks: { autoSkip: false, font: { size: 11 }, callback(v) { const n = list[v]; return n ? `${short(n)}  ${title.includes('패밀리') ? meta[n].family : ''}` : v; } } } },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => f(list[c.dataIndex]) } } } },
+      });
+    };
+    const byM = names.filter((n) => perM(n)).sort((a, b) => perM(a) - perM(b));
+    const famOrder = { C: 0, M: 1, R: 2 };
+    const byC = names.filter((n) => cpuAt(n) != null).sort((a, b) => famOrder[meta[a].family] - famOrder[meta[b].family] || cpuAt(a) - cpuAt(b));
+    const c1 = mk(host.querySelector('[data-v="cost"]'), byM, perM, '100만 요청당 USD (최대 처리량 기준)',
+      (n) => `$${perM(n).toFixed(4)} · ${fmt(maxRps(n), 0)}요청/초 · ${fmt(cap(n))}커넥션 · $${meta[n].price.toFixed(3)}/시간`);
+    const c2 = mk(host.querySelector('[data-v="cpu"]'), byC, cpuAt, `같은 부하(이론 최대 ${REF}%)에서의 서버 CPU (%) — 패밀리 안에서 비교`,
+      (n) => { const st = T[n].stages[REF]; return `${meta[n].family} · CPU ${fmt(cpuAt(n), 0)}% · ${fmt(st.conn)}커넥션 · ${fmt(st.rps, 0)}요청/초 · GC 정지 ${fmt(st.gc_pct, 0)}%`; });
+    return { destroy() { c1.destroy(); c2.destroy(); } };
+  };
 
   // ---------- 표준 리포트 ----------
   const A = envelope.analysis?.sbmem_capacity;
@@ -196,6 +180,9 @@ export async function render(root, { rows, envelope }) {
     handles.push(standardReport(slot('report'), rows, A, {
       unit: '커넥션',
       numberPrefix: '2-',
+      rankTitle: '가성비 순위 — 100만 요청당 비용과 CPU 효율',
+      rankCaption: '왼쪽 = 기준(p99 ≤ 대기 + 1초, 오류 0)을 지키며 낸 최대 처리량으로 100만 요청을 처리하는 비용(낮을수록 좋음). 오른쪽 = 같은 패밀리(같은 RAM·힙) 안에서 같은 부하 단계의 서버 CPU(낮을수록 같은 일을 적은 CPU로 처리 — GC·처리 효율). 패밀리 사이는 힙 크기가 달라 직접 비교하지 않습니다.',
+      rank: (host) => valueRank(host),
       pairFamily: 'm',
       scenarios: [
         scenario(A, '8세대 M', 'm8g.xlarge', 'm8i.xlarge'),
