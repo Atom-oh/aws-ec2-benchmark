@@ -4,26 +4,52 @@
   <p>m7i.xlarge 기준 Spring Boot 트래픽 변화 비교 · 2026.11.04–11.06</p></div>
 </header>
 <section class="section" id="traffic48-summary">
-  <h2>48시간 측정 종료, 비교에는 조건이 있습니다</h2>
-  <p>둘째 날 평상시 부하에서 m7i-flex의 처리량과 p99는 m7i와 거의 같았습니다. 90k 목표 피크 전체 관측에서는 처리량 0.972배, p99 1.064배였습니다. m8i-flex는 m7i 대비 처리량 1.306배, p99 0.771배를 보였습니다.</p>
-  <p><strong>피크 손실을 함께 보세요.</strong> m7i/m7i-flex는 목표 요청의 약 27–29%가 발행되지 않았습니다. 클라이언트 지연·동시성 한도가 섞인 관측이므로 인스턴스의 순수 최대 성능이나 Flex 제한 정책을 확정하지 않습니다.</p>
-  <p>정적 응답 앱 springboot-simple / Java 21 / G1 / 힙 60%, 타입별 1호스트. PetClinic 또는 실제 서비스 지연 목표의 검증이 아닙니다. 원본 <code>complete=false</code>, <code>comparison_valid=false</code>는 보존했습니다. 실행은 끝났으며 분석 대기 상태를 뜻하지 않습니다.</p>
+  <h2>핵심 결과</h2>
+  <div class="summary-cards" data-slot="cards"></div>
+  <div data-slot="lead"></div>
+  <p class="caption">정적 응답 앱 springboot-simple / Java 21 / G1 / 힙 60%, 타입별 1호스트·1회, ap-northeast-2c. PetClinic 또는 실제 서비스 지연 목표의 검증이 아닙니다. 원본 <code>complete=false</code>, <code>comparison_valid=false</code>는 보존했습니다. 실행은 끝났으며 분석 대기 상태를 뜻하지 않습니다. 미발생 = 클라이언트가 예정 시각에 보내지 못한 요청(동시성 한도·클라이언트 지연 포함)으로, p99 계산에서 빠집니다.</p>
 </section>
+<section class="section" id="traffic48-method">
+  <h2>무엇을 측정했나</h2>
+  <table class="report-table">
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>첫째 날</td><td>평상시 → 60 → 80 → 100(피크) → 80 → 60 → 평상시 단계를 6회 반복, 전환 시 60초 ramp</td></tr>
+    <tr><td>둘째 날</td><td>평상시 사이에 1분 · 5분 · 15분 · 60분 피크를 6회 반복. 측정 4.75시간 이후 추가 클라이언트로 피크 합산 목표 90,000 RPS</td></tr>
+    <tr><td>부하</td><td>open-loop 도착 예약(정해진 시각에 요청 발행), 소스당 동시 요청 2,048 한도, 예정보다 10ms 넘게 늦으면 미발생 처리, timeout 2초</td></tr>
+    <tr><td>지연</td><td>p99 = 예정 요청 시각부터 완료까지(실패 포함), 요청 히스토그램을 합친 분위수(구간 p99의 평균 아님)</td></tr>
+    <tr><td>배치</td><td>타입별 서버 1대(JVM 1개), 기본 부하는 대상별 전용 c6in.2xlarge, 추가 부하는 독립 클라이언트</td></tr>
+  </table>
+</section>
+
 <section class="section" id="traffic48-comparison">
   <h2>m7i와 같은 구간 비교</h2>
   <p><label>구간 <select data-select="group"><option value="peak90">90k 목표 피크 · 전체</option><option value="day2_low">둘째 날 평상시</option><option value="all">48시간 전체</option><option value="day1">첫째 날</option><option value="peak_60s">둘째 날 1분 피크</option><option value="peak_300s">둘째 날 5분 피크</option><option value="peak_900s">둘째 날 15분 피크</option><option value="peak_3600s">둘째 날 60분 피크</option></select></label>
   <label>판정 <select data-select="mode"><option value="observed">전체 관측 (품질 제약 포함)</option><option value="strict">원래 판정 통과 교집합</option><option value="idle_qualified">0도착 휴지 예외 후 교집합</option></select></label></p>
-  <p data-slot="comparison-note" role="status"></p><div data-slot="comparison"></div>
+  <p data-slot="comparison-note" role="status"></p>
+  <div class="chart-row"><div><div data-slot="cmp-rps"></div><p class="caption"><strong>그림 1.</strong> 성공 처리량 ÷ m7i. 회색 띠 ±5%, 초록 = m7i보다 유리, 주황 = 불리.</p></div>
+  <div><div data-slot="cmp-p99"></div><p class="caption"><strong>그림 2.</strong> p99 ÷ m7i (낮을수록 유리).</p></div></div>
+  <div data-slot="comparison"></div>
   <p>성공 RPS 배수는 높을수록, p99 배수는 낮을수록 m7i 대비 유리합니다. p99는 요청 히스토그램을 합쳐 계산했습니다. 판정 교집합은 행마다 다르므로 행 간 직접 순위는 의미하지 않습니다. 미발생 요청은 p99에서 빠지며 별도 손실로 표시합니다.</p>
+</section>
+<section class="section" id="traffic48-peaks">
+  <h2>피크가 길어질 때 (둘째 날 1 · 5 · 15 · 60분 피크)</h2>
+  <div data-slot="peak-lead"></div>
+  <div class="chart-row"><div><div data-slot="peak-rps"></div><p class="caption"><strong>그림 3.</strong> 피크 길이별 성공 처리량 ÷ m7i (각 6회 합산). 점선 = Flex, 진한 색 = 8세대.</p></div>
+  <div><div data-slot="peak-p99"></div><p class="caption"><strong>그림 4.</strong> 피크 길이별 p99 ÷ m7i (낮을수록 유리).</p></div></div>
 </section>
 <section class="section" id="traffic48-time">
   <h2>48시간 변화</h2>
-  <p>모든 완료 구간의 관측값입니다. 가로축은 구간 종료 시각(측정 시작 후 시간), 각 점은 해당 구간 통계입니다. 점 사이 선은 실제 순간값이 아닙니다. 범례로 타입을 숨기거나 선택하고, 점 위에서 원래 품질 플래그를 확인할 수 있습니다.</p>
+  <p>피크와 평상시를 한 선에 그리면 지그재그가 되어 읽기 어려우므로, <strong>같은 종류의 구간만 골라</strong> 시간에 따라 이어 봅니다. 기본은 피크 구간의 m7i 대비 배수입니다. 선이 오른쪽(48시간 쪽)으로 갈수록 내려가면 장시간 부하 뒤 성능이 떨어진다는 뜻입니다. 각 점은 한 구간의 통계이고 점 사이 선은 실제 순간값이 아닙니다. 범례를 눌러 타입을 숨길 수 있고, 점에 마우스를 올리면 구간 이름·목표 RPS·원래 품질 플래그가 나옵니다.</p>
   <div data-slot="charts"></div>
+  <p class="caption"><strong>그림 5.</strong> 48시간 동안의 구간별 지표(구간·지표·표시 선택).</p>
 </section>
 <section class="section" id="traffic48-quality">
   <h2>클라이언트·GC·복귀의 해석 범위</h2>
   <div data-slot="quality"></div>
+  <p class="caption"><strong>표 2.</strong> 구간 품질 — 원래 판정 통과 수가 적을수록 그 인스턴스의 비교는 클라이언트 제약이 섞인 관측입니다.</p>
+  <h3>메모리 · GC</h3>
+  <div data-slot="memory"></div>
+  <p class="caption"><strong>표 3.</strong> 48시간 전체. 힙은 10초 Actuator 표본(RSS 아님), GC 횟수·정지 합계는 확보한 로그 기준 하한.</p>
   <p>boost coverage 플래그 59개 중 54개는 예정 도착 0인 휴지 구간입니다. 예외는 스케줄 적분=0, 모든 카운터=0, 빈 히스토그램, base accounting 정상, 양 소스 COMPLETE/전역 오류 없음일 때 coverage 플래그 하나에만 적용합니다. 남은 5개는 60초 감소 ramp에 요청이 있어 예외에서 제외합니다. 원래 플래그는 계속 보존합니다.</p>
   <p>힙은 10초 표본이며 RSS가 아닙니다. GC 횟수·시간은 확보 로그의 하한, coverage는 보존 추정치입니다. 원래 판정에서 타입별 24개 회복 구간 모두 유효하지 않아 정확한 회복 초는 확정하지 않습니다. null은 복귀 실패를 뜻하지 않습니다.</p>
   <p>JVM CPU는 수집된 process.cpu.usage 값입니다. 일부 호스트의 요청량과 CPU 패턴이 일치하지 않으며, steal time·주파수·quota 정보가 없어 CPU 값으로 throttling을 확정할 수 없습니다. 단일 호스트의 결과를 제품 전체로 일반화하지 않습니다.</p>
@@ -31,5 +57,8 @@
 <section class="section" id="traffic48-artifacts">
   <h2>전체 원본과 재현</h2>
   <p>189개 파일, 5.87GB 원본을 19개 조각(최대 48 MiB), 약 908MB로 무손실 압축했습니다. 파일별 SHA-256과 스트리밍 복원 도구를 제공합니다. 별도 지속 부하 실험은 타입별 2,842개 CSV 표본이 약 47.47시간까지 남아 있습니다. 요약 파일은 5.17/11.94시간 시점에서 멈춰 있고 status는 RUNNING이므로, 48시간 완료 결과로 간주하거나 본 실험과 합치지 않았습니다.</p>
+  <h3>보조: Flex 지속 부하 실험 (본 실험과 합치지 않음)</h3>
+  <div data-slot="flex48"></div>
+  <p class="caption">별도 실행(springboot-flex48)의 첫 1시간과 마지막 30표본 비교. 요약 status가 RUNNING으로 남아 48시간 완료 결과로 간주하지 않습니다 — 참고용.</p>
   <p data-slot="downloads"></p>
 </section>
