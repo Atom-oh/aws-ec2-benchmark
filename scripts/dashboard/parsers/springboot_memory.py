@@ -43,7 +43,11 @@ def parse_log(path):
         except json.JSONDecodeError:
             s = {}
         timeouts = re.search(r"timeout (\d+)", body)
+        # p95·p99.9는 wrk 기본 출력에 없어 클라이언트 lua done()이 'LAT_P95_MS: <ms>' 형식으로 찍은 경우에만(2026-11-06 이후)
+        extra = {k: float(m.group(1)) for k, pat in (("p95_ms", r"^LAT_P95_MS: ([\d.]+)"), ("p999_ms", r"^LAT_P999_MS: ([\d.]+)"))
+                 if (m := re.search(pat, body, re.M))}
         stage = {"conn": int(c), "rps": w.get("rps"), "p99_ms": w.get("p99_ms"), "p50_ms": w.get("p50_ms"),
+                 "p90_ms": w.get("p90_ms"), **extra,
                  "errors": w.get("errors"), "timeouts": int(timeouts.group(1)) if timeouts else 0,
                  "gc_max_ms": s.get("gc_pause_max_ms"), "gc_total_ms": s.get("gc_pause_total_ms"),
                  "gc_over100": s.get("gc_pause_over100ms"), "old_after_gc_mb": s.get("old_after_gc_mb"),
@@ -82,7 +86,8 @@ def build():
             med = lambda k: (round(statistics.median([v[k] for v in vals if v.get(k) is not None]), 1)  # noqa: E731
                              if any(v.get(k) is not None for v in vals) else None)
             gc_share = [v["gc_total_ms"] / (v["window_s"] * 10) for v in vals if v.get("gc_total_ms") is not None and v.get("window_s")]
-            stage_med[str(p)] = {"conn": med("conn"), "rps": med("rps"), "p99_ms": med("p99_ms"), "gc_max_ms": med("gc_max_ms"),
+            stage_med[str(p)] = {"conn": med("conn"), "rps": med("rps"), "p99_ms": med("p99_ms"), "p50_ms": med("p50_ms"),
+                                 "p90_ms": med("p90_ms"), "p95_ms": med("p95_ms"), "p999_ms": med("p999_ms"), "gc_max_ms": med("gc_max_ms"),
                                  "gc_pct": round(statistics.median(gc_share), 1) if gc_share else None,
                                  "old_after_gc_mb": med("old_after_gc_mb"), "inflight_peak": med("inflight_peak"),
                                  "cpu_pct": med("cpu_pct"), "errors": sum((v.get("errors") or 0) for v in vals),
