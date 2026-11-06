@@ -59,21 +59,40 @@ export async function render(root, { rows, envelope }) {
   }).join('');
   slot('results').innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>인스턴스</th><th>아키텍처</th><th>RAM</th><th>힙</th><th>이론 최대</th><th>버틴 커넥션</th><th>힙 활용률</th><th>$/시간</th><th>1,000커넥션당 $/시간</th><th>가격 대비 성능 (${BASE ? short(BASE) : ''} = 1.00배)</th><th>GC 비율 (버틴 단계)</th><th>먼저 찬 자원 (다음 단계에서 실패한 원인)</th><th>회차별</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 
-  // ---------- 그림 1: 부하(이론 최대 대비 %)별 p99 ----------
+  // ---------- 그림 1: 부하 단계별 지표 (선택: 추가 지연 p50/p90/p95/p99, 서버 CPU, GC 정지, 처리량) ----------
+  const lat = (k) => (s) => (s && s[k] ? Math.max(s[k] - HOLD * 1000, 5) : null);  // 대기 시간을 뺀 추가 지연(ms)
+  const anyStage = (k) => names.some((n) => Object.values(T[n].stages).some((s) => s[k] != null));
+  const METRICS = [
+    { id: 'p99', label: 'p99 추가 지연', get: lat('p99_ms'), axis: `p99 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true, line: (SLO - HOLD) * 1000, lineLabel: '판정선 +1,000ms' },
+    anyStage('p95_ms') && { id: 'p95', label: 'p95 추가 지연', get: lat('p95_ms'), axis: `p95 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true },
+    { id: 'p90', label: 'p90 추가 지연', get: lat('p90_ms'), axis: `p90 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true },
+    { id: 'p50', label: 'p50 추가 지연', get: lat('p50_ms'), axis: `p50 − 대기 ${HOLD}초 (ms, 로그 축)`, log: true },
+    { id: 'cpu', label: '서버 CPU', get: (s) => (s && !s.errors ? s.cpu_pct : null), axis: '서버 프로세스 CPU (%, vCPU 4개 = 100%)', max: 100, line: envelope.cpu_limit_pct || 70, lineLabel: 'CPU 한계 기준' },
+    { id: 'gc', label: 'GC 정지 비율', get: (s) => (s && !s.errors ? s.gc_pct : null), axis: '90초 중 GC 정지 시간 (%)', max: 100 },
+    { id: 'rps', label: '처리량', get: (s) => (s && !s.errors ? s.rps : null), axis: '요청/초 (= 커넥션 ÷ 대기 10초가 이상적)' },
+  ].filter(Boolean);
   const el = slot('curve');
-  el.innerHTML = '<div class="chart-box" style="height:380px"><canvas></canvas></div>';
-  const ds = CURVE.filter((n) => T[n] && meta[n]).map((n) => ({
-    label: short(n), inst: n, pointRadius: 3, pointHoverRadius: 6,
-    data: PCTS.map((p) => { const s = T[n].stages[String(p)]; return s && s.p99_ms ? s.p99_ms / 1000 : null; }),
-    borderColor: archColor(meta[n].arch, 0.9), backgroundColor: archColor(meta[n].arch, 0.9),
-    borderDash: meta[n].family === 'C' ? [4, 4] : meta[n].family === 'R' ? [] : [8, 3], spanGaps: false, tension: 0.2,
-  }));
-  ds.push({ label: `기준 ${SLO}초`, data: PCTS.map(() => SLO), borderColor: '#94a3b8', borderDash: [2, 4], pointRadius: 0 });
+  el.innerHTML = `<div class="subnav" data-metrics>${METRICS.map((m, i) => `<button type="button" class="subnav-link${i ? '' : ' active'}" data-m="${m.id}">${m.label}</button>`).join('')}</div>`
+    + '<div class="chart-box" style="height:380px"><canvas></canvas></div>';
+  const insts = CURVE.filter((n) => T[n] && meta[n]);
+  const okText = (st) => (st.slo_pass === st.runs ? '통과' : st.slo_pass ? `${st.slo_pass}/${st.runs}회 통과` : st.errors ? '실패(OOM)' : '실패');
+  const build = (m) => {
+    const ds = insts.map((n) => ({
+      label: short(n), inst: n, pointRadius: 3, pointHoverRadius: 6,
+      data: PCTS.map((p) => m.get(T[n].stages[String(p)])),
+      borderColor: archColor(meta[n].arch, 0.9), backgroundColor: archColor(meta[n].arch, 0.9),
+      borderDash: meta[n].family === 'C' ? [4, 4] : meta[n].family === 'R' ? [] : [8, 3], spanGaps: false, tension: 0.2,
+    }));
+    if (m.line != null) ds.push({ label: m.lineLabel, data: PCTS.map(() => m.line), borderColor: '#94a3b8', borderDash: [2, 4], pointRadius: 0 });
+    return ds;
+  };
+  let cur = METRICS[0];
+  const yScale = (m) => (m.log ? { type: 'logarithmic', min: 5, title: { display: true, text: m.axis } }
+    : { type: 'linear', min: 0, ...(m.max ? { max: m.max } : {}), title: { display: true, text: m.axis } });
   const chart = new Chart(el.querySelector('canvas'), {
-    type: 'line', data: { labels: PCTS.map((p) => `${p}%`), datasets: ds },
+    type: 'line', data: { labels: PCTS.map((p) => `${p}%`), datasets: build(cur) },
     options: { responsive: true, maintainAspectRatio: false, animation: false,
-      scales: { y: { min: HOLD * 0.95, title: { display: true, text: 'p99 (초)' } },
-        x: { title: { display: true, text: '동시 커넥션 (이론 최대 처리 중 요청 수 대비 %)' } } },
+      scales: { y: yScale(cur), x: { title: { display: true, text: '동시 커넥션 (이론 최대 처리 중 요청 수 대비 %)' } } },
       // 마우스 위치의 부하 단계(가로축)에 있는 모든 인스턴스 값을 한 번에 보여 준다(점 위에 정확히 올리지 않아도 됨)
       interaction: { mode: 'index', intersect: false },
       plugins: {
@@ -87,15 +106,44 @@ export async function render(root, { rows, envelope }) {
               const n = it.dataset.inst;
               if (!n) return `${it.dataset.label}`;
               const st = T[n].stages[String(PCTS[it.dataIndex])] || {};
-              const ok = st.slo_pass === st.runs ? '통과' : st.slo_pass ? `${st.slo_pass}/${st.runs}회 통과` : '실패';
-              return `${it.dataset.label}: p99 ${fmt(it.parsed.y, 2)}초 · ${fmt(st.conn)}커넥션 · CPU ${fmt(st.cpu_pct, 0)}% · GC ${fmt(st.gc_pct, 0)}% · ${ok}`;
+              const ex = (k) => (st[k] ? `+${fmt(st[k] - HOLD * 1000)}` : '—');
+              return `${it.dataset.label}: ${fmt(st.conn)}커넥션 · 추가 지연 p50 ${ex('p50_ms')} / p90 ${ex('p90_ms')}${st.p95_ms ? ` / p95 ${ex('p95_ms')}` : ''} / p99 ${ex('p99_ms')}ms · CPU ${fmt(st.cpu_pct, 0)}% · GC ${fmt(st.gc_pct, 0)}% · ${okText(st)}`;
             },
           },
         },
       } },
   });
-  handles.push({ destroy() { chart.destroy(); } });
-  slot('curve-lead').innerHTML = `<p>요청마다 ${HOLD}초를 기다리므로 여유가 있을 때 p99는 ${HOLD}초 남짓입니다. 처리 중 요청이 쌓여 힙이 차면 GC가 길어지면서 p99가 급격히 늘고, 살아 있는 데이터가 힙을 넘으면 OOM으로 서버가 재시작합니다(점이 끊김). 가로축을 인스턴스별 이론 최대 대비 %로 맞춰 힙 크기가 다른 C·M·R을 같은 눈금에서 비교합니다. 점선 = C, 긴 점선 = M, 실선 = R.</p>`;
+  const onClick = (e) => {
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    cur = METRICS.find((m) => m.id === b.dataset.m);
+    el.querySelectorAll('[data-m]').forEach((x) => x.classList.toggle('active', x === b));
+    chart.data.datasets = build(cur); chart.options.scales.y = yScale(cur); chart.update();
+  };
+  el.addEventListener('click', onClick);
+  handles.push({ destroy() { el.removeEventListener('click', onClick); chart.destroy(); } });
+
+  // ---------- 표 2: 인스턴스별 커넥션 단계 상세 ----------
+  const det = slot('stages');
+  if (det) {
+    const opts = byCost.concat(names.filter((n) => !cost(n)));
+    det.innerHTML = `<label class="stage-pick">인스턴스 <select data-pick>${opts.map((n) => `<option value="${n}"${n === 'm8i.xlarge' ? ' selected' : ''}>${short(n)}</option>`).join('')}</select></label><div data-stage-table></div>`;
+    const draw = (n) => {
+      const hasP95 = Object.values(T[n].stages).some((s) => s.p95_ms != null);
+      const ex = (v) => (v ? `+${fmt(v - HOLD * 1000)}` : '—');
+      const rowsH = PCTS.filter((p) => T[n].stages[String(p)]).map((p) => {
+        const st = T[n].stages[String(p)];
+        return `<tr><td>${p}%</td><td>${fmt(st.conn)}</td><td>${fmt(st.rps, 0)}</td><td>${ex(st.p50_ms)}</td><td>${ex(st.p90_ms)}</td>${hasP95 ? `<td>${ex(st.p95_ms)}</td>` : ''}<td><strong>${ex(st.p99_ms)}</strong></td>`
+          + `<td>${fmt(st.cpu_pct, 0)}%</td><td>${fmt(st.gc_pct, 0)}%</td><td>${st.gc_max_ms != null ? fmt(st.gc_max_ms) : '—'}</td><td>${st.old_after_gc_mb != null ? `${fmt(st.old_after_gc_mb / 1024, 1)}GB` : '—'}</td><td>${okText(st)}</td></tr>`;
+      }).join('');
+      det.querySelector('[data-stage-table]').innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>부하</th><th>커넥션</th><th>요청/초</th><th>p50 추가</th><th>p90 추가</th>${hasP95 ? '<th>p95 추가</th>' : ''}<th>p99 추가 (ms)</th><th>서버 CPU</th><th>GC 정지 비율</th><th>최대 GC 정지 (ms)</th><th>GC 후 old 영역</th><th>결과 (5회)</th></tr></thead><tbody>${rowsH}</tbody></table></div>`
+        + `<p class="caption">${short(n)} · 힙 ${fmt(T[n].heap_mb / 1024, 1)}GB (상주 ${fmt(T[n].live_mb / 1024, 1)}GB) · 이론 최대 ${fmt(T[n].k)}커넥션. 지연은 대기 ${HOLD}초를 뺀 값(ms), 모든 값은 5회 중앙값. OOM이 난 단계의 CPU·GC는 재시작한 서버의 값이라 참고하지 마세요.</p>`;
+    };
+    const sel = det.querySelector('[data-pick]');
+    const onPick = () => draw(sel.value);
+    sel.addEventListener('change', onPick); draw(sel.value);
+    handles.push({ destroy() { sel.removeEventListener('change', onPick); } });
+  }
+  slot('curve-lead').innerHTML = `<p>요청마다 ${HOLD}초를 일부러 기다리므로(느린 하위 시스템) p99는 누구나 ${HOLD}초 + α입니다. 그래서 세로축은 ${HOLD}초를 뺀 <strong>추가 지연</strong>(GC 정지·처리 시간)으로 그렸습니다. 같은 부하에서 이 값이 작을수록 GC를 빨리 끝내는 인스턴스입니다. 처리 중 요청이 쌓여 힙이 차면 GC가 길어지면서 p99가 급격히 늘고, 살아 있는 데이터가 힙을 넘으면 OOM으로 서버가 재시작합니다(점이 끊김). 가로축을 인스턴스별 이론 최대 대비 %로 맞춰 힙 크기가 다른 C·M·R을 같은 눈금에서 비교합니다. 점선 = C, 긴 점선 = M, 실선 = R.</p>`;
 
   // ---------- 표준 리포트 ----------
   const A = envelope.analysis?.sbmem_capacity;
