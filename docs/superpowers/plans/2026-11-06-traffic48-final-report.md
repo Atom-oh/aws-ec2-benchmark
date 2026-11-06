@@ -14,4 +14,5 @@ Completed: 189 raw files packaged/verified; reproducible report/CSV/SPA/PNG/SVG 
 86 analyzer + 6 report/archive + 5 legacy load tests and Go tests passed; browser desktop/mobile
 passed after latest-main rebase. Independent review final 96/100, no remaining findings.
 Supplemental CSV actually spans ~47.47h; stale 5.17/11.94h summaries are explicitly distinguished.
-PR branch contains all data and source; publishing PR is the remaining step.
+PR created: https://github.com/Atom-oh/aws-ec2-benchmark/pull/11 . All data/source pushed;
+PR open and mergeable. No merge or site deployment performed.
