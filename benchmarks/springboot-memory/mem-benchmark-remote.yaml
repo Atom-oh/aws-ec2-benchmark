@@ -1,13 +1,18 @@
-# Spring Boot 메모리 부하 클라이언트(wrk) — 12GB/24GB 서버 공용. SERVICE_NAME/SERVER_APP_LABEL/JOB_NAME/RUN_NUM은
+# Spring Boot 메모리 부하 클라이언트(wrk). SERVICE_NAME/SERVER_APP_LABEL/JOB_NAME/RUN_NUM은
 # scripts/generate-cache-remote-benchmark.sh가 치환한다.
 #
 # 재현하려는 운영 상황: 평소 힙 절반은 상주 데이터(캐시)가 차지하고, 트래픽이 몰리거나 하위 시스템이 느려지면
-# 처리 중 요청이 쌓인다. 요청마다 큰 본문(64KB)을 받아 1MB 작업 객체로 펼친 채 1초간 들고 있으므로
-# 동시 커넥션 수 ≈ 처리 중 요청 수 ≈ 힙에 쌓인 작업 객체(1MB씩). 커넥션을 단계적으로 늘려 힙이 차고
-# GC가 압박받는 지점을 찾는다(서버는 가상 스레드라 Tomcat 스레드 풀 제한이 없음).
+# 처리 중 요청이 쌓인다. 요청마다 본문을 받아 1MB 작업 객체로 펼친 채 대기 시간(HOLD_MS, 10초) 동안 들고 있으므로
+# 동시 커넥션 수 ≈ 처리 중 요청 수 ≈ 힙에 쌓인 작업 객체(1MB씩).
 #
-# 단계(회차마다): 워밍업 → 커넥션 256 / 1024 / 2048 / 3072 / 4096 / 6144 각 60s. /process는 요청마다 상주 캐시 1항목도 교체한다
-# (요청이 세션/캐시를 갱신하는 운영 패턴 — 별도 백그라운드 트래픽은 CPU를 포화시켜 제거). 단계마다 서버 /stats(STATS_C<n>).
+# 단계: 서버 /version의 heap_max_mb·entries·entry_kb·work_kb로 '남은 힙 ÷ 작업 객체' = 이론 최대 처리 중 요청 수(K)를
+# 구하고, 커넥션을 K의 25/50/60/70/80/90/100/110%로 늘린다(각 90s) — 힙 크기가 다른 C/M/R을 같은 해상도로
+# 절벽 직전까지 측정(1차 설계의 고정 단계 2048→3072는 작은 힙에서 GC 압박 구간을 건너뛰고 바로 OOM).
+# 커넥션별 첫 요청은 0~대기 시간 무작위 지연(wrk delay) — 동시 시작 + 고정 대기면 대기마다 전 요청이 한순간에 몰려(1차 본 측정에서
+# R 25% 단계 GC 3~5%인데 p99 꼬리 1.3초) 큰 인스턴스일수록 순간 할당 폭이 커져 불리했음 → 고른 도착(초당 C/대기)으로.
+# 단계 실패(p99 > 대기 + 1초·오류·서버 무응답)가 2번 연속이면 중단. OOM 재시작 후엔 서버가 다시 준비될 때까지 기다린다.
+# 본문 8KB: 64KB면 R 최대 단계에서 네트워크(xlarge 기준 대역폭)가 먼저 교란 변수가 될 수 있다.
+# 서버는 본문 크기와 무관하게 WORK_KB(1MB) 작업 객체를 만든다.
 ---
 apiVersion: batch/v1
 kind: Job
@@ -71,26 +76,46 @@ spec:
               ulimit -n 65536 2>/dev/null
               URL="http://SERVICE_NAME:8080"
               VER=$(wget -q -O - ${URL}/version)
-              N=$(echo "$VER" | sed -n 's/.* entries \([0-9]*\) .*/\1/p')
               echo "===== SpringBoot Memory Benchmark: ${TARGET_INSTANCE} run RUN_NUM ====="
               echo "Server-Version: ${VER}"
               echo "Client-Node: ${CLIENT_NODE}"
               echo "Timestamp: $(date -Iseconds)"
+              K=$(echo "$VER" | awk '{for(i=1;i<NF;i++)v[$i]=$(i+1)} END{printf "%d", (v["heap_max_mb"]-v["entries"]*v["entry_kb"]/1024)/(v["work_kb"]/1024)}')
+              HOLD=$(echo "$VER" | awk '{for(i=1;i<NF;i++)v[$i]=$(i+1)} END{print v["hold_ms"]+0}')
+              SLO=$((HOLD + 1000))
+              echo "INFLIGHT_MAX_THEORY: ${K}"
+              echo "SLO_P99_MS: ${SLO}"
               cat > /tmp/post.lua <<'LUA'
               wrk.method = "POST"
               wrk.headers["Content-Type"] = "application/octet-stream"
-              wrk.body = string.rep("0123456789abcdef", 4096)
+              wrk.body = string.rep("0123456789abcdef", 512)
+              -- 커넥션별 첫 요청만 0~HOLD 무작위 지연: 전 커넥션이 동시에 시작해 HOLD마다 같은 순간에 몰리는
+              -- '동기화된 파도'(순간 수 GB 할당)를 없애 초당 C/HOLD의 고른 도착으로 만든다. delay는 지연시간 측정에 안 들어감.
+              local first, hold = 0, 0
+              function init(args) first = tonumber(args[1]) or 0; hold = tonumber(args[2]) or 0; math.randomseed(os.time() + first) end
+              function delay() if first > 0 then first = first - 1; return math.random(0, hold) end return 0 end
               LUA
+              wait_ready() { i=0; until wget -q -T 5 -O - ${URL}/health 2>/dev/null | grep -q ok; do i=$((i+1)); [ $i -gt 200 ] && return 1; sleep 3; done; }
 
               echo "=== Warm-up (64 connections, 30s) ==="
               wrk -t4 -c64 -d30s -s /tmp/post.lua ${URL}/process > /dev/null 2>&1
-              for C in 256 1024 2048 3072 4096 6144; do
+              FAILS=0
+              for PCT in 25 50 60 70 80 90 100 110; do
+                C=$((K * PCT / 100)); [ $C -lt 16 ] && C=16
+                wait_ready || { echo "SERVER_NOT_READY before PCT ${PCT}"; break; }
                 wget -q -O - "${URL}/stats?reset=1" > /dev/null
-                echo "=== Stage connections=${C} (process, 6 threads, 60s) ==="
-                wrk -t6 -c${C} -d60s --timeout 10s --latency -s /tmp/post.lua ${URL}/process
+                echo "=== Stage connections=${C} pct=${PCT} (process, 6 threads, 90s) ==="
+                wrk -t6 -c${C} -d90s --timeout 30s --latency -s /tmp/post.lua ${URL}/process -- $(( (C + 5) / 6 )) ${HOLD} > /tmp/w.txt 2>&1
+                cat /tmp/w.txt
                 echo "END_C${C}"
-                echo "STATS_C${C}: $(wget -q -T 20 -O - "${URL}/stats?reset=1" || echo '{"error":"stats unavailable"}')"
+                ST=$(wget -q -T 20 -O - "${URL}/stats?reset=1" || echo '{"error":"stats unavailable"}')
+                echo "STATS_C${C}: ${ST}"
                 echo ""
+                P99=$(awk '$1=="99%"{v=$2; u=v; gsub(/[0-9.]/,"",u); gsub(/[a-z]/,"",v); m=(u=="us")?v/1000:(u=="ms")?v:(u=="s")?v*1000:(u=="m")?v*60000:999999; printf "%d", m}' /tmp/w.txt)
+                if [ -z "$P99" ] || [ "$P99" -gt "$SLO" ] || grep -qE "Socket errors|Non-2xx" /tmp/w.txt || echo "$ST" | grep -q error; then
+                  FAILS=$((FAILS+1)); echo "STAGE_FAIL pct=${PCT} p99_ms=${P99:-na}"
+                else FAILS=0; fi
+                [ $FAILS -ge 2 ] && { echo "STOP_AFTER_2_FAILS"; break; }
                 sleep 5
               done
               echo "Benchmark Complete"
