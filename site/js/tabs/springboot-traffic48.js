@@ -1,7 +1,7 @@
 import { fmt } from '../shared.js';
 
 const COLORS = ['#2563eb','#9333ea','#0891b2','#db2777','#059669','#d97706'];
-const REPO = 'https://github.com/Atom-oh/aws-ec2-benchmark/blob/report/traffic48-final-raw/reports/traffic48-final/';
+const REPO = 'https://github.com/Atom-oh/aws-ec2-benchmark/blob/92b5d5092ba5c94e3664a9f9f58e773ff0b36c82/reports/traffic48-final/';
 const cell = (v,d=3) => v == null ? '—' : fmt(v,d);
 
 export async function render(root,{envelope:e}) {
