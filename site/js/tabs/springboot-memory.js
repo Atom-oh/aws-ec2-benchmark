@@ -68,7 +68,7 @@ export async function render(root, { rows, envelope }) {
   quad.innerHTML = `<div class="ts-controls"><label>패밀리 <select data-q="fam">${famList.map((f) => `<option value="${f}"${f === 'M' ? ' selected' : ''}>${f} (${names.filter((n) => meta[n].family === f).length}개, RAM ${meta[names.find((n) => meta[n].family === f)].mem_mb / 1024} GiB)</option>`).join('')}</select></label>`
     + `<label>지연 분위수 <select data-q="pct">${PCTL.map(([k, l]) => `<option value="${k}"${k === 'p99_ms' ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>`
     + '<div class="quad-grid">'
-    + [['rps-cpu', '그림 1. 처리량 / 서버 CPU'], ['rps-conn', '그림 2. 처리량 / 동시 커넥션'], ['lat-cpu', '그림 3. 지연 / 서버 CPU'], ['lat-conn', '그림 4. 지연 / 동시 커넥션']]
+    + [['rps-cpu', '그림 1. 처리량 / 서버 CPU'], ['rps-conn', '그림 2. 처리량 / 동시 커넥션'], ['lat-cpu', '그림 3. 지연 / 서버 CPU'], ['lat-conn', '그림 4. 지연 / 동시 커넥션'], ['cpu-conn', '그림 5. 서버 CPU / 동시 커넥션'], ['gc-conn', '그림 6. GC 정지 비율 / 동시 커넥션']]
       .map(([k, t]) => `<div><h3 class="quad-title">${t}</h3><div class="chart-box" style="height:300px"><canvas data-c="${k}"></canvas></div></div>`).join('') + '</div>';
   const q = (k) => quad.querySelector(`[data-q="${k}"]`);
   const shade = (n) => (meta[n].gen >= 8 ? 0.95 : meta[n].gen >= 7 ? 0.65 : 0.4);
@@ -79,6 +79,8 @@ export async function render(root, { rows, envelope }) {
     'rps-conn': { x: (st) => st.conn, y: (st) => st.rps, xt: '동시 커넥션', yt: '처리량 (요청/초)', ideal: true },
     'lat-cpu': { x: (st) => st.cpu_pct, y: (st, k) => exLat(st, k), xt: '서버 CPU (%)', yt: '추가 지연 (ms, 로그 축)', log: true, xmax: 100, slo: true },
     'lat-conn': { x: (st) => st.conn, y: (st, k) => exLat(st, k), xt: '동시 커넥션', yt: '추가 지연 (ms, 로그 축)', log: true, slo: true },
+    'cpu-conn': { x: (st) => st.conn, y: (st) => st.cpu_pct, xt: '동시 커넥션', yt: '서버 CPU (%)', ymax: 100, cpuLine: true },
+    'gc-conn': { x: (st) => st.conn, y: (st) => st.gc_pct, xt: '동시 커넥션', yt: 'GC 정지 비율 (%, 90초 중)', ymax: 100 },
   };
   const quadCharts = {};
   const quadData = (key) => {
@@ -92,6 +94,7 @@ export async function render(root, { rows, envelope }) {
     }));
     const xs = ds.flatMap((d) => d.data.map((v) => v.x)), xm = ax.xmax || Math.max(...xs, 1);
     if (ax.ideal) ds.push({ label: '이상적 (커넥션 ÷ 10초)', data: [{ x: 0, y: 0 }, { x: xm, y: xm / HOLD }], showLine: true, pointRadius: 0, borderColor: '#94a3b8', borderDash: [2, 4] });
+    if (ax.cpuLine) ds.push({ label: `CPU 한계 기준 ${envelope.cpu_limit_pct || 70}%`, data: [{ x: 0, y: envelope.cpu_limit_pct || 70 }, { x: xm, y: envelope.cpu_limit_pct || 70 }], showLine: true, pointRadius: 0, borderColor: '#94a3b8', borderDash: [2, 4] });
     if (ax.slo) ds.push({ label: '판정선 +1,000ms', data: [{ x: 0, y: (SLO - HOLD) * 1000 }, { x: xm, y: (SLO - HOLD) * 1000 }], showLine: true, pointRadius: 0, borderColor: '#94a3b8', borderDash: [2, 4] });
     return ds;
   };
@@ -101,7 +104,7 @@ export async function render(root, { rows, envelope }) {
       type: 'scatter', data: { datasets: quadData(key) },
       options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'nearest', intersect: false },
         scales: { x: { min: 0, ...(ax.xmax ? { max: ax.xmax } : {}), title: { display: true, text: ax.xt } },
-          y: ax.log ? { type: 'logarithmic', min: 5, title: { display: true, text: ax.yt } } : { min: 0, title: { display: true, text: ax.yt } } },
+          y: ax.log ? { type: 'logarithmic', min: 5, title: { display: true, text: ax.yt } } : { min: 0, ...(ax.ymax ? { max: ax.ymax } : {}), title: { display: true, text: ax.yt } } },
         plugins: { legend: { position: 'bottom', labels: { boxWidth: 18 } },
           tooltip: { callbacks: {
             title: (it) => (it[0]?.raw?.st ? `${it[0].dataset.label} · ${fmt(it[0].raw.st.conn)}커넥션` : ''),
@@ -121,10 +124,16 @@ export async function render(root, { rows, envelope }) {
   // 패밀리 사이 비교는 하지 않는다(힙이 작을수록 같은 요청에도 GC가 더 자주 돌아 CPU가 늘어 프로세서 차이와 섞임).
   const REF = '70';
   const cpuAt = (n) => { const st = T[n].stages[REF]; return st && !st.errors && st.cpu_pct != null ? st.cpu_pct : null; };
+  const peakCpu = (n) => Math.max(...Object.values(T[n].stages).filter((st) => !st.errors && st.cpu_pct != null).map((st) => st.cpu_pct));
+  const range = (ns) => { const v = ns.map(peakCpu).filter(Number.isFinite); return v.length ? `${fmt(Math.min(...v), 0)}~${fmt(Math.max(...v), 0)}%` : '—'; };
+  const g78 = names.filter((n) => meta[n].arch === 'graviton' && meta[n].gen >= 7), iAll = names.filter((n) => meta[n].arch === 'intel');
+  const cpuSat = names.filter((n) => peakCpu(n) >= (envelope.cpu_limit_pct || 70));
   const famPair = (g, i) => (T[g] && T[i] && cpuAt(g) != null && cpuAt(i) != null ? `${short(g)} ${fmt(cpuAt(g), 0)}% vs ${short(i)} ${fmt(cpuAt(i), 0)}%` : '');
   slot('quad-lead').innerHTML = `<p>요청마다 ${HOLD}초를 일부러 기다리므로(느린 하위 시스템) 처리량은 이상적으로 커넥션 ÷ ${HOLD}이고, 지연은 ${HOLD}초를 뺀 <strong>추가 지연</strong>(GC 정지·처리 시간)으로 그렸습니다. `
     + '같은 패밀리는 RAM·힙이 같아 같은 커넥션에서 바로 비교할 수 있습니다. 위 선택으로 패밀리와 지연 분위수를 바꿀 수 있고, 점에 마우스를 올리면 그 단계의 처리량·CPU·GC·분위수가 모두 나옵니다.</p>'
-    + `<p><strong>처리량은 같은 커넥션에서 거의 같고(그림 2), 차이는 그 처리량을 내는 데 드는 CPU와 지연에서 납니다(그림 1·3).</strong> 같은 부하(이론 최대의 ${REF}% 단계)에서 서버 CPU는 ${[['c8g.xlarge', 'c8i.xlarge'], ['m8g.xlarge', 'm8i.xlarge'], ['r8g.xlarge', 'r8i.xlarge'], ['r6g.xlarge', 'r6i.xlarge']].map(([g, i]) => famPair(g, i)).filter(Boolean).join(', ')}. 선이 끝나는 지점은 OOM(메모리 한계) 직전 단계입니다.</p>`;
+    + `<p><strong>처리량은 같은 커넥션에서 거의 같고(그림 2), 차이는 그 처리량을 내는 데 드는 CPU와 지연에서 납니다(그림 1·3).</strong> 같은 부하(이론 최대의 ${REF}% 단계)에서 서버 CPU는 ${[['c8g.xlarge', 'c8i.xlarge'], ['m8g.xlarge', 'm8i.xlarge'], ['r8g.xlarge', 'r8i.xlarge'], ['r6g.xlarge', 'r6i.xlarge']].map(([g, i]) => famPair(g, i)).filter(Boolean).join(', ')}. 선이 끝나는 지점은 OOM(메모리 한계) 직전 단계입니다.</p>`
+    + `<p><strong>Graviton 7·8세대는 CPU가 높아지기 전에 메모리가 먼저 찼습니다(그림 5).</strong> OOM 전까지 도달한 최대 서버 CPU는 Graviton 7·8세대 ${range(g78)}, Intel ${range(iAll)}이고, CPU 한계 기준(${envelope.cpu_limit_pct || 70}%)을 넘은 것은 ${cpuSat.map(short).join(', ') || '없음'}입니다. `
+    + '같은 커넥션에서 CPU를 덜 쓰는 것은 GC 정지가 적기 때문입니다(그림 6) — 즉 이 워크로드에서 Graviton 7·8세대는 CPU 여유가 남은 채 메모리 크기에 묶입니다.</p>';
 
   // ---------- 표 2: 인스턴스별 커넥션 단계 상세 ----------
   const det = slot('stages');
