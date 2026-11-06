@@ -24,6 +24,7 @@ const TABS = [
 const WEB_SUBTABS = [
   { id: 'springboot', name: 'Spring Boot', note: 'Java' },
   { id: 'springboot-memory', name: 'Spring Boot 메모리', note: 'G1GC 압박' },
+  { id: 'springboot-traffic48', name: '48시간 트래픽', note: 'Flex 비교' },
   { id: 'fastapi', name: 'FastAPI', note: 'Python ASGI' },
   { id: 'django', name: 'Django', note: 'Python WSGI' },
   { id: 'node', name: 'Node.js', note: 'Fastify' },
@@ -38,7 +39,7 @@ function parseRoute(hash) {
   if (tab === 'web') {
     if (!WEB_SUBTABS.some((t) => t.id === sub)) sub = WEB_SUBTABS[0].id;
     // 전용 파셜/모듈이 있는 하위 탭(springboot 파일럿, springboot-memory)은 자기 뷰를, 나머지 스택은 공용 web 뷰를 쓴다
-    const own = ['springboot', 'springboot-memory'];
+    const own = ['springboot', 'springboot-memory', 'springboot-traffic48'];
     return { route: `web/${sub}`, tabId: 'web', view: own.includes(sub) ? sub : 'web', sub };
   }
   if (!TABS.some((t) => t.id === tab)) tab = 'overview';

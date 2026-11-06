@@ -1,0 +1,87 @@
+# Spring Boot 트래픽 변화 48시간 — 최종 관측 리포트
+
+2026-11-04 10:17:51 ~ 2026-11-06 10:17:51 UTC (KST 11월 4일 19:17:51 ~ 11월 6일 19:17:51). 기준은 **m7i.xlarge**. 측정 48시간과 96개 구간은 종료했고, 6개 비교군의 base/boost 소스 모두 COMPLETE다. 분석이 계속 진행 중인 상태가 아니다.
+
+**이 호스트들에서는 평상시 부하로 돌아왔을 때 Flex가 계속 느려져 사용 불가능해지는 현상은 관측되지 않았다.** 둘째 날 23,493 RPS 평상시 구간에서 m7i-flex의 처리량과 p99는 m7i와 거의 같았다. 90,000 RPS 목표 피크 전체 관측에서는 m7i-flex의 성공 처리량은 m7i의 0.972배, p99는 1.064배였다. m8i-flex는 m7i 대비 처리량 1.306배, p99 0.771배였다. 이는 이 테스트 시스템의 관측값이며 인스턴스의 순수 최대 성능이나 Flex 제한 정책을 확정하는 수치가 아니다.
+
+**피크의 요청 손실을 무시하면 안 된다.** m7i/m7i-flex는 90k 목표의 약 27~29%가 서버로 발행되지 않았고, 가장 높은 성공 RPS를 보인 m8i-flex도 약 4.4%가 미발생이었다. 이 부하 생성기 설정에서 90k를 손실 없이 처리했다고 볼 인스턴스는 없다. 실제 서비스 적용 판단에는 해당 앱의 요청 비용·지연 목표·동시성·스케일링을 따로 검증해야 한다.
+
+## 무엇을 측정했나
+
+- ap-northeast-2c, 타입별 서버 1대/JVM 1개, xlarge 4 vCPU/16 GiB. 기본 부하 생성기는 대상별 전용 c6in.2xlarge(8 vCPU), 추가 부하도 독립 클라이언트 소스로 수집했다. 실제 배치·리소스와 이미지 digest는 원본 manifests/verification에 남아 있다.
+- 앱은 **springboot-simple의 `/` 정적 응답**이다. PetClinic은 아니다. 저장소 Dockerfile은 Spring Boot 3.2.0/Java 21을 정의하며 측정 이미지는 digest로 고정했다. G1, 힙 RAM 60%, TieredCompilation OFF. DB·세션·캐시를 가진 실서비스의 객체 수명과 GC 패턴을 대표하지 않는다.
+- 보정 결과 R40=23,492.599 RPS, 측정 성공 용량=69,355.900 RPS, 초기 피크=76,291.490 RPS. 최초 45분 m7i의 JVM CPU 관측 평균은 37.93%였다. 40/60/80/100은 트래픽 단계 이름이며 모든 타입의 실제 CPU 백분율이 아니다.
+- 첫날 40→60→80→100→80→60→40을 6회 반복, 전환 시 60초 ramp. 둘째 날 평상시 사이에 1/5/15/60분 피크를 6회 반복했다. 측정 4.75시간 이후 추가 클라이언트를 켜 이후 피크의 합산 목표를 90,000 RPS로 올렸다. 초기 피크는 이전 설정이므로 90k 표에서 제외했다.
+- open-loop 도착 예약, 소스당 max_inflight=2,048, dispatch가 예정 시각보다 10ms 넘게 늦으면 미발생 처리, timeout=2초. 실제 발행량(started), 성공(success), 미발생(dropped)을 구분한다. 동시성 한도는 서버 응답 대기로도 포화될 수 있다.
+- p99는 **예정 요청 시각부터 완료까지**이며 실패 완료도 포함한다. 미발생 요청은 지연 히스토그램에 없다. 표의 p99는 요청 히스토그램을 합친 분위수이며 구간 p99의 평균이 아니다. 64μs 이상 bin 상한 근사 오차 <1.563%.
+
+## 90,000 RPS 목표 피크: 전체 관측
+
+아래는 동일한 29개 구간/10.60시간의 합산이다. 첫날 ramp가 포함되므로 시간 평균 offered RPS는 목표 90,000보다 조금 낮다. 클라이언트 품질 플래그가 있는 구간을 포함한 **관측 비교**다. 처리량 배수는 높을수록, p99 배수는 낮을수록 m7i 대비 유리하다.
+
+{{table:peak90:observed}}
+
+m8i-flex와 m8i의 차이는 이 단일 실행에서 처리량 약 +1.6%, p99 약 -3.4%였다. 반복/호스트 분산을 측정하지 않아 Flex가 표준형보다 빠르다는 일반 결론은 낼 수 없다. m7g의 낮은 피크 처리량 역시 이번 앱/JVM·동시성 조건에 한정된다. 모든 구간별 수치는 [phases.csv](phases.csv), 1/5/15/60분 피크별 표와 원래 판정 표는 [tables.md](tables.md)에 있다.
+
+## 둘째 날 평상시: 같은 구간에서 m7i와 비교
+
+원래 판정을 그대로 적용하면 boost의 휴지 구간 coverage 플래그 때문에 둘째 날 평상시 비교는 0건이다. 다음 표는 아래의 엄격한 **0도착 휴지 예외**만 적용하고 나머지 원래 검증을 통과한 구간이다. 각 행은 대상과 m7i **양쪽이 통과한 구간의 교집합**이며, 행마다 구간/시간이 다르므로 다른 행을 직접 순위화하지 않는다.
+
+{{table:day2_low:idle_qualified}}
+
+장시간 부하 뒤 평상시 구간의 처리량은 요청량을 대체로 충족했다. m7i-flex의 p99는 m7i와 같고, m8i-flex는 같은 구간의 m7i보다 약 8% 낮았다. 이것은 남는 최대 처리 용량을 측정한 값이 아니라 주어진 부하에 대한 결과다. 시간 변화와 피크 뒤 복귀는 대시보드와 [timeseries.png](timeseries.png)에서 확인할 수 있다.
+
+## 데이터 품질과 분석 범위
+
+최종 원본의 `complete=false`, `comparison_valid=false`를 수정하지 않았다. 실행 종료와 무조건 유효한 비교를 구분한다. 모든 소스의 전역 accounting/validation errors는 비어 있고 측정 대상은 누락되지 않았지만, 구간별 클라이언트 지연과 boost coverage 조건이 비교 범위를 제한한다.
+
+{{quality}}
+
+- boost coverage 플래그 59개 중 **54개는 예정 도착 0**, 5개는 피크 후 60초 감소 ramp로 **411,256건의 예정 요청**이 있다. 후자의 목표 끝값이 0이라는 이유로 휴지 예외를 적용하지 않는다.
+- 휴지 예외는 metadata schedule의 적분 도착 수=0, boost expected_offered=0, 모든 관측 카운터=0, histogram 비어 있음, base accounting 통과, 양 소스 COMPLETE 및 전역 오류 없음일 때만 적용한다. 이때 **boost coverage 플래그 하나만** 보류하며 원본 플래그를 CSV/JSON에 남긴다. 클라이언트 CPU/dispatch 등의 다른 플래그는 유지한다. 서버 telemetry 보존을 입증하는 예외도 아니다.
+- `strict`는 기존 valid 그대로, `idle_qualified`는 이 휴지 예외만 적용, `observed`는 모든 완료 구간의 기술 통계다. [comparisons.csv](comparisons.csv)에 모든 mode의 대상·기준 RPS/p99와 정확한 구간 이름을 기록했다.
+- CPU 큰 클라이언트라도 Go 예약 루프, 연결 관리, 2,048개 동시 요청 한도, 서버 응답 backlog에 묶일 수 있다. 로컬 capacity drop은 전부 클라이언트 CPU 부족이라는 뜻도, 전부 Flex throttling이라는 뜻도 아니다. 소스별 capacity/lateness/cancelled 누적 횟수는 [quality.json](quality.json)에 있다.
+- `process.cpu.usage`는 JVM의 최근 CPU 측정값이다. 일부 호스트는 낮은 요청 구간에서 높은 CPU, 피크에서 낮은 CPU를 보고한다. 수집값을 그대로 표시하되 steal time, 주파수, host quota 자료가 없어 이 값으로 하이퍼바이저 제한이나 실제 CPU 여유를 단정하지 않는다.
+- 단일 호스트/실행이다. 신뢰구간이나 통계적 유의성을 산출하지 않았다. 48시간 합산은 시간에 따른 변화와 손실을 감추므로 아래 전체 합산만으로 제품 순위를 정하지 않는다.
+
+## 메모리·GC와 복귀
+
+{{gc}}
+
+힙은 10초 Actuator 표본의 관측치이고 프로세스 RSS가 아니다. GC 최대 정지 및 누적 값은 확보된 gc/safepoint 회전 로그를 분석한 값이다. 로그 수집은 비원자적이고 회전본이 사라질 수 있어 **횟수·총 시간은 하한**, coverage는 보존 추정치다. 최대 pause도 전체 실행의 실제 최댓값을 보증하지 않는다. 큰 p99와 ±2초 내 GC의 동반 관측은 파생 JSON의 `latency_spikes`에 있고 인과관계를 뜻하지 않는다.
+
+원래 정의의 회복 시간은 이전 평상시 p99+10% 이내, 성공 비율 -1pp 이내로 30초 연속 돌아오는 첫 시점이다. 최종 원본에서 각 타입 24개 회복 판정 모두 valid=false이며 회복 초 단위는 확정할 수 없다. `null`은 복귀 실패를 뜻하지 않는다. 평상시 구간 전체의 낮은 p99는 복귀를 뒷받침하는 구간 관측이지만, 즉시 복귀나 정확한 복귀 시각의 증거는 아니다.
+
+## 48시간 전체 관측 합산
+
+{{table:all:observed}}
+
+## 별도 지속 부하 실험의 보존된 원본
+
+{{supplemental}}
+
+이 표는 트래픽 변화 실험과 별개다. 지속 `wrk -t4 -c200` 부하와 동시에 실행한 `-t2 -c100` probe의 관측 처리량이며 전체 서버 처리량이 아니다. 처음 경과 1시간 내 59개 표본과 마지막 기록 기준 최근 1,800초의 30개 표본을 각각 평균했다. p99 열은 **마지막 30개 probe별 p99의 중앙값**이며 요청을 합친 p99가 아니다. probe 처리량 감소는 관측되지만 표준형 동시 비교군·완료 상태와 제한 원인 자료가 없어 Flex throttling으로 단정하지 않는다. 마지막 경과시간은 170,885/170,863초로 약 47.47시간이며 연속 무결성이나 48시간 완료를 보증하지 않는다.
+
+## 원본 전체와 재현
+
+{{archive}}
+
+두 실행 디렉터리의 모든 일반 파일을 압축했다. traffic48의 base/boost 1초 samples, 10초 metrics, status/config, GC 누적/회전 로그, 준비/보정, Kubernetes manifests, 수집/실행 검증, 원래 중간/최종 리포트가 포함된다. 별도 지속 부하 실험 `springboot-flex48/20261104t0120`도 포함한다. **CSV는 타입별 2,842개 표본, 약 47.47시간까지 보존**되어 있다. 반면 `progress-latest.json`은 약 5.17시간, `progress-current.json`은 약 11.94시간에서 갱신이 멈춘 중간 요약이고, 보존된 status는 RUNNING이다. 이를 48시간 완료 결과로 사용하거나 트래픽 실험과 합치지 않는다. 이는 현재 확보된 원본 전체이며 유실된 GC나 수집되지 않은 과거 데이터까지 존재한다는 뜻은 아니다. 메모리 회귀 검증을 위해 만든 중복 snapshot과 무관한 core dump/PDF는 실험 원본 범위에 포함하지 않는다.
+
+원본은 수정 없이 압축했고 SHA-256 목록으로 복원 바이트를 검증한다. 자원 ID·내부 주소 등 실행 provenance는 보존된다. [raw/manifest.json](raw/manifest.json)에 파일별 크기/체크섬, 조각별 체크섬이 있다. Git LFS나 외부 다운로드 없이 이 PR 브랜치를 clone하면 조각을 모두 얻는다. 약 5.9GB의 복원 공간을 준비한다.
+
+```bash
+# 저장소 루트, Python 3 + zstd + GNU coreutils
+python3 scripts/traffic48_archive.py verify reports/traffic48-final/raw
+# 비어 있는 별도 디렉터리로 복원; 기존 원본을 덮어쓰지 않는다
+python3 scripts/traffic48_archive.py restore reports/traffic48-final/raw /path/to/empty-restore
+python3 scripts/traffic48_report.py /path/to/empty-restore/results/springboot-traffic48/20261104t0900
+python3 -m pip install -r scripts/traffic48-report-requirements.txt
+python3 scripts/traffic48_plot.py
+python3 -m http.server 8000 --directory site
+# http://localhost:8000/#web/springboot-traffic48
+```
+
+리포트 exporter는 원본 `progress-latest.json`을 읽고 재집계/비교하며 원본 판정은 바꾸지 않는다. raw에서 원래 전체 분석을 다시 수행하려면 Python 3 환경에서 `scripts`를 PYTHONPATH에 추가한 뒤 `traffic48_analysis.report(Path(run_dir))`를 호출한다. 이 전체 재분석은 exporter보다 오래 걸리고 추가 메모리를 사용한다. 실험 재실행은 [운영 문서](../../docs/springboot-traffic48.md)에 있으며 본 PR 검증 과정에서 AWS 리소스나 부하는 새로 실행하지 않았다.
+
+{{source}}
