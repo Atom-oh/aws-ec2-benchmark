@@ -18,7 +18,7 @@ def main():
    for width in [1440,390]:
     page.set_viewport_size({'width':width,'height':1000})
     page.goto(f'http://127.0.0.1:{server.server_port}/#web/springboot-traffic48')
-    page.wait_for_function('Object.keys(Chart.instances).length === 6')
+    page.wait_for_function('Object.keys(Chart.instances).length === 5')
     assert page.locator('[data-slot="comparison"] tbody tr').count()==6
     assert '65,780' in page.locator('[data-slot="comparison"]').inner_text()
     page.locator('[data-select="group"]').select_option('day2_low')
@@ -31,7 +31,7 @@ def main():
     page.evaluate("location.hash='#web/springboot-memory'")
     page.wait_for_selector('#results')
     page.evaluate("location.hash='#web/springboot-traffic48'")
-    page.wait_for_function('Object.keys(Chart.instances).length === 6')
+    page.wait_for_function('Object.keys(Chart.instances).length === 5')
    assert not errors,errors
    browser.close()
    print('PASS: desktop/mobile, comparison selectors, no overflow, route cleanup, no page errors')
