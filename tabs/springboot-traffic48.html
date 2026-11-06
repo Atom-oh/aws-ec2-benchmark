@@ -1,0 +1,35 @@
+<header class="hero">
+  <div class="hero-content"><p class="eyebrow">48 HOURS · 6 INSTANCE TYPES · 90K RPS TARGET</p>
+  <h1>장시간 부하 뒤, Flex는 피크를 버티나</h1>
+  <p>m7i.xlarge 기준 Spring Boot 트래픽 변화 비교 · 2026.11.04–11.06</p></div>
+</header>
+<section class="section" id="traffic48-summary">
+  <h2>48시간 측정 종료, 비교에는 조건이 있습니다</h2>
+  <p>둘째 날 평상시 부하에서 m7i-flex의 처리량과 p99는 m7i와 거의 같았습니다. 90k 목표 피크 전체 관측에서는 처리량 0.972배, p99 1.064배였습니다. m8i-flex는 m7i 대비 처리량 1.306배, p99 0.771배를 보였습니다.</p>
+  <p><strong>피크 손실을 함께 보세요.</strong> m7i/m7i-flex는 목표 요청의 약 27–29%가 발행되지 않았습니다. 클라이언트 지연·동시성 한도가 섞인 관측이므로 인스턴스의 순수 최대 성능이나 Flex 제한 정책을 확정하지 않습니다.</p>
+  <p>정적 응답 앱 springboot-simple / Java 21 / G1 / 힙 60%, 타입별 1호스트. PetClinic 또는 실제 서비스 지연 목표의 검증이 아닙니다. 원본 <code>complete=false</code>, <code>comparison_valid=false</code>는 보존했습니다. 실행은 끝났으며 분석 대기 상태를 뜻하지 않습니다.</p>
+</section>
+<section class="section" id="traffic48-comparison">
+  <h2>m7i와 같은 구간 비교</h2>
+  <p><label>구간 <select data-select="group"><option value="peak90">90k 목표 피크 · 전체</option><option value="day2_low">둘째 날 평상시</option><option value="all">48시간 전체</option><option value="day1">첫째 날</option><option value="peak_60s">둘째 날 1분 피크</option><option value="peak_300s">둘째 날 5분 피크</option><option value="peak_900s">둘째 날 15분 피크</option><option value="peak_3600s">둘째 날 60분 피크</option></select></label>
+  <label>판정 <select data-select="mode"><option value="observed">전체 관측 (품질 제약 포함)</option><option value="strict">원래 판정 통과 교집합</option><option value="idle_qualified">0도착 휴지 예외 후 교집합</option></select></label></p>
+  <p data-slot="comparison-note" role="status"></p><div data-slot="comparison"></div>
+  <p>성공 RPS 배수는 높을수록, p99 배수는 낮을수록 m7i 대비 유리합니다. p99는 요청 히스토그램을 합쳐 계산했습니다. 판정 교집합은 행마다 다르므로 행 간 직접 순위는 의미하지 않습니다. 미발생 요청은 p99에서 빠지며 별도 손실로 표시합니다.</p>
+</section>
+<section class="section" id="traffic48-time">
+  <h2>48시간 변화</h2>
+  <p>모든 완료 구간의 관측값입니다. 가로축은 구간 종료 시각(측정 시작 후 시간), 각 점은 해당 구간 통계입니다. 점 사이 선은 실제 순간값이 아닙니다. 범례로 타입을 숨기거나 선택하고, 점 위에서 원래 품질 플래그를 확인할 수 있습니다.</p>
+  <div data-slot="charts"></div>
+</section>
+<section class="section" id="traffic48-quality">
+  <h2>클라이언트·GC·복귀의 해석 범위</h2>
+  <div data-slot="quality"></div>
+  <p>boost coverage 플래그 59개 중 54개는 예정 도착 0인 휴지 구간입니다. 예외는 스케줄 적분=0, 모든 카운터=0, 빈 히스토그램, base accounting 정상, 양 소스 COMPLETE/전역 오류 없음일 때 coverage 플래그 하나에만 적용합니다. 남은 5개는 60초 감소 ramp에 요청이 있어 예외에서 제외합니다. 원래 플래그는 계속 보존합니다.</p>
+  <p>힙은 10초 표본이며 RSS가 아닙니다. GC 횟수·시간은 확보 로그의 하한, coverage는 보존 추정치입니다. 원래 판정에서 타입별 24개 회복 구간 모두 유효하지 않아 정확한 회복 초는 확정하지 않습니다. null은 복귀 실패를 뜻하지 않습니다.</p>
+  <p>JVM CPU는 수집된 process.cpu.usage 값입니다. 일부 호스트의 요청량과 CPU 패턴이 일치하지 않으며, steal time·주파수·quota 정보가 없어 CPU 값으로 throttling을 확정할 수 없습니다. 단일 호스트의 결과를 제품 전체로 일반화하지 않습니다.</p>
+</section>
+<section class="section" id="traffic48-artifacts">
+  <h2>전체 원본과 재현</h2>
+  <p>189개 파일, 5.87GB 원본을 19개 조각(최대 48 MiB), 약 908MB로 무손실 압축했습니다. 파일별 SHA-256과 스트리밍 복원 도구를 제공합니다. 별도 지속 부하 실험은 타입별 2,842개 CSV 표본이 약 47.47시간까지 남아 있습니다. 요약 파일은 5.17/11.94시간 시점에서 멈춰 있고 status는 RUNNING이므로, 48시간 완료 결과로 간주하거나 본 실험과 합치지 않았습니다.</p>
+  <p data-slot="downloads"></p>
+</section>
