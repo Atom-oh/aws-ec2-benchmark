@@ -2,7 +2,7 @@
 // 숫자 계산은 전부 Python 쪽에서 끝나 있어야 하고(검증 지점 단일화), 여기서는 정렬·표시·문장 조립만 한다.
 // 구조 참고: graviton-intel-springboot-benchmark.pdf(핵심 결과표 → 신뢰도 → 기준선 배수 → 짝 비교 →
 // 세대 향상 → 판정 → 권고). shared.js와 같은 계약: 각 함수는 (hostEl, ...) → {destroy()}.
-import { ARCH_COLOR, ARCH_LABEL, archColor, fmt } from './shared.js';
+import { ARCH_COLOR, ARCH_LABEL, archColor, fmt, summaryCards } from './shared.js';
 
 const VERDICT_CLASS = { '비슷': 'verdict-even', '재측정 필요': 'verdict-hold' };
 
@@ -53,25 +53,42 @@ export function specTable(hostEl, rows, names) {
     body, 'EC2 DescribeInstanceTypes(코어·스레드·클럭·메모리)와 Pricing API(프로세서명, 서울 리전 Linux On-Demand) 조회값입니다. xlarge의 vCPU 4개는 Graviton에서 물리 코어 4개, Intel/AMD에서 물리 코어 2개 × 하이퍼스레딩입니다.');
 }
 
-/** 신뢰도 표: 경고 인스턴스 먼저, 나머지는 요약 한 줄. */
-export function reliability(hostEl, A, { unit, digits = 0, extra = [] } = {}) {
+/** 신뢰도: 요약 카드(변동계수 중앙값·최대, 최대/최소 배수 최대, 경고 수) + 판정 문장 + 경고 인스턴스 표(있을 때만). */
+export function reliability(hostEl, A, { unit, digits = 0, caption = '', extra = [] } = {}) {
   const T = A.table;
   const names = Object.keys(T);
+  const th = A.thresholds;
   const cvs = names.map((n) => T[n].cv).sort((a, b) => a - b);
   const median = cvs[Math.floor(cvs.length / 2)];
+  const worstCv = names.reduce((m, n) => (T[n].cv > (T[m]?.cv ?? -1) ? n : m), names[0]);
+  const spread = (n) => (T[n].min > 0 ? T[n].max / T[n].min : null);
+  const worstSp = names.filter((n) => spread(n) != null).reduce((m, n) => (spread(n) > (spread(m) ?? 0) ? n : m), names[0]);
+  const single = names.filter((n) => T[n].n < 2).length;
   const flagged = A.flagged.slice().sort((a, b) => T[b].cv - T[a].cv);
+  const cards = [
+    { label: '회차 간 변동계수 (중앙값)', value: `${median.toFixed(1)}%`, detail: `경고 기준 ${(+th.cv).toFixed(1)}% 초과` },
+    { label: '변동계수 최대', value: `${T[worstCv].cv.toFixed(1)}%`, detail: T[worstCv].cv > 0 ? short(worstCv) : '전 인스턴스 회차 값 동일' },
+    { label: '회차 최대 ÷ 최소 (최대)', value: spread(worstSp) != null ? x(spread(worstSp)) : '—', detail: spread(worstSp) > 1 ? `${short(worstSp)} · 경고 기준 ${x(+th.spread)} 초과` : `경고 기준 ${x(+th.spread)} 초과` },
+    { label: '경고 인스턴스', value: `${flagged.length}개`, detail: `${names.length}개 중${single ? ` · 회차 1개 ${single}개(변동 산출 불가)` : ''}` },
+  ];
+  const cls = flagged.length ? 'verdict-hold' : 'verdict-ok';
+  const verdictLine = flagged.length
+    ? `<p class="rel-verdict"><span class="verdict ${cls}">주의</span> ${flagged.length}개 인스턴스가 경고 기준을 넘었습니다. 이 인스턴스들의 순위는 측정한 단일 호스트의 특성일 수 있어 아래 표를 함께 보세요.</p>`
+    : `<p class="rel-verdict"><span class="verdict ${cls}">안정</span> 모든 인스턴스가 경고 기준 안에 있습니다. 회차를 반복해도 결과가 거의 같아, 아래 순위와 배수는 측정 잡음보다 인스턴스 차이를 반영합니다.</p>`;
+  hostEl.innerHTML = `<div class="summary-cards" data-cards></div>${verdictLine}<div data-r></div>`
+    + (flagged.length && caption ? `<p class="caption">${caption}</p>` : '')
+    + extra.map((e) => `<p class="rel-note">${e}</p>`).join('')
+    + `<p class="caption">경고 기준: 회차 간 변동계수 ${(+th.cv).toFixed(1)}% 초과 · 회차 최대/최소 ${x(+th.spread)} 초과 · 같은 프로세서 짝(flex/표준, C/M/R) 차이 ±${th.peer * 100}% 초과. 기준값은 지표별 분포에서 정합니다.</p>`;
+  const hc = summaryCards(hostEl.querySelector('[data-cards]'), cards);
   const body = flagged.map((n) => [
     `<strong>${n}</strong>`, T[n].n, `${T[n].cv.toFixed(1)}%`,
     `${fmt(T[n].min, digits)} ~ ${fmt(T[n].max, digits)} ${unit}`,
     T[n].runs.map((v) => fmt(v, digits)).join(', '), T[n].flags.join(' · '),
   ]);
-  const summary = `${names.length}개 인스턴스의 회차 간 변동계수 중앙값은 ${median.toFixed(1)}%입니다. `
-    + `변동계수 3% 초과 또는 회차 최대/최소 1.10배 초과인 ${flagged.length}개를 아래에 표시했습니다. 이 인스턴스들의 순위는 단일 호스트의 특성일 수 있습니다.`;
-  hostEl.innerHTML = `<p class="description">${summary}</p><div data-r></div>${extra.map((e) => `<p class="caption">${e}</p>`).join('')}`;
   const h = flagged.length
     ? table(hostEl.querySelector('[data-r]'), ['인스턴스', '회차', '변동계수', '범위', '회차 값', '경고'], body)
     : { destroy() {} };
-  return { destroy() { h.destroy(); hostEl.innerHTML = ''; } };
+  return { destroy() { hc.destroy && hc.destroy(); h.destroy(); hostEl.innerHTML = ''; } };
 }
 
 /** 막대 = 회차 중앙값, 점 = 회차별 값. 최신 세대는 진하게, 이전 세대는 옅게(PDF 그림 2 방식). */
@@ -293,7 +310,7 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
 
   hostEl.innerHTML = [
     `<section class="section report-lead">${P(lead.join(' '))}${cfg.leadHtml || ''}${s('kf')}${cap(`<strong>표 ${n(1)}.</strong> 핵심 결과`)}</section>`,
-    sec('r-reliability', '측정 신뢰도', `${s('rel')}${cap(`<strong>표 ${n(2)}.</strong> 회차 간 변동이 크거나 같은 프로세서와 어긋나는 인스턴스`)}`),
+    sec('r-reliability', '측정 신뢰도', s('rel')),
     sec('r-rank', `${A.metric.label} 순위`, `${s('rank')}${cap(`<strong>그림 ${n(1)}.</strong> 막대 = 회차 중앙값, 점 = 회차별 값 (${unit}, ${dirWord}). 진한 막대는 8세대 이상.`)}`),
     sec('r-price', '가격 대비 성능', `${s('price')}${cap(`<strong>표 ${n(3)}.</strong> 가격 대비 성능 상위 15개`)}`),
     sec('r-pairs', '같은 세대의 Graviton과 Intel', `${P('xlarge의 vCPU 4개는 Graviton에서 물리 코어 4개, Intel/AMD에서 물리 코어 2개 × 하이퍼스레딩입니다.')}${s('pairs-chart')}${cap(`<strong>그림 ${n(2)}.</strong> 가격 대비 성능 (Graviton ÷ Intel). 회색 띠는 ±${A.band * 100}%`)}${s('pairs')}<h3>5세대 AMD와 Intel</h3>${s('amd')}`),
@@ -304,7 +321,7 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
   const at = (k) => hostEl.querySelector(`[data-r="${k}"]`);
   handles.push(keyFindings(at('kf'), kf));
   handles.push(reliability(at('rel'), A, { unit, digits,
-    extra: [`경고 임계값: 회차 간 변동계수 ${A.thresholds.cv}% · 회차 최대/최소 ${A.thresholds.spread}배 · 같은 프로세서 짝 차이 ±${A.thresholds.peer * 100}%.`] }));
+    caption: `<strong>표 ${n(2)}.</strong> 회차 간 변동이 크거나 같은 프로세서와 어긋나는 인스턴스` }));
   handles.push(dotBar(at('rank'), rows, A, { names: A.rank_perf, digits, unit }));
   handles.push(priceTable(at('price'), rows, A, { digits, limit: 15 }));
   handles.push(ratioBars(at('pairs-chart'), A.pairs.map((q) => ({ label: `${short(q.left)} / ${short(q.right)}`, value: q.ppd })), { band: A.band, title: '가격 대비 성능 (Graviton ÷ Intel)' }));
