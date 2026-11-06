@@ -14,7 +14,7 @@ import re
 import statistics
 
 import analysis
-from common import PRICE, RESULTS_DIR, canonical_instances, parse_wrk_block
+from common import PRICE, RESULTS_DIR, canonical_instances, parse_wrk_block, wrk_time_ms
 
 CPU_LIMIT_PCT = 70     # 첫 실패 단계(오류 없음)의 서버 CPU가 이 이상이면 'CPU 한계'(메모리는 남음), 미만이면 'GC 정지 누적'(CPU 여유)
 SLO_DEFAULT_MS = 11000  # 대기(HOLD_MS 10초) + 처리 여유 1초 — 로그의 SLO_P99_MS가 우선
@@ -46,6 +46,9 @@ def parse_log(path):
         # p95·p99.9는 wrk 기본 출력에 없어 클라이언트 lua done()이 'LAT_P95_MS: <ms>' 형식으로 찍은 경우에만(2026-11-06 이후)
         extra = {k: float(m.group(1)) for k, pat in (("p95_ms", r"^LAT_P95_MS: ([\d.]+)"), ("p999_ms", r"^LAT_P999_MS: ([\d.]+)"))
                  if (m := re.search(pat, body, re.M))}
+        p75 = re.search(r"^\s+75%\s+([\d.]+)(us|ms|s|m)\b", body, re.M)   # parse_wrk_block은 50/90/99만 — p75는 이 탭에서만
+        if p75:
+            extra["p75_ms"] = wrk_time_ms(*p75.groups())
         stage = {"conn": int(c), "rps": w.get("rps"), "p99_ms": w.get("p99_ms"), "p50_ms": w.get("p50_ms"),
                  "p90_ms": w.get("p90_ms"), **extra,
                  "errors": w.get("errors"), "timeouts": int(timeouts.group(1)) if timeouts else 0,
@@ -87,7 +90,7 @@ def build():
                              if any(v.get(k) is not None for v in vals) else None)
             gc_share = [v["gc_total_ms"] / (v["window_s"] * 10) for v in vals if v.get("gc_total_ms") is not None and v.get("window_s")]
             stage_med[str(p)] = {"conn": med("conn"), "rps": med("rps"), "p99_ms": med("p99_ms"), "p50_ms": med("p50_ms"),
-                                 "p90_ms": med("p90_ms"), "p95_ms": med("p95_ms"), "p999_ms": med("p999_ms"), "gc_max_ms": med("gc_max_ms"),
+                                 "p75_ms": med("p75_ms"), "p90_ms": med("p90_ms"), "p95_ms": med("p95_ms"), "p999_ms": med("p999_ms"), "gc_max_ms": med("gc_max_ms"),
                                  "gc_pct": round(statistics.median(gc_share), 1) if gc_share else None,
                                  "old_after_gc_mb": med("old_after_gc_mb"), "inflight_peak": med("inflight_peak"),
                                  "cpu_pct": med("cpu_pct"), "errors": sum((v.get("errors") or 0) for v in vals),

@@ -311,7 +311,7 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
   hostEl.innerHTML = [
     `<section class="section report-lead">${P(lead.join(' '))}${cfg.leadHtml || ''}${s('kf')}${cap(`<strong>표 ${n(1)}.</strong> 핵심 결과`)}</section>`,
     sec('r-reliability', '측정 신뢰도', s('rel')),
-    sec('r-rank', `${A.metric.label} 순위`, `${s('rank')}${cap(`<strong>그림 ${n(1)}.</strong> 막대 = 회차 중앙값, 점 = 회차별 값 (${unit}, ${dirWord}). 진한 막대는 8세대 이상.`)}`),
+    sec('r-rank', cfg.rankTitle || `${A.metric.label} 순위`, `${s('rank')}${cap(`<strong>그림 ${n(1)}.</strong> ${cfg.rankCaption || `막대 = 회차 중앙값, 점 = 회차별 값 (${unit}, ${dirWord}). 진한 막대는 8세대 이상.`}`)}`),
     sec('r-price', '가격 대비 성능', `${s('price')}${cap(`<strong>표 ${n(3)}.</strong> 가격 대비 성능 상위 15개`)}`),
     sec('r-pairs', '같은 세대의 Graviton과 Intel', `${P('xlarge의 vCPU 4개는 Graviton에서 물리 코어 4개, Intel/AMD에서 물리 코어 2개 × 하이퍼스레딩입니다.')}${s('pairs-chart')}${cap(`<strong>그림 ${n(2)}.</strong> 가격 대비 성능 (Graviton ÷ Intel). 회색 띠는 ±${A.band * 100}%`)}${s('pairs')}<h3>5세대 AMD와 Intel</h3>${s('amd')}`),
     sec('r-uplift', '세대 간 향상', `${s('uplift-chart')}${cap(`<strong>그림 ${n(3)}.</strong> 이전 세대(빈 원) → 다음 세대(채운 원)`)}${s('uplift')}`),
@@ -322,7 +322,8 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
   handles.push(keyFindings(at('kf'), kf));
   handles.push(reliability(at('rel'), A, { unit, digits,
     caption: `<strong>표 ${n(2)}.</strong> 회차 간 변동이 크거나 같은 프로세서와 어긋나는 인스턴스` }));
-  handles.push(dotBar(at('rank'), rows, A, { names: A.rank_perf, digits, unit }));
+  // cfg.rank(host): 탭이 순위 그림을 직접 그릴 때(예: 메모리 압박 — 단계 양자화로 순위 막대가 정보가 없음)
+  handles.push(cfg.rank ? cfg.rank(at('rank')) : dotBar(at('rank'), rows, A, { names: A.rank_perf, digits, unit }));
   handles.push(priceTable(at('price'), rows, A, { digits, limit: 15 }));
   handles.push(ratioBars(at('pairs-chart'), A.pairs.map((q) => ({ label: `${short(q.left)} / ${short(q.right)}`, value: q.ppd })), { band: A.band, title: '가격 대비 성능 (Graviton ÷ Intel)' }));
   handles.push(pairTable(at('pairs'), A.pairs));
