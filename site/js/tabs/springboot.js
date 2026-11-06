@@ -68,8 +68,7 @@ export async function render(root, { rows, envelope }) {
   // ---------- 2. 신뢰도 ----------
   handles.push(reliability(slot('reliability'), AT, {
     unit: 'req/s',
-    extra: [`경고 임계값: 회차 간 변동계수 ${AT.thresholds.cv}% · 회차 최대/최소 ${AT.thresholds.spread}배 · 같은 프로세서 짝(flex/표준, 같은 세대 C/M/R) 차이 ±${AT.thresholds.peer * 100}%. `
-      + `${AT.baseline}(기준선)도 회차가 두 무리(${T[AT.baseline].runs.map((v) => fmt(v)).join(', ')})로 갈립니다. 중앙값은 높은 쪽 무리에 속하지만, 기준선 대비 배수는 이 편차만큼 불확실합니다.`],
+    extra: [`${AT.baseline}(기준선)도 회차가 두 무리(${T[AT.baseline].runs.map((v) => fmt(v)).join(', ')})로 갈립니다. 중앙값은 높은 쪽 무리에 속하지만, 기준선 대비 배수는 이 편차만큼 불확실합니다.`],
   }));
   // 같은 설정(C2 전용) 재측정만 사용: 2026-04 세션의 Graviton + 2026-11 재측정(모든 아키텍처, 라운드=호스트별)
   const drift = envelope.session_drift.filter((r) => r.same_config);
