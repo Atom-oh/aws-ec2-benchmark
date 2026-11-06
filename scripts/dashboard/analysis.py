@@ -92,16 +92,17 @@ def pair(stats, prices, left, right, direction="max", lname="Graviton", rname="I
     return r
 
 
-def analyze(stats, prices, metric, cost_unit=None, peer_families=True, known_suspects=None):
+def analyze(stats, prices, metric, cost_unit=None, peer_families=True, known_suspects=None, baseline=None):
     """stats: {instance: summarize(...)}, prices: {instance: USD/hr}.
 
     metric: {field, label, unit, direction}. cost_unit: 처리량 지표일 때 '작업 1단위당 비용' 환산
     {per: 1e9, label: '요청 10억 건당'} — value가 초당 처리량이라고 가정(USD = price/3600/value*per).
     """
     direction = metric["direction"]
-    base = stats.get(BASELINE)
+    baseline = baseline or BASELINE   # 지표별 기준선(spec "baseline") — 없으면 전 탭 공통 c7i.xlarge
+    base = stats.get(baseline)
     base_value = base["value"] if base else None
-    base_price = prices[BASELINE]
+    base_price = prices[baseline]
 
     present = [s for s in stats.values() if s]
     cv_thr = max(CV_WARN, 2 * statistics.median(s["cv"] for s in present)) if present else CV_WARN
@@ -187,7 +188,7 @@ def analyze(stats, prices, metric, cost_unit=None, peer_families=True, known_sus
                         key=lambda n: table[n]["ppd"], reverse=True)
     return {
         "metric": metric,
-        "baseline": BASELINE,
+        "baseline": baseline,
         "baseline_value": base_value,
         "band": BAND,
         "cost_unit": cost_unit,
@@ -227,5 +228,5 @@ def report(runs_by_metric, specs, prices):
         if stats:
             blocks[key] = analyze(stats, prices, {"field": f"r.{key}.value", **{k: spec[k] for k in ("label", "unit", "direction")}},
                                   cost_unit=spec.get("cost_unit"), peer_families=not spec.get("memory_sensitive", False),
-                                  known_suspects=spec.get("known_suspects"))
+                                  known_suspects=spec.get("known_suspects"), baseline=spec.get("baseline"))
     return summaries, blocks
