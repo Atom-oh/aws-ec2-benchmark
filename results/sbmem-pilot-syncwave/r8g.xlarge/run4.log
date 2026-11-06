@@ -1,0 +1,62 @@
+===== SpringBoot Memory Benchmark: r8g.xlarge run 4 =====
+Server-Version: java 21.0.13 Amazon.com Inc. springboot 4.1.2 gc [G1 Young Generation, G1 Concurrent GC, G1 Old Generation] entries 524288 entry_kb 4 work_kb 1024 hold_ms 10000 heap_max_mb 18896 virtual_threads true cpus 4
+Client-Node: ip-10-2-46-225.ap-northeast-2.compute.internal
+Timestamp: 2026-11-05T15:54:09+00:00
+INFLIGHT_MAX_THEORY: 16848
+SLO_P99_MS: 11000
+=== Warm-up (64 connections, 30s) ===
+=== Stage connections=4212 pct=25 (process, 6 threads, 90s) ===
+Running 2m test @ http://sbmem-remote-r8g-xlarge:8080/process
+  6 threads and 4212 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    10.08s    98.01ms  10.36s    86.22%
+    Req/Sec     1.37k     1.54k    6.69k    86.07%
+  Latency Distribution
+     50%   10.04s 
+     75%   10.09s 
+     90%   10.29s 
+     99%   10.35s 
+  33696 requests in 1.50m, 4.76MB read
+Requests/sec:    374.08
+Transfer/sec:     54.06KB
+END_C4212
+STATS_C4212: {"window_s":90.2,"proc_cpu_pct":4.8,"gc_pauses":29,"gc_pause_total_ms":1971,"gc_pause_max_ms":284,"gc_pause_over50ms":14,"gc_pause_over100ms":4,"gc_pause_over200ms":2,"heap_used_mb":15215,"heap_max_mb":18896,"entries":524288,"old_after_gc_mb":14575,"inflight_now":4212,"inflight_peak":4276,"processed":33760}
+
+=== Stage connections=8424 pct=50 (process, 6 threads, 90s) ===
+Running 2m test @ http://sbmem-remote-r8g-xlarge:8080/process
+  6 threads and 8424 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    10.17s   191.34ms  11.08s    84.52%
+    Req/Sec     0.92k   838.62     4.79k    67.15%
+  Latency Distribution
+     50%   10.10s 
+     75%   10.25s 
+     90%   10.42s 
+     99%   11.06s 
+  67392 requests in 1.50m, 9.51MB read
+Requests/sec:    748.53
+Transfer/sec:    108.17KB
+END_C8424
+STATS_C8424: {"window_s":90.2,"proc_cpu_pct":11.9,"gc_pauses":79,"gc_pause_total_ms":6305,"gc_pause_max_ms":327,"gc_pause_over50ms":37,"gc_pause_over100ms":11,"gc_pause_over200ms":11,"heap_used_mb":13313,"heap_max_mb":18896,"entries":524288,"old_after_gc_mb":9657,"inflight_now":8424,"inflight_peak":8424,"processed":67392}
+
+STAGE_FAIL pct=50 p99_ms=11060
+=== Stage connections=10108 pct=60 (process, 6 threads, 90s) ===
+Running 2m test @ http://sbmem-remote-r8g-xlarge:8080/process
+  6 threads and 10108 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    10.22s   302.77ms  11.51s    90.74%
+    Req/Sec   788.32      0.88k    6.41k    85.82%
+  Latency Distribution
+     50%   10.08s 
+     75%   10.34s 
+     90%   10.47s 
+     99%   11.40s 
+  80832 requests in 1.50m, 11.43MB read
+Requests/sec:    897.23
+Transfer/sec:    129.88KB
+END_C10108
+STATS_C10108: {"window_s":90.3,"proc_cpu_pct":16.0,"gc_pauses":111,"gc_pause_total_ms":9182,"gc_pause_max_ms":360,"gc_pause_over50ms":37,"gc_pause_over100ms":18,"gc_pause_over200ms":18,"heap_used_mb":15448,"heap_max_mb":18896,"entries":524288,"old_after_gc_mb":13696,"inflight_now":10104,"inflight_peak":10104,"processed":80832}
+
+STAGE_FAIL pct=60 p99_ms=11400
+STOP_AFTER_2_FAILS
+Benchmark Complete

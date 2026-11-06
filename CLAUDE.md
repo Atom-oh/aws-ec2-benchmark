@@ -78,19 +78,23 @@ EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54�
   새 실행 스크립트는 반드시 `kubectl(){ command kubectl --context mall-apne2-mgmt "$@"; }`로 시작할 것.
 
 ### Spring Boot 메모리 압박 벤치마크 (2026-11-05, `#web/springboot-memory`)
-- 목적: "메모리가 꽉 차고 GC가 도는" 운영 상황의 가성비. 앱 `docker/springboot-memory`(이미지 `benchmark/springboot-memory:1.2`,
-  Spring Boot 4.1.2 + Corretto 21.0.13, 가상 스레드). 상주 캐시(힙 50%) + POST `/process`(64KB 본문 → 1MB 작업 객체,
-  캐시 1항목 교체, 1초 대기) — 커넥션 = 처리 중 요청 = 쌓인 작업 객체. `/stats`가 GC 정지·old_after_gc·inflight·CPU를 JVM에서 직접 보고.
-- 템플릿 `benchmarks/springboot-memory/mem{12,24}-server-remote.yaml` + `mem-benchmark-remote.yaml`(커넥션 256→6144, 각 60s).
-  기동 스크립트가 힙 = min(목표, RAM − 2.5GB), 상주 = 힙 50%로 계산(MEMORY_PLAN 로그) — RAM이 부족한 인스턴스는 탈락이 아니라 축소.
-  JVM: G1, -Xms=-Xmx, AlwaysPreTouch, **ExitOnOutOfMemoryError 필수**(없으면 Tomcat 스레드만 OOM으로 죽고 JVM이 살아
-  다음 회차가 응답 없는 서버를 40분 기다림 — 2026-11-05 실제 발생).
-- 실행: `INSTANCES_OVERRIDE=... SERVER_READY_TIMEOUT=600 generate-cache-remote-benchmark.sh sbmem12 <server> <client> sbmem12-server 5 ap-northeast-2c`.
-  실행기는 이제 서버 정리 전에 `results/<name>-remote/<inst>/server.log`(재시작 횟수·종료 사유·로그)를 남긴다.
-- 판정: 단계 통과 = p99 ≤ 2s + 오류 0. "버틴 커넥션" = 연속 통과 최고 단계(5회 중앙값). GC 비율은 참고값(10% 기준은 변별력 없어 폐기).
-- 결과: 힙 12GB에서 Graviton 7·8세대 M·R 3,072 vs Intel M·R 전부 2,048(GC 정지 비율 ~44% vs ~77%) — CPU 중심 SpringBoot와 결론 반대.
-  힙 24GB는 r7g/r8g만 4,096으로 늘고 r6g·r8i 그대로, r6i·r7i는 1,024로 오히려 감소(큰 힙 = GC 작업 증가, 코어가 받쳐야 함).
-  1,000커넥션당 비용 최저 m6g $0.061 · r7g $0.063 · m7g $0.065. r6g $0.119 vs m8i $0.127.
+- 목적: "메모리가 꽉 차고 CPU가 남는" 운영 상황의 가성비(가설: r6g가 m8i보다 유리). 앱 `docker/springboot-memory`(이미지
+  `benchmark/springboot-memory:1.2`, Spring Boot 4.1.2 + Corretto 21.0.13, 가상 스레드). 상주 캐시 + POST `/process`(본문 →
+  WORK_KB 1MB 작업 객체, 캐시 1항목 교체, HOLD_MS 대기) — 커넥션 = 처리 중 요청 = 쌓인 작업 객체. `/stats`가 GC 정지·old_after_gc·inflight·CPU 보고.
+- **현행 설계(2차)**: `benchmarks/springboot-memory/mem-server-remote.yaml` + `mem-benchmark-remote.yaml`, 결과 `results/sbmem-remote/`.
+  힙 = **RAM × 60%**(-Xms=-Xmx), 상주 = **전 인스턴스 동일 2GB**(조건 통일 — 차이는 처리량이 쌓는 작업 객체만, 사용자 요구), 본문 8KB, **대기 10초**. 클라이언트가 /version으로 K = (힙 − 상주) ÷ 1MB를 구해
+  커넥션을 K의 25/50/60/70/80/90/100/110%로 늘림(각 90s, 2단계 연속 실패 시 중단, OOM 재시작 후 복구 대기). 통과 = p99 ≤ 대기 + 1초 + 오류 0.
+  실행: `INSTANCES_OVERRIDE=... SERVER_READY_TIMEOUT=600 generate-cache-remote-benchmark.sh sbmem <server> <client> sbmem-server 5 ap-northeast-2c`.
+- **1차 설계 폐기 이유(재현 시 같은 실수 금지)**: (1) 힙 12GB/24GB **절대값** 고정 → R은 RAM의 39%만 써서 메모리 크기가 비교되지 않음.
+  (2) 커넥션 단계 고정(2048→3072) → C(힙 5.2GB)는 GC 압박 구간을 건너뛰고 바로 OOM. (3) 대기 1초 → 초당 요청 = 처리 중 요청이라
+  할당·GC가 CPU를 먼저 포화(r6g 이론치 50%에서 CPU 93%·GC 70%, 힙은 여유) = '메모리 꽉·CPU 여유'가 아님. (4) 64KB 본문은 R 최대 단계에서
+  xlarge 네트워크 기준 대역폭을 넘을 수 있음. 1차 원시 데이터 `results/sbmem{12,24}-remote`, 대기 1초 파일럿 `results/sbmem-pilot-hold1s` — 파서 미참조.
+- JVM: G1, AlwaysPreTouch, **ExitOnOutOfMemoryError 필수**(없으면 Tomcat 스레드만 OOM으로 죽고 JVM이 살아 다음 회차가 40분 대기 — 실제 발생).
+  Tomcat max-connections는 env `SERVER_TOMCAT_MAXCONNECTIONS=30000`(R은 ~9,500 처리 중 요청).
+- **동기화된 파도 금지**: wrk가 전 커넥션을 동시에 열고 대기가 고정(10초)이면 10초마다 전 요청이 한순간에 몰려 수 GB를 한꺼번에 할당
+  → GC 3~5%인데 p99 꼬리 1.3초, 큰 인스턴스(R)일수록 불리(Intel R이 25% 단계부터 실패). 클라이언트 lua `delay()`로 커넥션별 첫 요청만
+  0~대기 무작위 지연(지연시간 측정 미포함)해 고른 도착으로 해결. 파도 버전 원시 데이터 `results/sbmem-pilot-syncwave`(파서 미참조).
+- 상주 = 힙 50% 버전 스모크(`results/sbmem-pilot-live50pct`, 파서 미참조)는 R이 상주 데이터도 2배(9.5GB)라 GC 조건이 달라 폐기 → 상주 고정 2GB로 재측정.
 
 ### ⚠️ 실행기 동시성: 공유 워크스테이션 cgroup pids 한도
 이 워크스테이션의 모든 세션은 cgroup `code-server.service`의 **pids.max=8192(스레드 포함)**를 공유하며 평소에도

@@ -1,0 +1,45 @@
+===== SpringBoot Memory Benchmark: r6i.xlarge run 5 =====
+Server-Version: java 21.0.13 Amazon.com Inc. springboot 4.1.2 gc [G1 Young Generation, G1 Concurrent GC, G1 Old Generation] entries 524288 entry_kb 4 work_kb 1024 hold_ms 10000 heap_max_mb 18944 virtual_threads true cpus 4
+Client-Node: ip-10-2-44-34.ap-northeast-2.compute.internal
+Timestamp: 2026-11-05T15:24:12+00:00
+INFLIGHT_MAX_THEORY: 16896
+SLO_P99_MS: 11000
+=== Warm-up (64 connections, 30s) ===
+=== Stage connections=4224 pct=25 (process, 6 threads, 90s) ===
+Running 2m test @ http://sbmem-remote-r6i-xlarge:8080/process
+  6 threads and 4224 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    10.14s   227.68ms  11.21s    89.86%
+    Req/Sec   642.81    666.34     3.66k    83.92%
+  Latency Distribution
+     50%   10.07s 
+     75%   10.17s 
+     90%   10.46s 
+     99%   11.16s 
+  33792 requests in 1.50m, 4.77MB read
+Requests/sec:    375.22
+Transfer/sec:     54.22KB
+END_C4224
+STATS_C4224: {"window_s":90.2,"proc_cpu_pct":10.2,"gc_pauses":45,"gc_pause_total_ms":5360,"gc_pause_max_ms":559,"gc_pause_over50ms":42,"gc_pause_over100ms":9,"gc_pause_over200ms":3,"heap_used_mb":14215,"heap_max_mb":18944,"entries":524288,"old_after_gc_mb":13287,"inflight_now":4224,"inflight_peak":4275,"processed":33843}
+
+STAGE_FAIL pct=25 p99_ms=11160
+=== Stage connections=8448 pct=50 (process, 6 threads, 90s) ===
+Running 2m test @ http://sbmem-remote-r6i-xlarge:8080/process
+  6 threads and 8448 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    10.23s   356.49ms  11.88s    81.88%
+    Req/Sec   698.21      0.85k    6.44k    87.37%
+  Latency Distribution
+     50%   10.09s 
+     75%   10.20s 
+     90%   10.79s 
+     99%   11.85s 
+  67584 requests in 1.50m, 9.54MB read
+Requests/sec:    750.45
+Transfer/sec:    108.45KB
+END_C8448
+STATS_C8448: {"window_s":90.3,"proc_cpu_pct":24.7,"gc_pauses":96,"gc_pause_total_ms":13693,"gc_pause_max_ms":726,"gc_pause_over50ms":90,"gc_pause_over100ms":35,"gc_pause_over200ms":9,"heap_used_mb":15321,"heap_max_mb":18944,"entries":524288,"old_after_gc_mb":14905,"inflight_now":8448,"inflight_peak":8448,"processed":67584}
+
+STAGE_FAIL pct=50 p99_ms=11850
+STOP_AFTER_2_FAILS
+Benchmark Complete
