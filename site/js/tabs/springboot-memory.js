@@ -1,11 +1,14 @@
 // Spring Boot 메모리 압박 탭 — 수치는 scripts/dashboard/parsers/springboot_memory.py에서만 계산.
 // envelope.tier[instance] = {heap_mb, live_mb, k, capacity, capacity_runs, util_pct, util_runs, stages{pct:{conn, p99_ms, gc_pct,...}}}
-import { buildToc, fmt, badge, archColor } from '../shared.js';
+import { buildToc, fmt, badge, archColor, loadData } from '../shared.js';
+import { renderVerdict } from './springboot-memory-verdict.js';
 import { standardReport, scenario, x, short } from '../report.js';
 
 
 export async function render(root, { rows, envelope }) {
   const handles = [];
+  // 종합 판정은 48시간 트래픽 측정(같은 M 패밀리 6종)과 함께 본다 — 없으면 동시접속 쪽만
+  const t48 = await loadData('springboot-traffic48').catch(() => null);
   const slot = (k) => root.querySelector(`[data-slot="${k}"]`);
   const T = envelope.tier || {};
   const PCTS = envelope.pcts || [];
@@ -192,6 +195,8 @@ export async function render(root, { rows, envelope }) {
       rankTitle: '가성비 순위 — 100만 요청당 비용과 CPU 효율',
       rankCaption: '왼쪽 = 기준(p99 ≤ 대기 + 1초, 오류 0)을 지키며 낸 최대 처리량으로 100만 요청을 처리하는 비용(낮을수록 좋음). 오른쪽 = 같은 패밀리(같은 RAM·힙) 안에서 같은 부하 단계의 서버 CPU(낮을수록 같은 일을 적은 CPU로 처리 — GC·처리 효율). 패밀리 사이는 힙 크기가 달라 직접 비교하지 않습니다.',
       rank: (host) => valueRank(host),
+      verdictTitle: '종합 판정과 권고 — 동시접속이 많을 때 vs 트래픽이 올라갈 때',
+      verdict: (host) => renderVerdict(host, { T, meta, HOLD, SLO, t48 }),
       pairFamily: 'm',
       scenarios: [
         scenario(A, '8세대 M', 'm8g.xlarge', 'm8i.xlarge'),
