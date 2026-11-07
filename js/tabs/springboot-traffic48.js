@@ -1,9 +1,10 @@
-// 48시간 트래픽 탭 — 수치는 scripts/traffic48_report.py가 만든 site/data/springboot-traffic48.json에서만 읽는다.
+// 48시간 트래픽 탭 — 수치는 traffic48_report.py / traffic48_stability.py의 분석 결과에서 읽는다.
 // 이 파일은 그리기·문장 조립만 한다(하드코딩 수치 없음). 기준선 = m7i.xlarge.
 import { fmt, archColor, summaryCards } from '../shared.js';
 import { x, short } from '../report.js';
+import { renderStability } from './traffic48-stability.js';
 
-const REPO = 'https://github.com/Atom-oh/aws-ec2-benchmark/blob/92b5d5092ba5c94e3664a9f9f58e773ff0b36c82/reports/traffic48-final/';
+const REPO = 'https://github.com/Atom-oh/aws-ec2-benchmark/blob/77cccea31076184165f4b63e1b013a583f2de086/reports/traffic48-final/';
 const BASE = 'm7i.xlarge';
 const BAND = 0.05;
 const cell = (v, d = 3) => (v == null ? '—' : fmt(v, d));
@@ -14,6 +15,10 @@ const style = (n, arch) => ({
 });
 
 export async function render(root, { rows, envelope: e }) {
+  const response = await fetch('data/springboot-flex-stability.json');
+  if (!response.ok) throw new Error(`Flex stability data: HTTP ${response.status}`);
+  const stability = await response.json();
+  if (stability.source_sha256 !== e.source_sha256) throw new Error('Flex stability source mismatch');
   const handles = [];
   const slot = (k) => root.querySelector(`[data-slot="${k}"]`);
   const meta = Object.fromEntries(rows.map((r) => [r.name, r]));
@@ -102,7 +107,7 @@ export async function render(root, { rows, envelope: e }) {
   peakChart(slot('peak-rps'), 'rps_ratio', '성공 처리량 ÷ m7i', false);
   peakChart(slot('peak-p99'), 'p99_ratio', 'p99 ÷ m7i', true);
   const trend = (n) => { const v = PEAKS.map(([g]) => cmp(g, 'observed', n)?.rps_ratio).filter((q) => q != null); return v.length > 1 ? `${short(n)} ${x(v[0])} → ${x(v[v.length - 1])}` : ''; };
-  slot('peak-lead').innerHTML = `<p>Flex 인스턴스가 긴 피크에서 따로 밀리는지 보는 그림입니다. 1분 → 60분 피크로 갈 때 m7i 대비 처리량은 ${['m7i-flex.xlarge', 'm8i-flex.xlarge', 'm8i.xlarge'].map(trend).filter(Boolean).join(', ')}입니다. 피크가 길어질수록 Flex만 떨어지는 패턴이면 CPU 크레딧·제한을 의심할 수 있지만, 이 측정은 타입별 1호스트·1회라 단정하지 않습니다.</p>`;
+  slot('peak-lead').innerHTML = `<p>Flex 인스턴스가 긴 피크에서 따로 밀리는지 보는 그림입니다. 1분 → 60분 피크로 갈 때 m7i 대비 처리량은 ${['m7i-flex.xlarge', 'm8i-flex.xlarge', 'm8i.xlarge'].map(trend).filter(Boolean).join(', ')}입니다. 피크 길이별 합산만으로 시간에 따른 저하를 판단할 수 없어, 아래 안정성 분석에서 같은 길이의 반복을 전반·후반으로 나눠 비교합니다. Flex의 내부 제한 원인이나 T 계열 CPU 크레딧 고갈을 입증하는 측정은 아닙니다.</p>`;
 
   // ---------- 48시간 변화 (구간 종류·지표·표시 선택) ----------
   const PH = e.phases.filter((p) => p.finished);
@@ -160,6 +165,7 @@ export async function render(root, { rows, envelope: e }) {
     return `<tr><td><strong>${n}</strong></td><td>${cell(i.heap_mean_gib, 2)} / ${cell(i.heap_max_gib, 2)}</td><td>${fmt(i.gc_count_lower_bound)}</td><td>${cell(i.gc_pause_seconds_lower_bound, 1)}</td><td>${cell(i.gc_pause_max_ms, 1)}</td><td>${i.cpu_pct != null ? `${fmt(i.cpu_pct, 0)}%` : '—'}</td></tr>`; }).join('')}</tbody></table></div>`;
   const S = e.supplemental_flex48 || {};
   slot('flex48').innerHTML = Object.keys(S).length ? `<div class="table-scroll" tabindex="0"><table class="report-table"><thead><tr><th>인스턴스</th><th>표본 (마지막 경과)</th><th>첫 1시간 평균 RPS</th><th>마지막 30표본 평균 RPS</th><th>변화</th><th>마지막 30표본 p99 중앙값</th></tr></thead><tbody>${Object.entries(S).map(([n, s]) => `<tr><td><strong>${n}</strong></td><td>${fmt(s.samples)} (${fmt(s.last_elapsed_seconds / 3600, 1)}h)</td><td>${fmt(s.first_hour_probe_rps_mean)}</td><td>${fmt(s.last30_probe_rps_mean)}</td><td><strong>${s.change_pct > 0 ? '+' : ''}${fmt(s.change_pct, 1)}%</strong></td><td>${cell(s.last30_per_probe_p99_median_ms, 2)}ms</td></tr>`).join('')}</tbody></table></div>` : '';
-  slot('downloads').innerHTML = [['README.md', '전체 리포트'], ['phases.csv', '구간 CSV'], ['comparisons.csv', '비교 CSV'], ['tables.md', '전체 비교표'], ['raw/manifest.json', '원본 체크섬'], ['raw', '원본 조각'], ['timeseries.png', '차트 PNG']].map(([p, n]) => `<a href="${REPO + p}">${n}</a>`).join(' · ');
+  slot('downloads').innerHTML = [['README.md', '전체 리포트'], ['flex-stability.md', 'Flex 안정성 상세 리포트'], ['flex-stability-windows.csv', '안정성 시간창 CSV'], ['phases.csv', '구간 CSV'], ['comparisons.csv', '비교 CSV'], ['tables.md', '전체 비교표'], ['raw/manifest.json', '원본 체크섬'], ['raw', '원본 조각'], ['timeseries.png', '차트 PNG']].map(([p, n]) => `<a href="${REPO + p}">${n}</a>`).join(' · ');
+  handles.push(renderStability(root, stability));
   return { destroy() { handles.forEach((h) => h && h.destroy && h.destroy()); } };
 }

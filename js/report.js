@@ -316,7 +316,7 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
     sec('r-pairs', '같은 세대의 Graviton과 Intel', `${P('xlarge의 vCPU 4개는 Graviton에서 물리 코어 4개, Intel/AMD에서 물리 코어 2개 × 하이퍼스레딩입니다.')}${s('pairs-chart')}${cap(`<strong>그림 ${n(2)}.</strong> 가격 대비 성능 (Graviton ÷ Intel). 회색 띠는 ±${A.band * 100}%`)}${s('pairs')}<h3>5세대 AMD와 Intel</h3>${s('amd')}`),
     sec('r-uplift', '세대 간 향상', `${s('uplift-chart')}${cap(`<strong>그림 ${n(3)}.</strong> 이전 세대(빈 원) → 다음 세대(채운 원)`)}${s('uplift')}`),
     sec('r-family', '패밀리(C/M/R)와 flex', `${s('family')}<h3>flex와 표준</h3>${s('flex')}`),
-    sec('r-verdict', '종합 판정과 권고', `${s('verdict-chart')}${cap(`<strong>그림 ${n(4)}.</strong> 시나리오별 가격 대비 성능 (왼쪽 ÷ 오른쪽)`)}${s('verdict')}${cap(bandNote(A))}<h3>권고</h3><ul class="recs">${recs.map((r) => `<li>${r}</li>`).join('')}</ul>`),
+    cfg.verdict ? sec('r-verdict', cfg.verdictTitle || '종합 판정과 권고', s('verdict')) : sec('r-verdict', '종합 판정과 권고', `${s('verdict-chart')}${cap(`<strong>그림 ${n(4)}.</strong> 시나리오별 가격 대비 성능 (왼쪽 ÷ 오른쪽)`)}${s('verdict')}${cap(bandNote(A))}<h3>권고</h3><ul class="recs">${recs.map((r) => `<li>${r}</li>`).join('')}</ul>`),
   ].join('');
   const at = (k) => hostEl.querySelector(`[data-r="${k}"]`);
   handles.push(keyFindings(at('kf'), kf));
@@ -332,6 +332,7 @@ export function standardReport(hostEl, rows, A, cfg = {}) {
   handles.push(upliftTable(at('uplift'), rows, A));
   handles.push(familyTable(at('family'), rows, A));
   handles.push(pairTable(at('flex'), A.flex_pairs));
+  if (cfg.verdict) { handles.push(cfg.verdict(at('verdict'))); return { destroy() { handles.forEach((h) => h && h.destroy && h.destroy()); hostEl.innerHTML = ''; } }; }
   handles.push(ratioBars(at('verdict-chart'), scen.map((q) => ({ label: q.name, value: q.ppd })), { band: A.band }));
   const vt = at('verdict');
   vt.innerHTML = `<div class="table-scroll"><table class="report-table"><thead><tr><th>시나리오</th><th>비교</th><th>성능</th><th>가격</th><th>가격 대비 성능</th><th>판정</th></tr></thead><tbody>${
