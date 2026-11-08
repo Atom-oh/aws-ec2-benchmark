@@ -287,7 +287,7 @@ python3 -m unittest discover -s tests/traffic48-report -p 'test_stability.py' -v
 둘째 날 phase의 p99를 평균내지 않고 원본 요청 히스토그램을 합친다.
 마지막 반시간 probe의 p99는 요청 합산값이 아니므로 별도 표기로 유지한다.
 페이지의 안정성 본문과 표에서 이 Markdown을 생성해 두 리포트의 표현과 수치를 일치시킨다.
-AWS 공식 문서의 성능 설명은 2026-11-06 확인했다.
+AWS 공식 문서의 성능 설명은 2026-11-08 재확인했다.
 """
     return text + "\n\n최종 집계 SHA-256: `" + data["source_sha256"] + "`.\n"
 
