@@ -4,7 +4,7 @@ import { fmt, archColor, summaryCards } from '../shared.js';
 import { x, short } from '../report.js';
 import { renderStability } from './traffic48-stability.js';
 
-const REPO = 'https://github.com/Atom-oh/aws-ec2-benchmark/blob/72205caf64abdb9b8c02ea6ce3a59d188d82b632/reports/traffic48-final/';
+const REPO = 'https://github.com/Atom-oh/aws-ec2-benchmark/blob/852c73b91d1d42438a87df6587f1caa810659db8/reports/traffic48-final/';
 const BASE = 'm7i.xlarge';
 const BAND = 0.05;
 const cell = (v, d = 3) => (v == null ? '—' : fmt(v, d));
