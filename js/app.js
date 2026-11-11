@@ -32,6 +32,17 @@ const WEB_SUBTABS = [
   { id: 'dotnet', name: 'ASP.NET Core', note: '.NET' },
 ];
 
+// 탭별 문서 제목·설명(검색 결과·공유 미리보기). 없으면 기본값.
+const TAB_META = {"overview": ["종합", "55종 인스턴스의 벤치마크별 정규화 점수, Graviton ÷ Intel 판정 매트릭스와 종합 분석"], "sysbench": ["Sysbench", "CPU(멀티·싱글 스레드)와 메모리 대역폭"], "geekbench": ["Geekbench", "Geekbench 6 싱글·멀티 코어 점수"], "passmark": ["PassMark", "PassMark CPU Mark"], "stress-ng": ["stress-ng", "CPU·메모리·캐시 스트레스 7종"], "iperf3": ["iperf3", "네트워크 대역폭·지터"], "redis": ["Redis", "Redis 8.8 SET/GET 처리량·지연 (io-threads 포함)"], "valkey": ["Valkey", "Valkey 9.1 SET/GET 처리량·지연 (io-threads 포함)"], "nginx": ["Nginx", "Nginx 정적 응답 wrk 처리량·지연"], "web/springboot": ["Spring Boot", "Spring Boot(Java 21) 최대 처리량·콜드스타트, JIT 설정 영향"], "web/springboot-memory": ["Spring Boot 메모리 압박", "G1GC 메모리 압박에서 동시 연결·지연·CPU, p90 기준 scale out과 KEDA 시뮬레이션"], "web/springboot-traffic48": ["48시간 트래픽", "48시간 트래픽 변화·90k RPS 피크에서 Flex vs 표준형"], "web/fastapi": ["FastAPI", "FastAPI + uvicorn JSON·연산 처리량"], "web/django": ["Django", "Django + gunicorn 처리량"], "web/node": ["Node.js", "Node.js + Fastify 처리량"], "web/go": ["Go", "Go net/http 처리량"], "web/dotnet": ["ASP.NET Core", "ASP.NET Core(Kestrel) 처리량"], "elasticsearch": ["Elasticsearch", "Elasticsearch Rally 색인 처리량·지연과 기동 시간"], "clickhouse": ["ClickHouse", "ClickHouse ClickBench 43쿼리"], "kafka": ["Kafka", "Kafka produce/consume 처리량·지연, 포화점"]};
+const BASE_TITLE = 'EC2 인스턴스 55종 비교 · Graviton vs Intel·AMD';
+const HOME_TITLE = 'EC2 인스턴스 벤치마크 — Graviton vs Intel·AMD 55종 성능·가성비 비교';
+function setTabMeta(route) {
+  const m = TAB_META[route];
+  document.title = route === 'overview' || !m ? HOME_TITLE : `${m[0]} 벤치마크 — ${BASE_TITLE}`;
+  const d = document.querySelector('meta[name="description"]');
+  if (d && m) d.setAttribute('content', `${m[0]}: ${m[1]}. AWS EC2 xlarge 55종(Intel·AMD·Graviton) 같은 조건 측정, 가격 대비 성능 비교.`);
+}
+
 /** hash -> {route, tabId(상단 내비), view(파셜/모듈 이름), sub} */
 function parseRoute(hash) {
   let [tab, sub] = (hash || 'overview').split('/');
@@ -104,6 +115,7 @@ async function activateTab(hash) {
   const { route, tabId: navId, view, sub } = parseRoute(hash);
   if (hash && `#${route}` !== location.hash) history.replaceState(null, '', `#${route}`); // #springboot, #web → 정규 경로
   const tabId = route;
+  setTabMeta(route);
   if (tabId === currentTabId) return;
   const version = ++navigationVersion;
 
