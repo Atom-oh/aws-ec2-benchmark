@@ -67,6 +67,10 @@ EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54�
   Geekbench는 로컬 점수가 0(Browser 업로드 전용)이라 백필 대상 아님.
 - ClickHouse/Kafka는 `results/<x>/data.json`을 읽으므로 원시 로그 추가 후 `scripts/generate-{clickhouse,kafka}-report.py`를
   먼저 돌려야 대시보드에 반영된다. passmark/stress-ng 파서는 레거시 JSON에 없는 인스턴스를 원시 로그로 보충한다.
+- **ES Rally 백필(2026-11-11)**: c9g/c8gn/r8gd/m8i-flex는 Rally(index-append) 로그가 없어 `scripts/backfill-es-rally.sh <inst>...`로
+  같은 템플릿·같은 순서(인스턴스별 ES 서버 1개 → Rally 5회 순차)로 채움 → rally 55/55. 기존 `generate-elasticsearch-benchmark.sh`는
+  55개 동시·context 미고정이라 백필에 쓰지 말 것. 여러 인스턴스가 공용 ConfigMap `es-config`를 동시에 apply하면 충돌하므로 백필
+  스크립트는 apply를 재시도한다. ES 탭·종합 판정표에 Rally 색인 처리량(`rally_tput`)·p99(`rally_p99`) 분석 추가.
 - **부하 중 클럭/CPU 샘플러**: `benchmarks/system/node-sampler.yaml`(DaemonSet, 1초 간격 cpu MHz·노드 CPU%) +
   `scripts/collect-node-sampler.sh`(→ `results/node-sampler/<type>/<node>.log`, 인스턴스 ID·AZ 헤더). **nodeAffinity로
   측정 대상 타입에만 붙인다** — 다른 세션의 장시간 측정 노드(sb-flex48/sb-traffic48)에 붙지 않게 할 것.
