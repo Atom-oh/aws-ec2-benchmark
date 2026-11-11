@@ -138,7 +138,7 @@ spec:
         <td>p99 ${six.map((n) => `${short(n)} ${peak[n].lowP99X != null ? x(peak[n].lowP99X) : '—'}`).join(' · ')}</td>
         <td>p99가 m7i ±5% 이내인 것 중 가장 싼 ${lowCheap.slice(0, 2).map((n) => `${short(n)}($${price(n).toFixed(3)}/시간)`).join(', ')}</td></tr>
     </tbody></table></div>
-    <p class="caption"><strong>표.</strong> 운영 상황별 판정. 두 측정 모두 타입별 1호스트이고, 48시간 측정의 피크는 클라이언트 동시성 한도·지연이 섞인 관측(미발생 요청 포함)입니다. 메모리 압박 측정은 부하를 10% 간격으로 올려 같은 단계에서 멈춘 인스턴스끼리의 차이는 구분하지 못합니다.</p>
+    <p class="caption"><strong>표.</strong> 운영 상황별 판정. 두 측정 모두 타입별 1호스트이고, 48시간 측정의 피크는 클라이언트 동시성 한도·지연이 섞인 관측(미발생 요청 포함)입니다. 메모리 압박 측정은 부하를 단계(이론 최대 대비 %)로 올려 같은 단계에서 멈춘 인스턴스끼리의 차이는 구분하지 못합니다.</p>
     <h3>권고</h3>
     <ul class="recs">
       <li><strong>먼저 워크로드가 어느 쪽인지 보십시오.</strong> 요청이 오래 머물러 처리 중 요청이 쌓이는 서비스는 메모리가 한계라 <strong>RAM이 큰 인스턴스</strong>가, 짧은 요청이 몰리는 서비스는 CPU가 한계라 <strong>코어 성능이 좋은 인스턴스</strong>가 유리합니다. 같은 인스턴스라도 두 상황의 순위가 다릅니다(동시접속: ${concBest.slice(0, 3).map(short).join(' > ')} / 트래픽 급증: ${peakBest.slice(0, 3).map(short).join(' > ')}, 가성비 기준).</li>
