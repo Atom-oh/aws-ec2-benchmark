@@ -100,6 +100,20 @@ EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54�
   0~대기 무작위 지연(지연시간 측정 미포함)해 고른 도착으로 해결. 파도 버전 원시 데이터 `results/sbmem-pilot-syncwave`(파서 미참조).
 - 상주 = 힙 50% 버전 스모크(`results/sbmem-pilot-live50pct`, 파서 미참조)는 R이 상주 데이터도 2배(9.5GB)라 GC 조건이 달라 폐기 → 상주 고정 2GB로 재측정.
 
+### Spring Boot 메모리 압박 2차 측정 — sbmem2 (2026-11-11, 탭 기본 조건)
+- sbmem(위)은 C·M이 아키텍처와 무관하게 같은 OOM 벽(이론 최대 80%)에 닿아 GC 효율 차이가 최대 커넥션에 안 나왔음 →
+  이미지 `springboot-memory:1.3`에 `GARBAGE_KB`(요청마다 금방 버려지는 객체, 기본 0) 추가, sbmem2는 4096(4MB).
+  템플릿 `mem2-{server,benchmark}-remote.yaml`, 결과 `results/sbmem2-remote/`, 단계 25/50/60/70/75/80/84/88/92/96/100/110%,
+  클라이언트 lua `done()`이 `LAT_P95_MS`/`LAT_P999_MS` 출력(wrk 기본 출력엔 p95 없음).
+- 결과(24×5): C·M에서 Graviton 3세대 이상(c7g/c8g/c9g/m7g/m8g)은 80%(메모리 벽), Intel 전부와 Graviton2(c6g/m6g)는 75%에서
+  서버 CPU ~86~88%로 CPU(GC) 한계. R은 전부 CPU 한계 — r7g/r8g 12,636, r8i 11,827, 나머지 10,1xx.
+- 파서는 변형(`VARIANTS`: sbmem, sbmem2)별로 빌드하고 단계는 로그에서 읽는다. 24개가 모두 측정된 sbmem2가 있으면 주 변형,
+  탭은 측정 조건 버튼으로 전환(analysis 키가 `<변형>_capacity`라 탭에서 키를 하드코딩하지 말 것).
+- 실행기 `JOB_TIMEOUT`은 이제 env로 조정(기본 2400). sbmem2는 단계가 많고 OOM 복구 대기가 있어 한 회차가 40분을 넘을 수 있음
+  (m6i run1 실제 타임아웃) → 재실행은 `JOB_TIMEOUT=3600`.
+- 헤드리스 Chromium(`--single-process`)은 종료 시 작업 디렉터리에 코어 덤프(수백 MB, 희소 1.4TB)를 남긴다. `site/` 안에서
+  띄우면 배포 rsync가 그 파일을 복사하다 멈춤(2026-11-06 실제 발생) → 브라우저 검증은 `site/` 밖에서, 배포 rsync는 `--exclude='core.*'`.
+
 ### ⚠️ 실행기 동시성: 공유 워크스테이션 cgroup pids 한도
 이 워크스테이션의 모든 세션은 cgroup `code-server.service`의 **pids.max=8192(스레드 포함)**를 공유하며 평소에도
 다른 세션이 ~7,200을 쓴다. 55개 인스턴스를 한꺼번에 병렬로 돌리면 fork가 EAGAIN으로 실패해 가짜

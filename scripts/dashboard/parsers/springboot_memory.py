@@ -18,8 +18,12 @@ from common import PRICE, RESULTS_DIR, canonical_instances, parse_wrk_block, wrk
 
 CPU_LIMIT_PCT = 70     # 첫 실패 단계(오류 없음)의 서버 CPU가 이 이상이면 'CPU 한계'(메모리는 남음), 미만이면 'GC 정지 누적'(CPU 여유)
 SLO_DEFAULT_MS = 11000  # 대기(HOLD_MS 10초) + 처리 여유 1초 — 로그의 SLO_P99_MS가 우선
-PCTS = [25, 50, 60, 70, 80, 90, 100, 110]
-NAME = "sbmem"
+# 변형: 결과 디렉터리 → 설명. 단계(이론 최대 대비 %)는 각 변형의 로그에서 읽는다(sbmem2는 75~96%를 더 세밀하게).
+VARIANTS = {
+    "sbmem": {"label": "요청당 garbage 없음", "note": "요청은 1MB 작업 객체만 만든다(2026-11-06 측정)"},
+    "sbmem2": {"label": "요청당 garbage 4MB", "note": "요청마다 금방 버려지는 객체 4MB(파싱·DTO·직렬화 버퍼 흉내)를 더 만든다 — 처리량에 비례해 GC 작업 증가(이미지 1.3)"},
+}
+FULL_COVERAGE = 24   # 주 변형으로 쓰려면 이만큼의 인스턴스가 있어야 함(부분 측정 중에는 이전 변형 유지)
 STAGE = re.compile(r"=== Stage connections=(\d+) pct=(\d+) .*?===\n(.*?)(?=^END_C)", re.S | re.M)
 
 
@@ -62,10 +66,10 @@ def parse_log(path):
     return out
 
 
-def _capacity(run):
+def _capacity(run, pcts):
     """연속 통과한 최고 단계 → (커넥션, pct). 중간 실패 후 우연 통과는 무시."""
     conn, pct = 0, 0
-    for p in PCTS:
+    for p in pcts:
         st = run["stages"].get(p)
         if not (st and st["slo_ok"]):
             break
@@ -73,14 +77,15 @@ def _capacity(run):
     return conn, pct
 
 
-def build():
+def _build_variant(var):
     insts = {}
     for name in canonical_instances():
-        d = RESULTS_DIR / f"{NAME}-remote" / name
+        d = RESULTS_DIR / f"{var}-remote" / name
         runs = [r for r in (parse_log(lp) for lp in sorted(d.glob("run*.log"))) if r] if d.is_dir() else []
         if not runs:
             continue
-        caps = [_capacity(r) for r in runs]
+        PCTS = sorted({p for r in runs for p in r["stages"]})
+        caps = [_capacity(r, PCTS) for r in runs]
         stage_med = {}
         for p in PCTS:
             vals = [r["stages"][p] for r in runs if p in r["stages"]]
@@ -111,18 +116,27 @@ def build():
                        "util_pct": int(statistics.median([p for _, p in caps])), "util_runs": [p for _, p in caps],
                        "stages": stage_med}
 
-    # analysis 블록: 지표 = 버틴 커넥션 수(회차별) — 판정·짝 비교·가격 대비 성능을 다른 탭과 같은 틀로
-    key = f"{NAME}_capacity"
+    pcts = sorted({int(p) for v in insts.values() for p in v["stages"]})
+    key = f"{var}_capacity"
     rep = {key: {n: v["capacity_runs"] for n, v in insts.items() if any(v["capacity_runs"])}}
     rep = {k: v for k, v in rep.items() if v}
     specs = {key: {"label": "버틴 동시 커넥션 (힙 = RAM 60%)", "unit": "커넥션", "direction": "max", "memory_sensitive": True,
                    # 메모리 압박 탭은 범용(M) 인스턴스를 기준선으로(사용자 요청 2026-11-06) — 다른 탭은 c7i.xlarge 유지
                    "baseline": "m7i.xlarge"}}
     summaries, blocks = analysis.report(rep, specs, PRICE) if rep else ({}, {})
+    return insts, pcts, summaries, blocks
+
+
+def build():
+    built = {v: _build_variant(v) for v in VARIANTS}
+    built = {v: b for v, b in built.items() if b[0]}
+    primary = "sbmem2" if len(built.get("sbmem2", ({},))[0]) >= FULL_COVERAGE else "sbmem"
+    insts, PCTS, summaries, blocks = built[primary]
     instances = {n: {"sbmem": v} for n, v in insts.items()}
     for n, r in summaries.items():
         instances[n]["r"] = r
     first = next(iter(blocks), None)
+    key = first
     return {
         "benchmark": "springboot-memory",
         "coverage": len(instances),
@@ -139,6 +153,9 @@ def build():
         "cpu_limit_pct": CPU_LIMIT_PCT,
         "slo_ms": next((v["slo_ms"] for v in insts.values()), SLO_DEFAULT_MS),
         "tier": insts,
+        "variant": primary,
+        "variants": {v: {"label": VARIANTS[v]["label"], "note": VARIANTS[v]["note"], "coverage": len(b[0]), "pcts": b[1], "tier": b[0], "analysis": b[3]}
+                     for v, b in built.items()},
         "analysis": blocks,
         "instances": instances,
     }
