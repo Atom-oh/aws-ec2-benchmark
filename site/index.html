@@ -3,7 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EC2 Benchmark Dashboard</title>
+    <title>EC2 인스턴스 벤치마크 — Graviton vs Intel·AMD 55종 성능·가성비 비교</title>
+    <meta name="description" content="AWS EC2 xlarge(4 vCPU) 인스턴스 55종(Intel 5~8세대, AMD 5세대, Graviton2~5)을 EKS에서 같은 조건으로 측정한 벤치마크. CPU·메모리·네트워크, Redis·Valkey·Nginx, Spring Boot·FastAPI·Django·Node.js·Go·ASP.NET Core, Elasticsearch·ClickHouse·Kafka의 처리량·지연·가격 대비 성능을 서울 리전 On-Demand 가격 기준으로 비교합니다.">
+    <meta name="keywords" content="EC2 벤치마크, Graviton 벤치마크, Graviton vs Intel, Graviton4, Graviton5, c8g, c8i, m8g, r8g, c9g, EC2 가성비, Spring Boot 벤치마크, JVM GC, Redis 벤치마크, Kafka 벤치마크, ClickHouse ClickBench, Elasticsearch Rally, EKS Karpenter">
+    <meta name="author" content="오준석 (Oh Junseok)">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://benchmark.aws.atomai.click/">
+    <link rel="author" href="https://www.atomai.click/">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ko_KR">
+    <meta property="og:site_name" content="EC2 Benchmark Explorer">
+    <meta property="og:title" content="EC2 인스턴스 벤치마크 — Graviton vs Intel·AMD 55종 성능·가성비 비교">
+    <meta property="og:description" content="AWS EC2 xlarge(4 vCPU) 인스턴스 55종(Intel 5~8세대, AMD 5세대, Graviton2~5)을 EKS에서 같은 조건으로 측정한 벤치마크. CPU·메모리·네트워크, Redis·Valkey·Nginx, Spring Boot·FastAPI·Django·Node.js·Go·ASP.NET Core, Elasticsearch·ClickHouse·Kafka의 처리량·지연·가격 대비 성능을 서울 리전 On-Demand 가격 기준으로 비교합니다.">
+    <meta property="og:url" content="https://benchmark.aws.atomai.click/">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="EC2 인스턴스 벤치마크 — Graviton vs Intel·AMD 55종 성능·가성비 비교">
+    <meta name="twitter:description" content="AWS EC2 xlarge(4 vCPU) 인스턴스 55종(Intel 5~8세대, AMD 5세대, Graviton2~5)을 EKS에서 같은 조건으로 측정한 벤치마크. CPU·메모리·네트워크, Redis·Valkey·Nginx, Spring Boot·FastAPI·Django·Node.js·Go·ASP.NET Core, Elasticsearch·ClickHouse·Kafka의 처리량·지연·가격 대비 성능을 서울 리전 On-Demand 가격 기준으로 비교합니다.">
+    <script type="application/ld+json">[{"@context": "https://schema.org", "@type": "WebSite", "name": "EC2 Benchmark Explorer", "url": "https://benchmark.aws.atomai.click/", "inLanguage": "ko-KR", "description": "AWS EC2 xlarge(4 vCPU) 인스턴스 55종(Intel 5~8세대, AMD 5세대, Graviton2~5)을 EKS에서 같은 조건으로 측정한 벤치마크. CPU·메모리·네트워크, Redis·Valkey·Nginx, Spring Boot·FastAPI·Django·Node.js·Go·ASP.NET Core, Elasticsearch·ClickHouse·Kafka의 처리량·지연·가격 대비 성능을 서울 리전 On-Demand 가격 기준으로 비교합니다.", "author": {"@type": "Person", "name": "오준석 (Oh Junseok)", "url": "https://www.atomai.click/"}}, {"@context": "https://schema.org", "@type": "Dataset", "name": "AWS EC2 xlarge 인스턴스 55종 벤치마크", "url": "https://benchmark.aws.atomai.click/", "description": "AWS EC2 xlarge(4 vCPU) 인스턴스 55종(Intel 5~8세대, AMD 5세대, Graviton2~5)을 EKS에서 같은 조건으로 측정한 벤치마크. CPU·메모리·네트워크, Redis·Valkey·Nginx, Spring Boot·FastAPI·Django·Node.js·Go·ASP.NET Core, Elasticsearch·ClickHouse·Kafka의 처리량·지연·가격 대비 성능을 서울 리전 On-Demand 가격 기준으로 비교합니다.", "keywords": ["EC2 벤치마크", "Graviton 벤치마크", "Graviton vs Intel", "Graviton4", "Graviton5", "c8g", "c8i", "m8g", "r8g", "c9g", "EC2 가성비", "Spring Boot 벤치마크", "JVM GC", "Redis 벤치마크", "Kafka 벤치마크", "ClickHouse ClickBench", "Elasticsearch Rally", "EKS Karpenter"], "isAccessibleForFree": true, "inLanguage": "ko-KR", "creator": {"@type": "Person", "name": "오준석 (Oh Junseok)", "url": "https://www.atomai.click/"}, "spatialCoverage": "AWS ap-northeast-2 (Seoul)", "distribution": [{"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://benchmark.aws.atomai.click/data/instances.json"}], "sameAs": "https://github.com/Atom-oh/aws-ec2-benchmark", "variableMeasured": ["처리량", "지연(p50/p90/p99)", "가격 대비 성능", "기동 시간", "GC 정지", "CPU 사용률"]}]</script>
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -14,7 +30,37 @@
 </head>
 <body>
     <a class="skip-link" href="#app-main">본문으로 건너뛰기</a>
-    <noscript>벤치마크 차트와 비교 도구를 사용하려면 JavaScript를 활성화해 주세요.</noscript>
+    <noscript>
+      <main class="noscript-summary">
+        <h1>EC2 인스턴스 벤치마크 — Graviton vs Intel·AMD 55종 성능·가성비 비교</h1>
+        <p>AWS EC2 xlarge(4 vCPU) 인스턴스 55종(Intel 5~8세대, AMD 5세대, Graviton2~5)을 EKS에서 같은 조건으로 측정한 벤치마크. CPU·메모리·네트워크, Redis·Valkey·Nginx, Spring Boot·FastAPI·Django·Node.js·Go·ASP.NET Core, Elasticsearch·ClickHouse·Kafka의 처리량·지연·가격 대비 성능을 서울 리전 On-Demand 가격 기준으로 비교합니다.</p>
+        <p>차트와 비교 도구를 사용하려면 JavaScript를 활성화해 주세요. 원시 로그·파서·템플릿은 <a href="https://github.com/Atom-oh/aws-ec2-benchmark">GitHub</a>에 공개되어 있습니다.</p>
+        <h2>벤치마크</h2>
+        <ul>
+          <li><a href="https://benchmark.aws.atomai.click/#overview">종합</a> — 55종 인스턴스의 벤치마크별 정규화 점수, Graviton ÷ Intel 판정 매트릭스와 종합 분석</li>
+          <li><a href="https://benchmark.aws.atomai.click/#sysbench">Sysbench</a> — CPU(멀티·싱글 스레드)와 메모리 대역폭</li>
+          <li><a href="https://benchmark.aws.atomai.click/#geekbench">Geekbench</a> — Geekbench 6 싱글·멀티 코어 점수</li>
+          <li><a href="https://benchmark.aws.atomai.click/#passmark">PassMark</a> — PassMark CPU Mark</li>
+          <li><a href="https://benchmark.aws.atomai.click/#stress-ng">stress-ng</a> — CPU·메모리·캐시 스트레스 7종</li>
+          <li><a href="https://benchmark.aws.atomai.click/#iperf3">iperf3</a> — 네트워크 대역폭·지터</li>
+          <li><a href="https://benchmark.aws.atomai.click/#redis">Redis</a> — Redis 8.8 SET/GET 처리량·지연 (io-threads 포함)</li>
+          <li><a href="https://benchmark.aws.atomai.click/#valkey">Valkey</a> — Valkey 9.1 SET/GET 처리량·지연 (io-threads 포함)</li>
+          <li><a href="https://benchmark.aws.atomai.click/#nginx">Nginx</a> — Nginx 정적 응답 wrk 처리량·지연</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/springboot">Spring Boot</a> — Spring Boot(Java 21) 최대 처리량·콜드스타트, JIT 설정 영향</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/springboot-memory">Spring Boot 메모리 압박</a> — G1GC 메모리 압박에서 동시 연결·지연·CPU, p90 기준 scale out과 KEDA 시뮬레이션</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/springboot-traffic48">48시간 트래픽</a> — 48시간 트래픽 변화·90k RPS 피크에서 Flex vs 표준형</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/fastapi">FastAPI</a> — FastAPI + uvicorn JSON·연산 처리량</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/django">Django</a> — Django + gunicorn 처리량</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/node">Node.js</a> — Node.js + Fastify 처리량</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/go">Go</a> — Go net/http 처리량</li>
+          <li><a href="https://benchmark.aws.atomai.click/#web/dotnet">ASP.NET Core</a> — ASP.NET Core(Kestrel) 처리량</li>
+          <li><a href="https://benchmark.aws.atomai.click/#elasticsearch">Elasticsearch</a> — Elasticsearch Rally 색인 처리량·지연과 기동 시간</li>
+          <li><a href="https://benchmark.aws.atomai.click/#clickhouse">ClickHouse</a> — ClickHouse ClickBench 43쿼리</li>
+          <li><a href="https://benchmark.aws.atomai.click/#kafka">Kafka</a> — Kafka produce/consume 처리량·지연, 포화점</li>
+        </ul>
+        <p>측정: Amazon EKS + Karpenter, 인스턴스마다 단독 노드, 대부분 5회 반복의 중앙값. 기준선은 탭마다 표기(기본 c7i.xlarge = 1.00배). 작성 <a href="https://www.atomai.click/">오준석 (Oh Junseok)</a>.</p>
+      </main>
+    </noscript>
     <script type="module" src="js/app.js"></script>
 </body>
 </html>
