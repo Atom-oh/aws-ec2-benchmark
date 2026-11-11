@@ -31,7 +31,7 @@ RESULTS_DIR="$BASE_DIR/results/${NAME}-remote"
 INSTANCE_FILE="$BASE_DIR/config/instances-4vcpu.txt"
 NAMESPACE="benchmark"
 SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-180}"  # env로 조정 가능(메모리 prefill 등 기동이 긴 서버)
-JOB_TIMEOUT=2400  # 원격 토폴로지 대부분 4~6분이나, 5세대 AMD(r5a 등)는 40K ops/s대라 20M req에 500s+ 소요 — 넉넉히 30분
+JOB_TIMEOUT="${JOB_TIMEOUT:-2400}"  # env로 조정 가능(sbmem2처럼 단계가 많고 OOM 복구 대기가 있는 측정은 3600). 기본: 원격 토폴로지 대부분 4~6분이나, 5세대 AMD(r5a 등)는 40K ops/s대라 20M req에 500s+ 소요 — 넉넉히 30분
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 log(){ echo -e "[$(date '+%H:%M:%S')] [$NAME-remote] $*"; }

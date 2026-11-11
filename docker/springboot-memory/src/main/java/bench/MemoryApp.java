@@ -44,6 +44,9 @@ public class MemoryApp {
     static volatile boolean ready = false;
     static final int WORK_KB = Integer.parseInt(System.getenv().getOrDefault("WORK_KB", "1024"));
     static final long HOLD_MS = Long.parseLong(System.getenv().getOrDefault("HOLD_MS", "1000"));
+    // 요청 처리 중 금방 버려지는 객체(JSON 파싱·DTO 변환·직렬화 버퍼 흉내) — 처리량에 비례해 young GC 작업이 늘어난다.
+    // 0이면 기존(1.2) 동작. 반은 대기 전(요청 파싱), 반은 대기 후(응답 직렬화)에 만든다.
+    static final int GARBAGE_KB = Integer.parseInt(System.getenv().getOrDefault("GARBAGE_KB", "0"));
     static final AtomicLong inflight = new AtomicLong(), inflightPeak = new AtomicLong(), processed = new AtomicLong();
 
     record Entry(int id, long updated, byte[] payload) {}
@@ -126,14 +129,29 @@ public class MemoryApp {
             // 요청이 세션/캐시를 갱신하는 운영 패턴: 상주 데이터 1항목 교체(이전 객체는 old 영역 가비지)
             int key = ThreadLocalRandom.current().nextInt(N);
             CACHE.put(key, newEntry(key));
+            long g = churn(GARBAGE_KB / 2, body);
             Thread.sleep(HOLD_MS);
-            long sum = 0;
+            g += churn(GARBAGE_KB - GARBAGE_KB / 2, body);
+            long sum = g;
             for (byte[] c : work) sum += c[0] + c[c.length - 1];
             processed.incrementAndGet();
             return Map.of("chunks", n, "sum", sum, "inflight", now);
         } finally {
             inflight.decrementAndGet();
         }
+    }
+
+    /** kb만큼 짧게 사는 객체를 만들고 버린다(4KB 조각 + 문자열 변환). 결과 합을 돌려줘 JIT가 지우지 못하게 한다. */
+    static long churn(int kb, byte[] body) {
+        long acc = 0;
+        for (int done = 0; done < kb; done += 4) {
+            byte[] b = new byte[4096];
+            System.arraycopy(body, 0, b, 0, Math.min(body.length, b.length));
+            b[done % 4096] ^= (byte) done;
+            String str = new String(b, 0, 256, java.nio.charset.StandardCharsets.ISO_8859_1);
+            acc += str.hashCode() + b[4095];
+        }
+        return acc;
     }
 
     @GetMapping("/health")
@@ -146,7 +164,7 @@ public class MemoryApp {
         return "java " + System.getProperty("java.version") + " " + System.getProperty("java.vm.vendor")
                 + " springboot " + SpringApplication.class.getPackage().getImplementationVersion()
                 + " gc " + ManagementFactory.getGarbageCollectorMXBeans().stream().map(GarbageCollectorMXBean::getName).toList()
-                + " entries " + N + " entry_kb " + ENTRY_KB + " work_kb " + WORK_KB + " hold_ms " + HOLD_MS
+                + " entries " + N + " entry_kb " + ENTRY_KB + " work_kb " + WORK_KB + " hold_ms " + HOLD_MS + " garbage_kb " + GARBAGE_KB
                 + " heap_max_mb " + (Runtime.getRuntime().maxMemory() >> 20)
                 + " virtual_threads " + Thread.currentThread().isVirtual()
                 + " cpus " + Runtime.getRuntime().availableProcessors();

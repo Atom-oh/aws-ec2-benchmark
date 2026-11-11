@@ -19,6 +19,7 @@
         <tr><td>상주 데이터</td><td><strong>전 인스턴스 동일 2GB</strong> 캐시(엔트리 4KB). 요청마다 1항목씩 교체(세션·캐시 갱신). 상주 데이터 조건을 같게 두어 인스턴스 간 차이는 처리량이 늘며 쌓이는 작업 객체에서만 나게 했습니다 — 그래야 메모리가 남는데 CPU가 차는지, 메모리가 차서 CPU가 남는지가 인스턴스별로 드러납니다</td></tr>
         <tr><td>힙</td><td><strong>RAM의 60%</strong>(-Xms=-Xmx, 실제 값은 표 1). 메모리가 큰 인스턴스는 그만큼 큰 힙을 실제로 씁니다</td></tr>
         <tr><td>요청</td><td>POST <code>/process</code>: 8KB 본문을 1MB 작업 객체로 펼친 뒤 <strong>10초 대기</strong>(느린 하위 시스템) 후 응답. 대기를 1초로 하면 처리 중 요청 수만큼 초당 요청이 들어와 할당·GC가 CPU를 먼저 포화시켜(스모크에서 r6g가 이론치 절반에서 CPU 93%) "메모리가 꽉 차고 CPU가 남는" 상황이 되지 않습니다. 본문을 작게 둔 것도 네트워크 대역폭이 교란 변수가 되지 않게 하기 위함입니다</td></tr>
+        <tr><td>측정 조건 (위 버튼으로 전환)</td><td><strong>요청당 garbage 4MB</strong>(기본): 요청마다 금방 버려지는 객체 4MB(JSON 파싱·DTO 변환·직렬화 버퍼 흉내)를 더 만들어, 처리량이 늘수록 GC 작업이 늘어나는 운영형 조건. 부하 단계를 75~96%에서 4~5%p 간격으로 세밀하게. <strong>요청당 garbage 없음</strong>: 1MB 작업 객체만 — 같은 RAM이면 아키텍처와 무관하게 같은 메모리 벽에 닿는 조건</td></tr>
         <tr><td>부하</td><td>인스턴스마다 이론 최대 처리 중 요청 수 = (힙 − 상주) ÷ 1MB를 구해, 동시 커넥션을 그 25 → 50 → 60 → 70 → 80 → 90 → 100 → 110%로 늘림(단계마다 90초, 2단계 연속 실패 시 중단). 가상 스레드라 커넥션 수 = 처리 중 요청 수 ≈ 쌓인 작업 객체(1MB씩)</td></tr>
         <tr><td>JVM</td><td>Corretto 21.0.13, Spring Boot 4.1.2, <code>-XX:+UseG1GC -XX:MaxGCPauseMillis=100</code>, 힙 고정(-Xms=-Xmx), <code>AlwaysPreTouch</code>, <code>ExitOnOutOfMemoryError</code>(OOM 시 재시작). 나머지는 JVM 기본값</td></tr>
         <tr><td>판정</td><td>단계 통과 = p99 ≤ 대기 + 1초(11초) + 오류 0 + OOM 재시작 없음. <strong>버틴 커넥션</strong> = 연속으로 통과한 가장 높은 단계(5회 중앙값). GC 정지 비율은 원인 설명용 참고값</td></tr>

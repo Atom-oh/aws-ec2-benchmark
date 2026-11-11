@@ -5,7 +5,32 @@ import { renderVerdict } from './springboot-memory-verdict.js';
 import { standardReport, scenario, x, short } from '../report.js';
 
 
+// 측정 변형 선택: envelope.variants 중 전 인스턴스(24)가 측정된 것만 버튼으로. 선택하면 tier/pcts/analysis를 바꿔 다시 그린다.
+const FULL = 24;
 export async function render(root, { rows, envelope }) {
+  const vars = Object.entries(envelope.variants || {}).filter(([, v]) => v.coverage >= FULL);
+  let current = envelope.variant;
+  let inner = null;
+  const bar = document.createElement('div');
+  bar.className = 'variant-bar';
+  const draw = async () => {
+    if (inner) inner.destroy();
+    const v = envelope.variants?.[current];
+    const env = v ? { ...envelope, tier: v.tier, pcts: v.pcts, analysis: v.analysis, variant: current } : envelope;
+    inner = await renderVariant(root, { rows, envelope: env });
+    bar.innerHTML = vars.length > 1
+      ? `<span class="variant-label">측정 조건</span>${vars.map(([k, x]) => `<button type="button" class="subnav-link${k === current ? ' active' : ''}" data-variant="${k}" title="${x.note}">${x.label}</button>`).join('')}`
+        + `<p class="caption">${envelope.variants[current].note}</p>`
+      : '';
+  };
+  const onBar = (e) => { const b = e.target.closest('[data-variant]'); if (b && b.dataset.variant !== current) { current = b.dataset.variant; draw(); } };
+  bar.addEventListener('click', onBar);
+  root.prepend(bar);
+  await draw();
+  return { destroy() { bar.removeEventListener('click', onBar); if (inner) inner.destroy(); bar.remove(); } };
+}
+
+async function renderVariant(root, { rows, envelope }) {
   const handles = [];
   // 종합 판정은 48시간 트래픽 측정(같은 M 패밀리 6종)과 함께 본다 — 없으면 동시접속 쪽만
   const t48 = await loadData('springboot-traffic48').catch(() => null);
@@ -19,7 +44,9 @@ export async function render(root, { rows, envelope }) {
   const cap = (n) => T[n]?.capacity || 0;
   const cost = (n) => (cap(n) ? meta[n].price / (cap(n) / 1000) : null);
   const gcAtCap = (n) => T[n]?.stages?.[String(T[n].util_pct)]?.gc_pct ?? null;
-  const AT = envelope.analysis?.sbmem_capacity?.table || {}, BASE = envelope.analysis?.sbmem_capacity?.baseline;
+  const AKEY = Object.keys(envelope.analysis || {})[0];   // 변형별 키(sbmem_capacity / sbmem2_capacity)
+  const AT = envelope.analysis?.[AKEY]?.table || {}, BASE = envelope.analysis?.[AKEY]?.baseline;
+  const STEP = (() => { const q = envelope.pcts || []; const g = q.slice(1).map((v, k) => v - q[k]).filter((d) => d > 0); return g.length ? Math.min(...g) : null; })();
   const byCost = names.filter((n) => cost(n)).sort((a, b) => cost(a) - cost(b));
   const avg = (v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null);
   const pick = (n) => (meta[n] && cost(n) ? `${short(n)} ${fmt(cap(n))}커넥션 · 1,000커넥션당 $${cost(n).toFixed(3)}/시간` : '');
@@ -47,7 +74,7 @@ export async function render(root, { rows, envelope }) {
       + `같은 메모리끼리: ${['m8g.xlarge|m8i.xlarge', 'r8g.xlarge|r8i.xlarge', 'r6g.xlarge|r6i.xlarge'].map((p) => pairLine(...p.split('|'))).filter(Boolean).join(', ')}커넥션.</p>`,
     `<p><strong>1,000커넥션을 버티는 데 드는 시간당 비용</strong>이 가장 낮은 것은 ${byCost.slice(0, 3).map(pick).join(', ')} 순입니다. `
       + (r6m8 ? `질문하신 r6g와 m8i는 ${r6m8 >= 1 ? `r6g가 ${x(r6m8)} 저렴` : `m8i가 ${x(1 / r6m8)} 저렴`}합니다(${pick('r6g.xlarge')} / ${pick('m8i.xlarge')}).` : '') + '</p>',
-    '<p class="caption">단계가 이론 최대의 10% 간격이라 같은 단계에서 멈춘 인스턴스는 값이 같게 나옵니다(그 사이 차이는 이 측정의 해상도 밖). CPU 중심 측정(Spring Boot 탭, 최대 처리량)과 달리 이 탭은 요청이 오래 머무는(느린 하위 시스템) 상황입니다. 메모리 크기와 GC 처리 능력이 함께 결과를 정합니다.</p>',
+    `<p class="caption">단계가 이론 최대의 ${STEP ?? '—'}%p 간격(가장 촘촘한 구간 기준)이라 같은 단계에서 멈춘 인스턴스는 값이 같게 나옵니다(그 사이 차이는 이 측정의 해상도 밖). ` + 'CPU 중심 측정(Spring Boot 탭, 최대 처리량)과 달리 이 탭은 요청이 오래 머무는(느린 하위 시스템) 상황입니다. 메모리 크기와 GC 처리 능력이 함께 결과를 정합니다.</p>',
   ].join('');
 
   // ---------- 표 1 ----------
@@ -187,7 +214,7 @@ export async function render(root, { rows, envelope }) {
   };
 
   // ---------- 표준 리포트 ----------
-  const A = envelope.analysis?.sbmem_capacity;
+  const A = envelope.analysis?.[AKEY];
   if (A) {
     handles.push(standardReport(slot('report'), rows, A, {
       unit: '커넥션',
