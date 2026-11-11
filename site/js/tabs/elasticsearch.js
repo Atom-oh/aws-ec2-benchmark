@@ -1,6 +1,6 @@
 // ES 고유 SLOT A: 페이지 레벨 탭(Rally/Coldstart/종합) — 표준 metricTabChart와는 다른 층위의
 // 스위처라 자체 구현. scatter 차트도 표준 컴포넌트에 없어 bespoke.
-// rally 필드는 51개 인스턴스만 값이 있고(c8gn/r8gd는 null) — shared.get()의 dot-path가 null
+// rally 필드가 없는 인스턴스는 null(백필 전) — shared.get()의 dot-path가 null
 // 중간 경로를 undefined로 반환해 topNBar/metricTabChart의 null 필터링에 자동으로 걸린다.
 import {
   buildToc, summaryCards, topNBar, metricTabChart, priceSection, resultTable, fmt, archColor,
@@ -9,7 +9,25 @@ import { standardReport, scenario } from '../report.js';
 
 export async function render(root, { rows, envelope }) {
   const handles = [];
-  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.cold_ms, { unit: 'ms', leadHtml: '<p class="caption">JVM 힙을 RAM의 60%로 잡으므로 C/M/R의 메모리 차이가 기동 시간에 영향을 줍니다. 그래서 같은 프로세서 C/M/R 이상치 검사는 끄고, flex/표준 짝만 검사했습니다.</p>' }));
+  // 표준 리포트: 지표 선택 — Rally 색인 처리량(기본, 실제 ES 워크로드) / Rally p99 / 기동 시간
+  const REPORTS = [
+    ['rally_tput', 'Rally 색인 처리량', 'docs/s', '<p class="caption">Rally geonames 트랙의 index-append(대량 색인) 평균 처리량, 5회. ES 서버는 대상 인스턴스 단독 노드, Rally 클라이언트는 전용 노드. JVM 힙은 C/M/R 공통 3GB.</p>'],
+    ['rally_p99', 'Rally 색인 p99 지연', 'ms', '<p class="caption">index-append bulk 요청의 p99 지연, 5회 평균.</p>'],
+    ['cold_ms', '기동 시간', 'ms', '<p class="caption">JVM 힙을 RAM의 60%로 잡으므로 C/M/R의 메모리 차이가 기동 시간에 영향을 줍니다. 그래서 같은 프로세서 C/M/R 이상치 검사는 끄고, flex/표준 짝만 검사했습니다.</p>'],
+  ].filter(([k]) => envelope.analysis?.[k]);
+  const repHost = root.querySelector('[data-slot="report"]');
+  repHost.innerHTML = `<div class="subnav" data-es-metric>${REPORTS.map(([k, l], i) => `<button type="button" class="subnav-link${i ? '' : ' active'}" data-k="${k}">${l}</button>`).join('')}</div><div data-es-report></div>`;
+  let repHandle = null;
+  const showReport = (key) => {
+    const [k, , unit, lead] = REPORTS.find((r) => r[0] === key);
+    if (repHandle) repHandle.destroy();
+    repHandle = standardReport(repHost.querySelector('[data-es-report]'), rows, envelope.analysis[k], { unit, leadHtml: lead });
+    repHost.querySelectorAll('[data-k]').forEach((b) => b.classList.toggle('active', b.dataset.k === key));
+  };
+  const onMetric = (e) => { const b = e.target.closest('[data-k]'); if (b) showReport(b.dataset.k); };
+  repHost.addEventListener('click', onMetric);
+  if (REPORTS.length) showReport(REPORTS[0][0]);
+  handles.push({ destroy() { repHost.removeEventListener('click', onMetric); if (repHandle) repHandle.destroy(); } });
   const rallyRows = rows.filter((r) => r.rally != null);
 
   const topRally = [...rallyRows].sort((a, b) => b.rally.throughput - a.rally.throughput)[0];
