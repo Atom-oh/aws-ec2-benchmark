@@ -1,11 +1,11 @@
 {
   "benchmark": "stress-ng",
-  "coverage": 52,
+  "coverage": 55,
   "headline": {
-    "field": "total",
+    "field": "r.geomean.value",
     "direction": "max",
-    "label": "종합 점수",
-    "unit": "score",
+    "label": "종합 지수(7종 기하평균)",
+    "unit": "bogo ops/s",
     "analysis_key": "geomean",
     "category": "CPU 연산"
   },
@@ -1332,6 +1332,32 @@
         }
       }
     },
+    "c8gn.xlarge": {
+      "matrix": 22084,
+      "float": 53774,
+      "int": 522211,
+      "memcpy": 1800,
+      "cache": 27,
+      "ctx_switch": 1955778,
+      "branch": 612744,
+      "total": null,
+      "r": {
+        "geomean": {
+          "value": 32103.286,
+          "cv": 1.61,
+          "n": 5,
+          "min": 31449.913,
+          "max": 32887.0375,
+          "runs": [
+            32738.1316,
+            32038.7097,
+            32887.0375,
+            31449.913,
+            32103.286
+          ]
+        }
+      }
+    },
     "c9g.xlarge": {
       "matrix": 28497,
       "float": 63531,
@@ -1354,6 +1380,58 @@
             38557.9921,
             37887.1669,
             38018.747
+          ]
+        }
+      }
+    },
+    "m8i-flex.xlarge": {
+      "matrix": 11369,
+      "float": 47732,
+      "int": 373850,
+      "memcpy": 1175,
+      "cache": 1,
+      "ctx_switch": 1584085,
+      "branch": 381356,
+      "total": null,
+      "r": {
+        "geomean": {
+          "value": 14072.9885,
+          "cv": 1.04,
+          "n": 5,
+          "min": 13840.1788,
+          "max": 14250.6206,
+          "runs": [
+            13840.1788,
+            14072.9885,
+            14250.6206,
+            13908.7331,
+            14106.3082
+          ]
+        }
+      }
+    },
+    "r8gd.xlarge": {
+      "matrix": 21994,
+      "float": 53808,
+      "int": 522117,
+      "memcpy": 1801,
+      "cache": 27,
+      "ctx_switch": 1967161,
+      "branch": 613021,
+      "total": null,
+      "r": {
+        "geomean": {
+          "value": 32317.7705,
+          "cv": 1.16,
+          "n": 5,
+          "min": 31598.4605,
+          "max": 32613.1975,
+          "runs": [
+            31984.6258,
+            32613.1975,
+            32317.7705,
+            32523.6473,
+            31598.4605
           ]
         }
       }
@@ -2265,6 +2343,23 @@
           "ppd": 0.7827,
           "flags": []
         },
+        "c8gn.xlarge": {
+          "value": 32103.286,
+          "cv": 1.61,
+          "n": 5,
+          "min": 31449.913,
+          "max": 32887.0375,
+          "runs": [
+            32738.1316,
+            32038.7097,
+            32887.0375,
+            31449.913,
+            32103.286
+          ],
+          "perf": 2.1277,
+          "ppd": 1.6037,
+          "flags": []
+        },
         "c9g.xlarge": {
           "value": 38018.747,
           "cv": 1.48,
@@ -2281,11 +2376,47 @@
           "perf": 2.5198,
           "ppd": 2.6011,
           "flags": []
+        },
+        "m8i-flex.xlarge": {
+          "value": 14072.9885,
+          "cv": 1.04,
+          "n": 5,
+          "min": 13840.1788,
+          "max": 14250.6206,
+          "runs": [
+            13840.1788,
+            14072.9885,
+            14250.6206,
+            13908.7331,
+            14106.3082
+          ],
+          "perf": 0.9327,
+          "ppd": 0.7628,
+          "flags": []
+        },
+        "r8gd.xlarge": {
+          "value": 32317.7705,
+          "cv": 1.16,
+          "n": 5,
+          "min": 31598.4605,
+          "max": 32613.1975,
+          "runs": [
+            31984.6258,
+            32613.1975,
+            32317.7705,
+            32523.6473,
+            31598.4605
+          ],
+          "perf": 2.1419,
+          "ppd": 1.2257,
+          "flags": []
         }
       },
       "rank_perf": [
         "c9g.xlarge",
+        "r8gd.xlarge",
         "m8g.xlarge",
+        "c8gn.xlarge",
         "r8g.xlarge",
         "c8g.xlarge",
         "c7gd.xlarge",
@@ -2331,6 +2462,7 @@
         "r5b.xlarge",
         "r8i-flex.xlarge",
         "c8i-flex.xlarge",
+        "m8i-flex.xlarge",
         "r5n.xlarge",
         "r5d.xlarge",
         "m5d.xlarge",
@@ -2345,6 +2477,7 @@
         "m7g.xlarge",
         "c6g.xlarge",
         "c7gd.xlarge",
+        "c8gn.xlarge",
         "c6gd.xlarge",
         "c5a.xlarge",
         "r8g.xlarge",
@@ -2352,6 +2485,7 @@
         "m6g.xlarge",
         "m7gd.xlarge",
         "c6gn.xlarge",
+        "r8gd.xlarge",
         "m6gd.xlarge",
         "r7gd.xlarge",
         "r6g.xlarge",
@@ -2371,6 +2505,7 @@
         "c6in.xlarge",
         "m7i.xlarge",
         "m5ad.xlarge",
+        "m8i-flex.xlarge",
         "m5.xlarge",
         "m8i.xlarge",
         "r5a.xlarge",
@@ -2552,6 +2687,16 @@
           "perf": 0.9813,
           "price": 0.9481,
           "ppd": 1.035,
+          "group": "8세대",
+          "verdict": "비슷",
+          "perf_verdict": "비슷"
+        },
+        {
+          "left": "m8i-flex.xlarge",
+          "right": "m8i.xlarge",
+          "perf": 0.9801,
+          "price": 0.95,
+          "ppd": 1.0317,
           "group": "8세대",
           "verdict": "비슷",
           "perf_verdict": "비슷"

@@ -1,0 +1,177 @@
+# iperf3 UDP 전용 측정 (2026-11-12) — iperf3-network.yaml에서 UDP 시험만 떼어 낸 것.
+# 기존 템플릿의 Service는 TCP 5201만 열어, Service ClusterIP로 접속한 회차는 UDP가 전부 실패했다
+# ("unable to read from stream socket": 172.20.x 접속 146회 전부 실패, 10.100.x 접속 129회 전부 성공).
+# → Service에 UDP 5201을 함께 열고(iperf3는 TCP 제어 연결 + UDP 데이터), 전 인스턴스를 같은 방법으로 5회 측정.
+# 결과 results/iperf3-udp/<instance>/run<N>.log. 실행: scripts/backfill-job.sh iperf3-udp <instance>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iperf3-server-INSTANCE_SAFE
+  namespace: benchmark
+spec:
+  selector:
+    app: iperf3-server
+    instance-type: "${INSTANCE_TYPE}"
+  ports:
+    - name: iperf3-tcp
+      port: 5201
+      targetPort: 5201
+      protocol: TCP
+    - name: iperf3-udp
+      port: 5201
+      targetPort: 5201
+      protocol: UDP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iperf3-server-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    app: iperf3-server
+    benchmark: iperf3
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iperf3-server
+      instance-type: "${INSTANCE_TYPE}"
+  template:
+    metadata:
+      labels:
+        app: iperf3-server
+        benchmark: iperf3
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - ap-northeast-2a
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - ap-northeast-2b
+            - weight: 25
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - ap-northeast-2c
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: iperf3-server
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              apt-get update -qq && apt-get install -y -qq iperf3 > /dev/null 2>&1
+              iperf3 -s
+          ports:
+            - containerPort: 5201
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iperf3-udp-benchmark-INSTANCE_SAFE
+  namespace: benchmark
+  labels:
+    benchmark: iperf3
+    test-type: network
+    instance-type: "${INSTANCE_TYPE}"
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        benchmark: iperf3
+        test-type: network
+        instance-type: "${INSTANCE_TYPE}"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+      tolerations:
+        - key: "benchmark"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        # Pod Affinity: 같은 instance-type의 서버와 같은 AZ에 배치
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: iperf3-server
+                  instance-type: "${INSTANCE_TYPE}"
+              topologyKey: "topology.kubernetes.io/zone"
+        # Pod Anti-Affinity: 같은 노드에 다른 benchmark pod 배치 금지
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: benchmark
+                    operator: Exists
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: iperf3-client
+          image: public.ecr.aws/docker/library/ubuntu:22.04
+          resources: {}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              apt-get update -qq && apt-get install -y -qq iperf3 netcat-openbsd > /dev/null 2>&1
+
+              SERVER="IPERF_SERVER_IP"
+
+              echo "===== iperf3 UDP Benchmark ====="
+              echo "Instance Type: ${INSTANCE_TYPE}"
+              echo "Server: ${SERVER}"
+              echo ""
+
+              # Wait for server to be ready
+              for i in $(seq 1 30); do
+                if nc -z ${SERVER} 5201 2>/dev/null; then
+                  echo "Server is ready"
+                  break
+                fi
+                echo "Waiting for server..."
+                sleep 2
+              done
+
+              echo "--- UDP Bandwidth Test (1Gbps target, 30s) ---"
+              iperf3 -c ${SERVER} -t 30 -u -b 1G 2>&1
+
+              echo ""
+              echo "===== iperf3 Benchmark Complete ====="
+          env:
+            - name: INSTANCE_TYPE
+              value: "${INSTANCE_TYPE}"

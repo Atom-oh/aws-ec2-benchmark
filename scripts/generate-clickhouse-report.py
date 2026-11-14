@@ -8,6 +8,7 @@ results/clickhouse/report-charts.html 의 __CLICKHOUSE_DATA__ placeholder에 JSO
 
 빈 입력(로그 없음)에도 graceful — 빈 데이터로 처리.
 """
+import sys
 import json
 import re
 import statistics
@@ -41,6 +42,11 @@ PRICE = {
     "r6id.xlarge": 0.363, "r7g.xlarge": 0.258, "r7gd.xlarge": 0.327, "r7i.xlarge": 0.319,
     "r8g.xlarge": 0.284, "r8i-flex.xlarge": 0.318, "r8i.xlarge": 0.335,
 }
+# 가격의 정본은 scripts/dashboard/common.py PRICE — 로컬 표에 없는 인스턴스(예: c9g)를 거기서 채운다(2026-11-12:
+# 이 표에 c9g가 없어 c9g의 price/value가 null로 대시보드에 들어갔음).
+sys.path.insert(0, str(Path(__file__).resolve().parent / "dashboard"))
+from common import PRICE as _COMMON_PRICE  # noqa: E402
+PRICE = {**PRICE, **_COMMON_PRICE}
 
 
 def load_instance_meta():

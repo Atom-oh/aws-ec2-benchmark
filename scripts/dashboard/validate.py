@@ -51,6 +51,17 @@ KNOWN_DIFFERENT_SOURCE = (
         ]
         for field in ["wrk.rps50", "wrk.rps100", "wrk.rps200", "wrk.lat50_ms", "wrk.lat99_ms"]
     }
+    # elasticsearch coldstart 검색 지표: 원래 측정의 템플릿 전역 s/ARCH/<arch>/ 치환이 출력 라벨까지 SEarm64_/SEamd64_ 로 깨뜨려
+    # (52개 인스턴스 209회), 레거시 값은 라벨이 정상인 회차(대개 1회)만의 평균이었다. 파서가 깨진 라벨도 읽어 5회 평균이 되었으므로
+    # 레거시와 다른 게 정상(2026-11-12, scripts/dashboard/parsers/elasticsearch.py COLDSTART_PATTERNS).
+    | {
+        ("elasticsearch", row["instance"], field)
+        for row in json.loads((LEGACY_DIR / "elasticsearch.json").read_text())
+        for field in ["coldstart.search_match_all_ms", "coldstart.search_term_ms"]
+    }
+    # m5a·r5n coldstart1.log는 2026-01부터 0바이트(빈 로그)였고 2026-11-12에 1회차를 새로 측정 → 레거시는 4회 평균, 지금은 5회 평균
+    | {("elasticsearch", inst, field) for inst in ["m5a.xlarge", "r5n.xlarge"]
+       for field in ["coldstart.avg_ms", "coldstart.sequential_index_ms", "coldstart.bulk_index_ms"]}
 )
 
 # site 필드명 -> legacy 필드명, 그리고 legacy 레코드의 인스턴스 식별 키

@@ -16,21 +16,22 @@ const METRICS = [
 export async function render(root, { rows, envelope }) {
   const handles = [];
   handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.geomean, { unit: 'bogo ops/s', leadHtml: '<p class="caption">종합 지수 = 스트레서 7종(matrix, cpu float, cpu int, memcpy, cache, switch, branch)의 bogo ops/s(실제 시간 기준)를 회차마다 기하평균한 값입니다. 부록의 이전 <code>total</code> 점수와는 산식이 다릅니다.</p>' }));
-  const topTotal = [...rows].filter((r) => r.total != null).sort((a, b) => b.total - a.total)[0];
-  const topEff = rows.filter((r) => r.total != null && r.price).map((r) => ({ ...r, __eff: r.total / r.price }))
+  const gm = (r) => r.r?.geomean?.value ?? null;   // 종합 지수(7종 기하평균) — 전 인스턴스
+  const topTotal = [...rows].filter((r) => gm(r) != null).sort((a, b) => gm(b) - gm(a))[0];
+  const topEff = rows.filter((r) => gm(r) != null && r.price).map((r) => ({ ...r, __eff: gm(r) / r.price }))
     .sort((a, b) => b.__eff - a.__eff)[0];
 
   handles.push(summaryCards(root.querySelector('[data-slot="summary-cards"]'), [
-    { label: '최고 종합 점수', value: topTotal.name, detail: `${fmt(topTotal.total)} score` },
-    { label: '최고 가성비', value: topEff.name, detail: `${fmt(topEff.__eff)} score per $/hr` },
+    { label: '최고 종합 지수', value: topTotal.name, detail: `${fmt(gm(topTotal))} bogo ops/s (7종 기하평균)` },
+    { label: '최고 가성비', value: topEff.name, detail: `${fmt(topEff.__eff)} bogo ops/s per $/hr` },
   ]));
 
   handles.push(topNBar(root.querySelector('[data-slot="top20"]'), rows, { metrics: METRICS, n: 20 }));
   handles.push(metricTabChart(root.querySelector('[data-slot="arch-gen"]'), rows, METRICS));
-  handles.push(genImprovement(root.querySelector('[data-slot="improvement"]'), rows, { field: 'total' }));
+  handles.push(genImprovement(root.querySelector('[data-slot="improvement"]'), rows, { field: 'r.geomean.value' }));
 
   handles.push(priceSection(root.querySelector('[data-slot="price"]'), rows, {
-    mainMetric: { field: 'total', label: '종합 점수', unit: 'score', direction: 'max' },
+    mainMetric: { field: 'r.geomean.value', label: '종합 지수(7종 기하평균)', unit: 'bogo ops/s', direction: 'max' },
     gridMetrics: [
       { field: 'matrix', label: 'Matrix', unit: 'bogo ops/s', direction: 'max' },
       { field: 'memcpy', label: 'Memcpy', unit: 'bogo ops/s', direction: 'max' },
@@ -46,7 +47,8 @@ export async function render(root, { rows, envelope }) {
     { field: 'int', label: 'Int', fmt: fmt },
     { field: 'memcpy', label: 'Memcpy', fmt: fmt },
     { field: 'ctx_switch', label: 'Switch(K)', fmt: fmt },
-    { field: 'total', label: '종합', fmt: fmt },
+    { field: 'r.geomean.value', label: '종합 지수', fmt: fmt },
+    { field: 'total', label: '이전 종합(산식 미상)', fmt: fmt },
     { field: 'price', label: '$/hr', fmt: (v) => `$${v.toFixed(3)}` },
   ]));
 

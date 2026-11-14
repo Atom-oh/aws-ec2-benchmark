@@ -38,6 +38,22 @@ def build():
         if cm:
             instances[name] = {"cpu_mark": round(sum(cm) / len(cm), 1), "single": round(sum(sg) / len(sg), 1) if sg else None,
                                "int": None, "float": None, "encryption": None, "compression": None}
+    # 세부 점수는 원시 로그(PerformanceTest 결과의 CPU_* 항목)에서 회차 평균 — 레거시 JSON은 Top-15만 값이 있고 일부는
+    # cpu_mark 비율 추정이었음(2026-11-12 원시 로그로 교체, 51→전 인스턴스). cpu_mark/single은 validate.py가 레거시와 대조.
+    SUBS = {"int": "CPU_INTEGER_MATH", "float": "CPU_FLOATINGPOINT_MATH", "encryption": "CPU_ENCRYPTION", "compression": "CPU_COMPRESSION"}
+    for name in instances:
+        acc = {k: [] for k in SUBS}
+        for lp in sorted((RESULTS_DIR / "passmark" / name).glob("run*.log")):
+            t = lp.read_text(errors="replace")
+            if not re.search(r"SUMM_CPU:\s*[1-9]", t):
+                continue
+            for k, lab in SUBS.items():
+                m = re.search(rf"^\s+{lab}:\s*([\d.]+)", t, re.M)
+                if m:
+                    acc[k].append(float(m.group(1)))
+        for k, v in acc.items():
+            if v:
+                instances[name][k] = round(sum(v) / len(v), 1)
     rep = {"cpu_mark": {}, "single": {}}
     for name in instances:
         for lp in sorted((RESULTS_DIR / "passmark" / name).glob("run*.log")):
@@ -72,8 +88,8 @@ def build():
         "headline": {"field": "cpu_mark", "direction": "max", "label": "CPU Mark", "unit": "score",
                      "caveat": "x86 전용 확장 명령어(AVX/AVX-512) 항목이 arm64에서 0점이고 압축·암호화 경로가 x86에 유리 — 아키텍처 비교에는 부적합(PassMark 탭)"},
         "notes": {
-            "coverage_caveat": "51/54 — 신규 3개 인스턴스는 원시 로그 없음",
-            "estimated": "int/float/encryption/compression은 Top-15만 커버하는 상세테스트 결과(cpu_mark 비율 추정 섞임) — 51개 전체에 값이 있는 것은 cpu_mark/single뿐",
+            "coverage_caveat": "레거시 51개 + 원시 로그로 보충한 인스턴스(c9g, 2026-11 백필 c8gn/m8i-flex/r8gd)",
+            "subscores_source": "int/float/encryption/compression은 원시 로그(CPU_INTEGER_MATH 등) 회차 평균 — 레거시 Top-15 추정값을 대체(2026-11-12)",
         },
         "instances": instances,
         "analysis": blocks,
