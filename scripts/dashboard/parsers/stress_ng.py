@@ -51,7 +51,9 @@ def build():
     return {
         "benchmark": "stress-ng",
         "coverage": len(instances),
-        "headline": {"field": "total", "direction": "max", "label": "종합 점수", "unit": "score"},
+        # 종합 히트맵·점수는 회차별 7종 기하평균(analysis 'geomean', 전 인스턴스) — 레거시 total은 산식 미상이고
+        # 2026-11 이후 인스턴스(c9g 등)에 없어 그 인스턴스가 종합에서 빠졌음(2026-11-12)
+        "headline": {"field": "r.geomean.value", "direction": "max", "label": "종합 지수(7종 기하평균)", "unit": "bogo ops/s"},
         "notes": {"coverage_caveat": "51/54 — 신규 3개 인스턴스는 원시 로그 없음"},
         "instances": instances,
         "analysis": blocks,

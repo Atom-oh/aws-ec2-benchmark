@@ -114,6 +114,26 @@ EKS EC2 Node Benchmark - 다양한 EC2 인스턴스 타입(5세대~8세대, 54�
 - 헤드리스 Chromium(`--single-process`)은 종료 시 작업 디렉터리에 코어 덤프(수백 MB, 희소 1.4TB)를 남긴다. `site/` 안에서
   띄우면 배포 rsync가 그 파일을 복사하다 멈춤(2026-11-06 실제 발생) → 브라우저 검증은 `site/` 밖에서, 배포 rsync는 `--exclude='core.*'`.
 
+### 빈칸 점검·백필 (2026-11-12~14)
+전 벤치마크 데이터의 인스턴스 누락·필드 null을 점검해 채움. 원인이 측정 누락이 아니라 파싱·설정 문제인 경우가 많았다:
+- **iperf3 UDP**: 템플릿 Service가 TCP 5201만 열어, Service ClusterIP(172.20.x)로 접속한 회차는 UDP가 전부 실패(146/146),
+  다른 주소(10.100.x)로 접속한 원래 회차만 성공(129/129) → 인스턴스마다 UDP 표본 0~5개. `benchmarks/system/iperf3-udp.yaml`
+  (Service에 UDP 5201 추가, UDP 시험만)로 55개 × 5회 재측정 → `results/iperf3-udp/`(55개 전부 5/5), 파서가 UDP를 여기서 읽음.
+- **ES Coldstart 검색 지표**: `backfill-job.sh`와 원래 측정의 전역 `s/ARCH/<arch>/`가 `SEARCH_*` 출력 라벨까지 `SEarm64_*`로 깨뜨림
+  (52개 인스턴스 209회) → 기존 값은 대개 정상 라벨 1회차만의 평균이었다. 파서가 깨진 라벨도 읽고, 스크립트는 `\bARCH\b`로 고침.
+  **템플릿 placeholder는 단어 단위로만 치환할 것.** m5a·r5n은 coldstart1.log가 0바이트라 1회차 재측정.
+- **ClickHouse·Kafka c9g price/value null**: `generate-{clickhouse,kafka}-report.py`의 자체 가격표에 c9g가 없었음 →
+  정본 `scripts/dashboard/common.py` PRICE로 채우게 함. 원시 로그 추가 후엔 이 두 스크립트를 먼저 돌려야 대시보드에 반영된다.
+- **PassMark 세부 점수**: 레거시 JSON(Top-15, 일부 추정)이 아니라 원시 로그 `CPU_INTEGER_MATH` 등 5회 평균으로(55개 전부).
+- **stress-ng 종합**: headline을 레거시 `total`(산식 미상, 신규 인스턴스 null) 대신 7종 기하평균 `r.geomean.value`로.
+- PassMark·stress-ng c8gn/m8i-flex/r8gd는 측정 자체가 없어 `backfill-job.sh`로 5회 백필.
+- **Geekbench 51/55 유지**: c9g·c8gn·m8i-flex·r8gd는 업로드가 `unknown error (internal code 35)`로 실패(Geekbench Browser가 이
+  네트워크를 Cloudflare로 차단, HTTP 403) → 무료판은 점수를 얻을 수 없음. Pro 라이선스(`--no-upload`)가 있으면
+  `scripts/backfill-geekbench.sh`로 측정 가능. 실패 로그는 결과 폴더에 넣지 않았다.
+- validate.py `KNOWN_DIFFERENT_SOURCE`에 ES 검색 지표(라벨 복구로 5회 평균)와 m5a·r5n 재측정 회차를 근거와 함께 등록.
+- ⚠️ 2026-11-12 06:03 다른 세션의 `~/.aws/credentials` 갱신과 겹쳐 kubectl 인증이 실패(`Unable to parse config file`)해 stress-ng
+  2회가 실패 → 같은 명령 재실행으로 채움(멱등). 장시간 실행 중 인증 오류는 이 공유 파일 갱신을 먼저 의심할 것.
+
 ### ⚠️ 실행기 동시성: 공유 워크스테이션 cgroup pids 한도
 이 워크스테이션의 모든 세션은 cgroup `code-server.service`의 **pids.max=8192(스레드 포함)**를 공유하며 평소에도
 다른 세션이 ~7,200을 쓴다. 55개 인스턴스를 한꺼번에 병렬로 돌리면 fork가 EAGAIN으로 실패해 가짜

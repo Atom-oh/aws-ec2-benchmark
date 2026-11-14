@@ -5,7 +5,7 @@ import { standardReport, scenario } from '../report.js';
 
 export async function render(root, { rows, envelope }) {
   const handles = [];
-  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.multi, { unit: '점', scenarios: [scenario(envelope.analysis.single, 'Geekbench 단일 코어, 8세대 C', 'c8g.xlarge', 'c8i.xlarge'), scenario(envelope.analysis.single, 'Geekbench 단일 코어, 7세대 C', 'c7g.xlarge', 'c7i.xlarge')], leadHtml: '<p class="caption">Geekbench 6 Preview 빌드는 점수를 Geekbench Browser에만 업로드하고 로컬 로그에는 0으로 남깁니다. 이 탭의 값은 인스턴스당 평균 1개라 회차 간 변동계수와 신뢰도 경고를 계산할 수 없습니다.</p>' }));
+  handles.push(standardReport(root.querySelector('[data-slot="report"]'), rows, envelope.analysis.multi, { unit: '점', scenarios: [scenario(envelope.analysis.single, 'Geekbench 단일 코어, 8세대 C', 'c8g.xlarge', 'c8i.xlarge'), scenario(envelope.analysis.single, 'Geekbench 단일 코어, 7세대 C', 'c7g.xlarge', 'c7i.xlarge')], leadHtml: (envelope.notes?.coverage_caveat ? `<p class="rel-note"><span class="verdict verdict-hold">측정 범위</span> ${envelope.notes.coverage_caveat}</p>` : '') + '<p class="caption">Geekbench 6 Preview 빌드는 점수를 Geekbench Browser에만 업로드하고 로컬 로그에는 0으로 남깁니다. 이 탭의 값은 인스턴스당 평균 1개라 회차 간 변동계수와 신뢰도 경고를 계산할 수 없습니다.</p>' }));
   const topMulti = [...rows].filter((r) => r.multi != null).sort((a, b) => b.multi - a.multi)[0];
   const topSingle = [...rows].filter((r) => r.single != null).sort((a, b) => b.single - a.single)[0];
   const topEff = rows.filter((r) => r.multi != null && r.price).map((r) => ({ ...r, __eff: r.multi / r.price }))

@@ -82,6 +82,21 @@ def build():
         if not any(runs.values()):
             continue
         instances[name] = {k: mean(v) for k, v in runs.items()}
+        # UDP: results/iperf3-udp(Service에 UDP 5201을 연 UDP 전용 측정, 2026-11-12)가 있으면 그 값을 쓴다 — 기존 로그는
+        # Service ClusterIP로 접속한 회차의 UDP가 전부 실패(TCP 포트만 열림)해 인스턴스마다 표본 수가 0~5로 달랐다.
+        udp_dir = RESULTS_DIR / "iperf3-udp" / name
+        if udp_dir.is_dir():
+            u = {k: [] for k in ("udp_mbps", "jitter_ms", "loss_pct")}
+            for lp in sorted(udp_dir.glob("run*.log")):
+                r = parse_log(lp)
+                for k in u:
+                    if r[k] is not None:
+                        u[k].append(r[k])
+            if u["udp_mbps"]:
+                for k, v in u.items():
+                    instances[name][k] = mean(v)
+                instances[name]["udp_source"] = "iperf3-udp"
+                instances[name]["udp_runs"] = len(u["udp_mbps"])
         rep["parallel_gbps"][name], rep["single_gbps"][name] = runs["parallel_gbps"], runs["single_gbps"]
 
     coverage = sum(1 for v in instances.values() if v["parallel_gbps"] is not None)
@@ -95,7 +110,7 @@ def build():
         "headline": {"field": "parallel_gbps", "direction": "max", "label": "TCP Parallel Bandwidth", "unit": "Gbps"},
         "notes": {
             "method": "iperf3 TCP Single/8-Parallel/Reverse(30s) + UDP(1Gbps target, 30s), 5회 평균. sender 측 Bitrate 기준(UDP는 receiver 측 Jitter/Loss).",
-            "udp_caveat": "UDP는 일부 run에서 소켓 오류로 완전 실패할 수 있어 평균 표본 수가 TCP보다 적을 수 있음",
+            "udp_caveat": "UDP는 results/iperf3-udp(Service에 UDP 포트를 연 UDP 전용 측정)가 있는 인스턴스는 그 값, 없으면 기존 로그 중 성공 회차 평균(기존 로그는 Service로 접속한 회차의 UDP가 실패)",
             "single_stream_caveat": "c7g/c7i/m8i.xlarge는 5회 중 1회가 'Broken pipe' 오류로 완전 실패해 TCP Single Stream이 4회 평균(다른 필드는 5회)",
         },
         "instances": instances,

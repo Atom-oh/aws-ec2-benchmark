@@ -25,8 +25,10 @@ COLDSTART_PATTERNS = {
     "avg_ms": r"COLD_START_MS:\s*(\d+)",
     "sequential_index_ms": r"SEQUENTIAL_INDEX_100_MS:\s*(\d+)",
     "bulk_index_ms": r"BULK_INDEX_1000_MS:\s*(\d+)",
-    "search_match_all_ms": r"SEARCH_MATCH_ALL_AVG_MS:\s*(\d+)",
-    "search_term_ms": r"SEARCH_TERM_AVG_MS:\s*(\d+)",
+    # 일부 로그(m5a·r5n 2026-01, c9g 2026-11)는 템플릿 전역 s/ARCH/<arch>/ 치환으로 라벨이 SEarm64_/SEamd64_ 로 깨져
+    # 있다(값은 정상) — 세 형태를 모두 읽는다. 치환은 scripts/backfill-job.sh에서 단어 단위로 고침(2026-11-12).
+    "search_match_all_ms": r"SE(?:ARCH|arm64|amd64)_MATCH_ALL_AVG_MS:\s*(\d+)",
+    "search_term_ms": r"SE(?:ARCH|arm64|amd64)_TERM_AVG_MS:\s*(\d+)",
 }
 
 
